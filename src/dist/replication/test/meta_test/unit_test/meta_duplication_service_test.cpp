@@ -253,8 +253,7 @@ public:
                 auto &dup = kv.second;
 
                 ASSERT_TRUE(after.find(dupid) != after.end());
-                ASSERT_TRUE(dup->equals_to(*after[dupid]))
-                    << dup->to_string() << " " << after[dupid]->to_string();
+                ASSERT_TRUE(dup->equals_to(*after[dupid]));
             }
         }
     }
@@ -303,6 +302,31 @@ public:
                 ASSERT_EQ(app->duplicating, true);
             }
         }
+    }
+
+    void test_add_duplication_freezed()
+    {
+        std::string test_app = "test-app";
+
+        create_app(test_app);
+        auto app = find_app(test_app);
+
+        auto test_dup = create_dup(test_app, "slave-cluster", true);
+        ASSERT_EQ(test_dup.err, ERR_OK);
+        ASSERT_TRUE(app->duplications[test_dup.dupid] != nullptr);
+        auto dup = app->duplications[test_dup.dupid];
+        ASSERT_EQ(dup->_status, duplication_status::DS_PAUSE);
+
+        // reset meta server states
+        _ss.reset();
+        _ms.reset(nullptr);
+        SetUp();
+
+        // ensure dup is still paused after meta fail-over.
+        recover_from_meta_state();
+        app = find_app(test_app);
+        dup = app->duplications[test_dup.dupid];
+        ASSERT_EQ(dup->_status, duplication_status::DS_PAUSE);
     }
 
     std::shared_ptr<server_state> _ss;
@@ -599,6 +623,8 @@ TEST_F(meta_duplication_service_test, re_add_duplication)
     ASSERT_TRUE(app->duplications.find(test_dup.dupid) == app->duplications.end());
     ASSERT_EQ(app->duplications.size(), 1);
 }
+
+TEST_F(meta_duplication_service_test, add_duplication_freezed) { test_add_duplication_freezed(); }
 
 } // namespace replication
 } // namespace dsn
