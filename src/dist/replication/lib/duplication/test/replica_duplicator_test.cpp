@@ -82,11 +82,22 @@ public:
         {
             _replica->init_private_log(mlog);
             auto duplicator = create_test_duplicator();
+
+            duplicator->update_status_if_needed(duplication_status::DS_START);
+            ASSERT_EQ(duplicator->_status, duplication_status::DS_START);
+
+            // corner cases: next_status is INIT
+            duplicator->update_status_if_needed(duplication_status::DS_INIT);
+            ASSERT_EQ(duplicator->_status, duplication_status::DS_START);
             duplicator->update_status_if_needed(duplication_status::DS_START);
             ASSERT_EQ(duplicator->_status, duplication_status::DS_START);
 
             duplicator->update_status_if_needed(duplication_status::DS_PAUSE);
             ASSERT_TRUE(duplicator->paused());
+            ASSERT_EQ(duplicator->_status, duplication_status::DS_PAUSE);
+
+            // corner cases: next_status is INIT
+            duplicator->update_status_if_needed(duplication_status::DS_INIT);
             ASSERT_EQ(duplicator->_status, duplication_status::DS_PAUSE);
 
             duplicator->wait_all();
