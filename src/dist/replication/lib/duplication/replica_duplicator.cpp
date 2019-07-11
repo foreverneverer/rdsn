@@ -43,10 +43,6 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
       _replica(r),
       _stub(r->get_replica_stub())
 {
-    dassert_replica(ent.status == duplication_status::DS_START ||
-                        ent.status == duplication_status::DS_PAUSE,
-                    "invalid duplication status: {}",
-                    duplication_status_to_string(ent.status));
     _status = ent.status;
 
     auto it = ent.progress.find(get_gpid().get_partition_index());

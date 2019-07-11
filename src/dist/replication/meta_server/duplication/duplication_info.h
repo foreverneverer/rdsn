@@ -88,10 +88,7 @@ public:
     void persist_status();
 
     // if this duplication is in valid status.
-    bool is_valid() const
-    {
-        return _status == duplication_status::DS_START || _status == duplication_status::DS_PAUSE;
-    }
+    bool is_valid() const { return is_duplication_status_valid(_status); }
 
     ///
     /// alter_progress -> persist_progress

@@ -110,16 +110,12 @@ void duplication_sync_timer::update_duplication_map(
     for (replica_ptr &r : get_all_replicas()) {
         // no duplication assigned to this app
         auto it = dup_map.find(r->get_gpid().get_app_id());
-        if (r->status() != partition_status::PS_PRIMARY || dup_map.end() == it) {
-            r->get_duplication_manager()->remove_all_duplications();
+        if (it == dup_map.end()) {
+            // no duplication assigned to this app
+            r->get_duplication_manager()->update_duplication_map({});
             continue;
-        }
-
-        const std::map<dupid_t, duplication_entry> &new_dup_map = it->second;
-        r->get_duplication_manager()->remove_non_existed_duplications(new_dup_map);
-
-        for (const auto &kv2 : new_dup_map) {
-            r->get_duplication_manager()->sync_duplication(kv2.second);
+        } else {
+            r->get_duplication_manager()->update_duplication_map(it->second);
         }
     }
 }
@@ -189,10 +185,6 @@ void duplication_sync_timer::close()
     if (_timer_task) {
         _timer_task->cancel(true);
         _timer_task = nullptr;
-    }
-
-    for (replica_ptr &r : get_all_replicas()) {
-        r->get_duplication_manager()->remove_all_duplications();
     }
 }
 
