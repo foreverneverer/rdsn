@@ -19,7 +19,7 @@ set(MY_PROJ_LIBS dsn_meta_server
         PocoJSON
         crypto
         gtest
-        fmt)
+)
 
 set(MY_BOOST_PACKAGES system filesystem regex)
 
