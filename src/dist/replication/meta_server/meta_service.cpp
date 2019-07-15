@@ -866,9 +866,7 @@ void meta_service::register_duplication_rpc_handlers()
 void meta_service::initialize_duplication_service()
 {
     if (!_opts.duplication_disabled) {
-        _dup_svc = dsn::make_unique<meta_duplication_service>(_state.get(), this);
-    } else {
-        _dup_svc.reset(nullptr);
+        _dup_svc = make_unique<meta_duplication_service>(_state.get(), this);
     }
 }
 

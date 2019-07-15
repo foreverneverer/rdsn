@@ -74,7 +74,11 @@ public:
         ASSERT_EQ(dup._next_status, duplication_status::DS_INIT);
 
         auto dup_ent = dup.to_duplication_entry();
-        ASSERT_EQ(dup_ent.progress.size(), 4);
+        ASSERT_EQ(dup_ent.progress.size(), 0);
+
+        for (int i = 0; i < 4; i++) {
+            dup.init_progress(i, invalid_decree);
+        }
         for (auto kv : dup_ent.progress) {
             ASSERT_EQ(kv.second, invalid_decree);
         }
@@ -179,6 +183,24 @@ TEST_F(duplication_info_test, persist_status) { test_persist_status(); }
 TEST_F(duplication_info_test, init_and_start) { test_init_and_start(); }
 
 TEST_F(duplication_info_test, encode_and_decode) { test_encode_and_decode(); }
+
+TEST_F(duplication_info_test, is_valid)
+{
+    duplication_info dup(1, 1, 4, 0, "dsn://slave-cluster/temp", "/meta_test/101/duplication/1");
+    ASSERT_FALSE(dup.is_valid());
+
+    dup.start();
+    dup.persist_status();
+    ASSERT_TRUE(dup.is_valid());
+
+    ASSERT_EQ(dup.alter_status(duplication_status::DS_PAUSE), ERR_OK);
+    dup.persist_status();
+    ASSERT_TRUE(dup.is_valid());
+
+    ASSERT_EQ(dup.alter_status(duplication_status::DS_REMOVED), ERR_OK);
+    dup.persist_status();
+    ASSERT_FALSE(dup.is_valid());
+}
 
 } // namespace replication
 } // namespace dsn

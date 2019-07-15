@@ -101,7 +101,13 @@ public:
     // Thread-safe
     error_s update_progress(const duplication_progress &p);
 
-    void start();
+    void start_dup();
+
+    // Pausing duplication will clear all the internal volatile states, thus
+    // when next time it restarts, the states will be reinitialized like the
+    // server being restarted.
+    // It is useful when something went wrong internally.
+    void pause_dup();
 
     // Holds its own tracker, so that other tasks
     // won't be effected when this duplication is removed.
@@ -114,17 +120,8 @@ public:
 
     decree get_max_gced_decree() const;
 
-    // == For metric "dup.pending_mutations_count" == //
-
-    void set_pending_mutations_count(int64_t cnt)
-    {
-        _pending_muts_cnt.store(cnt, std::memory_order_relaxed);
-    }
-
-    int64_t get_pending_mutations_count() const
-    {
-        return _pending_muts_cnt.load(std::memory_order_relaxed);
-    }
+    // For metric "dup.pending_mutations_count"
+    int64_t get_pending_mutations_count() const;
 
 private:
     friend class replica_duplicator_test;
@@ -140,8 +137,6 @@ private:
     replica *_replica;
     replica_stub *_stub;
     dsn::task_tracker _tracker;
-
-    std::atomic<int64_t> _pending_muts_cnt{0};
 
     duplication_status::type _status{duplication_status::DS_INIT};
 

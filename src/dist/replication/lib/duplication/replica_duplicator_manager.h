@@ -71,7 +71,7 @@ public:
     /// If there's no duplication,　invalid_decree is returned, mean that all logs are cleanable.
     /// THREAD_POOL_REPLICATION
     /// \see replica::on_checkpoint_timer()
-    int64_t min_confirmed_decree() const;
+    decree min_confirmed_decree() const;
 
     /// THREAD_POOL_REPLICATION
     /// \see replica_check.cpp

@@ -46,7 +46,6 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
     _status = ent.status;
 
     auto it = ent.progress.find(get_gpid().get_partition_index());
-    dassert_replica(it != ent.progress.end(), "");
     if (it->second == invalid_decree) {
         // keep current max committed_decree as start point.
         _progress.last_decree = _replica->private_log()->max_commit_on_disk();
@@ -55,10 +54,23 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
     }
     ddebug_replica(
         "initialize replica_duplicator [dupid:{}, meta_confirmed_decree:{}]", id(), it->second);
+    thread_pool(LPC_REPLICATION_LOW).task_tracker(tracker()).thread_hash(get_gpid().thread_hash());
+
+    if (_status == duplication_status::DS_START) {
+        start_dup();
+    }
+}
+
+void replica_duplicator::start_dup()
+{
+    ddebug_replica(
+        "starting duplication {} [last_decree: {}, confirmed_decree: {}, max_gced_decree: {}]",
+        to_string(),
+        _progress.last_decree,
+        _progress.confirmed_decree,
+        get_max_gced_decree());
 
     /// ===== pipeline declaration ===== ///
-
-    thread_pool(LPC_REPLICATION_LOW).task_tracker(tracker()).thread_hash(get_gpid().thread_hash());
 
     // load -> ship -> load
     _ship = make_unique<ship_mutation>(this);
@@ -68,20 +80,19 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
     from(*_load).link(*_ship).link(*_load);
     fork(*_load_private, LPC_REPLICATION_LONG_LOW, 0).link(*_ship);
 
-    if (_status == duplication_status::DS_START) {
-        start();
-    }
+    run_pipeline();
 }
 
-void replica_duplicator::start()
+void replica_duplicator::pause_dup()
 {
-    ddebug_replica(
-        "starting duplication {} [last_decree: {}, confirmed_decree: {}, max_gced_decree: {}]",
-        to_string(),
-        _progress.last_decree,
-        _progress.confirmed_decree,
-        get_max_gced_decree());
-    run_pipeline();
+    ddebug_replica("pausing duplication: {}", to_string());
+
+    pause();
+    wait_all();
+
+    _load.reset();
+    _ship.reset();
+    _load_private.reset();
 }
 
 std::string replica_duplicator::to_string() const
@@ -112,11 +123,10 @@ void replica_duplicator::update_status_if_needed(duplication_status::type next_s
     }
 
     if (next_status == duplication_status::DS_START) {
-        start();
+        start_dup();
         _status = next_status;
     } else if (next_status == duplication_status::DS_PAUSE) {
-        ddebug_replica("pausing duplication: {}", to_string());
-        pause();
+        pause_dup();
         _status = next_status;
     } else {
         derror_replica("unexpected duplication status ({})",
@@ -181,6 +191,14 @@ error_s replica_duplicator::verify_start_decree(decree start_decree)
 decree replica_duplicator::get_max_gced_decree() const
 {
     return _replica->private_log()->max_gced_decree(_replica->get_gpid());
+}
+
+int64_t replica_duplicator::get_pending_mutations_count() const
+{
+    // it's not atomic to read last_committed_decree in not-REPLICATION thread pool,
+    // but enough for approximate statistic.
+    int64_t cnt = _replica->last_committed_decree() - progress().last_decree;
+    return cnt > 0 ? cnt : 0;
 }
 
 } // namespace replication
