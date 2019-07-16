@@ -88,6 +88,9 @@ void meta_duplication_service::change_duplication_status(duplication_status_chan
     if (response.err != ERR_OK) {
         return;
     }
+    if (!dup->is_altering()) {
+        return;
+    }
 
     // validation passed
     do_change_duplication_status(app, dup, rpc);

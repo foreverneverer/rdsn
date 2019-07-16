@@ -127,7 +127,9 @@ void replica_duplicator_manager::remove_non_existed_duplications(
 void replica_duplicator_manager::set_confirmed_decree_non_primary(decree confirmed)
 {
     // this function always runs in the same single thread with config-sync
-    dassert_replica(_replica->status() != partition_status::PS_PRIMARY, "");
+    if (_replica->status() == partition_status::PS_PRIMARY) {
+        return;
+    }
 
     zauto_lock l(_lock);
     remove_all_duplications();

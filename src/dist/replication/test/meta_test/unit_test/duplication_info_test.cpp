@@ -159,6 +159,11 @@ TEST_F(duplication_info_test, alter_status)
         {duplication_status::DS_REMOVED, duplication_status::DS_INIT, ERR_OBJECT_NOT_FOUND},
         {duplication_status::DS_REMOVED, duplication_status::DS_PAUSE, ERR_OBJECT_NOT_FOUND},
         {duplication_status::DS_REMOVED, duplication_status::DS_START, ERR_OBJECT_NOT_FOUND},
+
+        // alter status same with the previous
+        {duplication_status::DS_REMOVED, duplication_status::DS_REMOVED, ERR_OBJECT_NOT_FOUND},
+        {duplication_status::DS_PAUSE, duplication_status::DS_PAUSE, ERR_OK},
+        {duplication_status::DS_START, duplication_status::DS_START, ERR_OK},
     };
 
     for (auto tt : tests) {
