@@ -242,11 +242,13 @@ private:
                 rpc.first, &tracker, [&err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
                     if (err == dsn::ERR_OK) {
+                        resps.emplace(rpc.first, std::move(rpc.second.response()));
                         std::cout << "erasesssss:" << rpc.first.ipv4_str() << std::endl;
                         rpcs.erase(rpc.first);
+                    } else {
+                        std::cout << "err:" << err.to_string() << std::endl;
+                        resps.emplace(rpc.first,  std::move(error_s::make(err, "unable to send rpc to server")));
                     }
-                    resps.emplace(rpc.first, std::move(rpc.second.response()));
-                    std::cout << "err:" << err.to_string() << std::endl;
                 });
         }
         tracker.wait_outstanding_tasks();
