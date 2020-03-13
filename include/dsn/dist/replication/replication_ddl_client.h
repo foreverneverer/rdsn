@@ -241,7 +241,7 @@ private:
                     if (err == dsn::ERR_OK) {
                         resps.emplace(rpc.first, std::move(rpc.second.response()));
                         rpcs.erase(rpc.first);
-                        fmt::print(stderr, "erase= {}\n", rpc.first.ipv4_str());
+                        std::cout << "erase:" << rpc.first.ipv4_str() << std::endl;
                     }
                 });
         }
