@@ -246,7 +246,7 @@ private:
                         rpcs.erase(rpc.first);
                     }
                     resps.emplace(rpc.first, std::move(rpc.second.response()));
-                    std::cout << "err:" << err.description() << std::endl;
+                    std::cout << "err:" << err.to_string() << std::endl;
                 });
         }
         tracker.wait_outstanding_tasks();
