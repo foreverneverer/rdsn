@@ -237,14 +237,16 @@ private:
 
         error_code err = ERR_UNKNOWN;
         for (auto &rpc : rpcs) {
+             std::cout << "retry:" << retry  << ":" << rpc.first.port() << std::endl;
             rpc.second.call(
                 rpc.first, &tracker, [&err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
                     if (err == dsn::ERR_OK) {
                         std::cout << "erasesssss:" << rpc.first.ipv4_str() << std::endl;
-                        resps.emplace(rpc.first, std::move(rpc.second.response()));
                         rpcs.erase(rpc.first);
                     }
+                    resps.emplace(rpc.first, std::move(rpc.second.response()));
+                    std::cout << "err:" << err.description() << std::endl;
                 });
         }
         tracker.wait_outstanding_tasks();

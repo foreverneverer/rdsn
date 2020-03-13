@@ -1523,6 +1523,7 @@ replication_ddl_client::query_disk_info(const std::vector<dsn::rpc_address> &tar
 {
     std::map<dsn::rpc_address, query_disk_info_rpc> query_disk_info_rpcs;
     for (const auto &target : targets) {
+        std::cout << "port:" << target.port() << std::endl;
         auto request = make_unique<query_disk_info_request>();
         request->node = target;
         request->app_id = app_id;
