@@ -233,6 +233,8 @@ private:
         dsn::task_tracker tracker;
         std::map<dsn::rpc_address, dsn::error_with<TResponse>> resps;
 
+        std::cout << "call_rpc_async:" << std::endl;
+
         error_code err = ERR_UNKNOWN;
         for (auto &rpc : rpcs) {
             rpc.second.call(
@@ -246,6 +248,8 @@ private:
                 });
         }
         tracker.wait_outstanding_tasks();
+
+        std::cout << "call_rpc_async_complete:" << std::endl;
 
         if (retry) {
             return resps;
