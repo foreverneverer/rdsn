@@ -254,6 +254,7 @@ private:
         if (retry) {
             return resps;
         } else if (rpcs.size() > 0) {
+            std::cout << "call_rpc_async_retry:" << std::endl;
             std::map<dsn::rpc_address, dsn::error_with<TResponse>> retry_resps =
                 call_rpc_async(rpcs, reply_thread_hash, true);
             for (auto &resp : retry_resps) {
