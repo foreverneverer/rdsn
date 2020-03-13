@@ -241,9 +241,9 @@ private:
                 rpc.first, &tracker, [&err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
                     if (err == dsn::ERR_OK) {
+                        std::cout << "erase:" << rpc.first.ipv4_str() << std::endl;
                         resps.emplace(rpc.first, std::move(rpc.second.response()));
                         rpcs.erase(rpc.first);
-                        std::cout << "erase:" << rpc.first.ipv4_str() << std::endl;
                     }
                 });
         }
