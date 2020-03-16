@@ -169,8 +169,10 @@ public:
 
     dsn::error_code ddd_diagnose(gpid pid, std::vector<ddd_partition_info> &ddd_partitions);
 
-    std::map<dsn::rpc_address, error_with<query_disk_info_response>>
-    query_disk_info(const std::vector<dsn::rpc_address> &targets, int app_id);
+    void
+    query_disk_info(const std::vector<dsn::rpc_address> &targets,
+                    /*out*/ std::map<dsn::rpc_address, error_with<query_disk_info_response>> &resps,
+                    int app_id);
 
 private:
     bool static valid_app_char(int c);
@@ -227,17 +229,19 @@ private:
 
     /// Send request to multi replica server synchronously.
     template <typename TRpcHolder, typename TResponse = typename TRpcHolder::response_type>
-    std::map<dsn::rpc_address, error_with<TResponse>> call_rpc_async(
-        std::map<dsn::rpc_address, TRpcHolder> &rpcs, int reply_thread_hash = 0, bool retry = false)
+    void call_rpcs_async(std::map<dsn::rpc_address, TRpcHolder> &rpcs,
+                         std::map<dsn::rpc_address, error_with<TResponse>> &resps,
+                         int reply_thread_hash = 0,
+                         bool retry = false)
     {
         dsn::task_tracker tracker;
-        std::map<dsn::rpc_address, dsn::error_with<TResponse>> resps;
+        // std::map<dsn::rpc_address, dsn::error_with<TResponse>> resps;
 
         std::cout << "call_rpc_async:" << std::endl;
 
         error_code err = ERR_UNKNOWN;
         for (auto &rpc : rpcs) {
-             std::cout << "retry:" << retry  << ":" << rpc.first.port() << std::endl;
+            std::cout << "retry:" << retry << ":" << rpc.first.port() << std::endl;
             rpc.second.call(
                 rpc.first, &tracker, [&err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
@@ -247,7 +251,9 @@ private:
                         rpcs.erase(rpc.first);
                     } else {
                         std::cout << "err:" << err.to_string() << std::endl;
-                        resps.emplace(rpc.first,  std::move(error_s::make(err, "unable to send rpc to server")));
+                        resps.emplace(
+                            rpc.first,
+                            std::move(error_s::make(err, "unable to send rpc to server")));
                     }
                 });
         }
@@ -255,17 +261,14 @@ private:
 
         std::cout << "call_rpc_async_complete:" << std::endl;
 
-        if (retry) {
-            return resps;
-        } else if (rpcs.size() > 0) {
+        if (!retry && rpcs.size() > 0) {
             std::cout << "call_rpc_async_retry:" << std::endl;
-            std::map<dsn::rpc_address, dsn::error_with<TResponse>> retry_resps =
-                call_rpc_async(rpcs, reply_thread_hash, true);
+            std::map<dsn::rpc_address, dsn::error_with<TResponse>> retry_resps;
+            call_rpcs_async(rpcs, retry_resps, reply_thread_hash, true);
             for (auto &resp : retry_resps) {
                 resps.emplace(resp.first, std::move(resp.second));
             }
         }
-        return resps;
     }
 
 private:
