@@ -241,7 +241,7 @@ private:
                 rpc.first, &tracker, [&enable_retry, &err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
                     if (err == dsn::ERR_OK) {
-                        std::cout << "ok nodes:" << rpc.first.to_std_string() << "retry:" << enable_retry << std::endl;
+                        std::cout << "ok nodes:" << rpc.first.to_std_string() << " retry:" << enable_retry << std::endl;
                         resps.emplace(rpc.first, std::move(rpc.second.response()));
                         rpcs.erase(rpc.first);
                     } else {
@@ -254,6 +254,7 @@ private:
         tracker.wait_outstanding_tasks();
 
         if (enable_retry && rpcs.size() > 0) {
+            std::cout << "Will retry!" << std::endl;
             std::map<dsn::rpc_address, dsn::error_with<TResponse>> retry_resps;
             call_rpcs_async(rpcs, retry_resps, reply_thread_hash, false);
             for (auto &resp : retry_resps) {
