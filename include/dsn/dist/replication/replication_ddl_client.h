@@ -238,7 +238,7 @@ private:
         error_code err = ERR_UNKNOWN;
         for (auto &rpc : rpcs) {
             rpc.second.call(
-                rpc.first, &tracker, [&err, &resps, &rpcs, &rpc](error_code code) mutable {
+                rpc.first, &tracker, [&enable_retry, &err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
                     if (err == dsn::ERR_OK) {
                         fmt::print(stderr, "ok nodes:{},retry:{}",rpc.first.to_std_string(),enable_retry);
