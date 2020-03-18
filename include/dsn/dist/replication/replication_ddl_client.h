@@ -241,7 +241,7 @@ private:
                 rpc.first, &tracker, [&enable_retry, &err, &resps, &rpcs, &rpc](error_code code) mutable {
                     err = code;
                     if (err == dsn::ERR_OK) {
-                        fmt::print(stderr, "ok nodes:{},retry:{}",rpc.first.to_std_string(),enable_retry);
+                        std::cout << "ok nodes:" << rpc.first.to_std_string() << "retry:" << enable_retry;
                         resps.emplace(rpc.first, std::move(rpc.second.response()));
                         rpcs.erase(rpc.first);
                     } else {
