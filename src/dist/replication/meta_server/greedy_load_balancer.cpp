@@ -715,7 +715,7 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
                                                 int *pri_lower_count)
 {
     dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
-    ddebug("balancer for app(%s:%d), copy_pri = %s", app->app_name.c_str(), app->app_id);
+    ddebug("try to move primary replica for app(%s:%d)", app->app_name.c_str(), app->app_id);
 
     const node_mapper &nodes = *(t_global_view->nodes);
     int replicas_low = app->partition_count / t_alive_nodes;
@@ -776,10 +776,11 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
     shortest_path(visit, flow, prev, network);
     // we can't make the server load more balanced
     // by moving primaries to secondaries
+    // TODO(jiashuo1) derectly use replicas_low/lower_count
     *pri_replicas_low = replicas_low;
     *pri_lower_count = lower_count;
     if (!visit[graph_nodes - 1] || flow[graph_nodes - 1] == 0) {
-        ddebug("stop to move replica for app(%s) coz it is disabled", app->get_logname());
+        ddebug("can't move primary replica for app(%s) coz it is disabled", app->get_logname());
         return true;
     }
 
