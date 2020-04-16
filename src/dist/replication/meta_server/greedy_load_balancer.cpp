@@ -817,8 +817,8 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         }
     }
 
-    int *pri_replicas_low;
-    int *pri_lower_count;
+    int *pri_replicas_low = 0;
+    int *pri_lower_count = 0;
 
     for (const auto &kv : apps) {
         const std::shared_ptr<app_state> &app = kv.second;
@@ -898,7 +898,8 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information = copy_primary_per_app(app, *pri_replicas_low, *pri_lower_count);
+        bool enough_information =
+            copy_primary_per_app(app, *pri_lower_count != 0, *pri_replicas_low);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
