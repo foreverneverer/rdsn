@@ -715,7 +715,7 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
                                                 int *pri_lower_count)
 {
     dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
-    ddebug("balancer for app(%s:%d), copy_pri = %s", app->app_name.c_str(), app->app_id, copy_pri);
+    ddebug("balancer for app(%s:%d), copy_pri = %s", app->app_name.c_str(), app->app_id);
 
     const node_mapper &nodes = *(t_global_view->nodes);
     int replicas_low = app->partition_count / t_alive_nodes;
