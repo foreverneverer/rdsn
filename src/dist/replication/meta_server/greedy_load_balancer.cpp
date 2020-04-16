@@ -710,17 +710,12 @@ void greedy_load_balancer::shortest_path(std::vector<bool> &visit,
 }
 
 // load balancer based on ford-fulkerson
-bool greedy_load_balancer::balancer_per_app(const std::shared_ptr<app_state> &app,
-                                            const bool copy_pri,
-                                            int *pri_replicas_low,
-                                            int *pri_lower_count)
+bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state> &app,
+                                                int *pri_replicas_low,
+                                                int *pri_lower_count)
 {
     dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
     ddebug("balancer for app(%s:%d), copy_pri = %s", app->app_name.c_str(), app->app_id, copy_pri);
-
-    if (copy_pri && pri_replicas_low && pri_lower_count) {
-        return copy_primary_per_app(app, *pri_lower_count != 0, *pri_replicas_low);
-    }
 
     const node_mapper &nodes = *(t_global_view->nodes);
     int replicas_low = app->partition_count / t_alive_nodes;
@@ -784,12 +779,8 @@ bool greedy_load_balancer::balancer_per_app(const std::shared_ptr<app_state> &ap
     *pri_replicas_low = replicas_low;
     *pri_lower_count = lower_count;
     if (!visit[graph_nodes - 1] || flow[graph_nodes - 1] == 0) {
-        if (!_only_move_primary) {
-            return copy_secondary_per_app(app);
-        } else {
-            ddebug("stop to move secondary for app(%s) coz it is disabled", app->get_logname());
-            return true;
-        }
+        ddebug("stop to move replica for app(%s) coz it is disabled", app->get_logname());
+        return true;
     }
 
     dinfo("%u primaries are flew", flow[graph_nodes - 1]);
@@ -828,12 +819,49 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
 
     int *pri_replicas_low;
     int *pri_lower_count;
+
     for (const auto &kv : apps) {
         const std::shared_ptr<app_state> &app = kv.second;
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information = balancer_per_app(app, false, pri_replicas_low, pri_lower_count);
+        bool enough_information = try_move_pri_per_app(app, pri_replicas_low, pri_lower_count);
+        if (!enough_information) {
+            // Even if we don't have enough info for current app,
+            // the decisions made by previous apps are kept.
+            // t_migration_result->empty();
+            return;
+        }
+        if (!balance_checker) {
+            if (!t_migration_result->empty()) {
+                if (_balancer_in_turn) {
+                    ddebug("stop to handle more apps after we found some actions for %s",
+                           app->get_logname());
+                    return;
+                }
+            }
+        }
+    }
+
+    if (_only_move_primary) {
+        ddebug("stop to copy replica coz it is disabled(_only_move_primary=%s)",
+               _only_move_primary);
+        return;
+    }
+
+    for (const auto &kv : apps) {
+        if (_only_primary_balancer) {
+            ddebug("skip to copy secondary coz it is disabled(_only_primary_balancer=%s)",
+                   _only_primary_balancer);
+            break;
+        }
+
+        const std::shared_ptr<app_state> &app = kv.second;
+        if (app->status != app_status::AS_AVAILABLE)
+            continue;
+
+        bool enough_information =
+            balancer_per_app(app, false, true, pri_replicas_low, pri_lower_count);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
@@ -861,10 +889,6 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
             return;
         }
     }
-    if (_only_primary_balancer) {
-        ddebug("stop to do secondary balancer coz it is not allowed");
-        return;
-    }
 
     // we seperate the primary/secondary balancer for 2 reasons:
     // 1. globally primary balancer may make secondary unbalanced
@@ -875,8 +899,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information =
-            balancer_per_app(app, true && _only_move_primary, pri_replicas_low, pri_lower_count);
+        bool enough_information = copy_primary_per_app(app, *pri_replicas_low, *pri_lower_count);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
