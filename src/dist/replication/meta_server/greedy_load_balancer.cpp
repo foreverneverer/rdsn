@@ -777,8 +777,11 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
     // we can't make the server load more balanced
     // by moving primaries to secondaries
     // TODO(jiashuo1) derectly use replicas_low/lower_count
+    ddebug("replicas_low = %d, lower_count = %d", replicas_low, lower_count);
     pri_replicas_low = &replicas_low;
     pri_lower_count = &lower_count;
+
+    ddebug("replicas_low = %d, lower_count = %d", *pri_replicas_low, *pri_lower_count);
     if (!visit[graph_nodes - 1] || flow[graph_nodes - 1] == 0) {
         ddebug("can't move primary replica for app(%s) coz it is disabled", app->get_logname());
         return true;
@@ -827,6 +830,8 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
             continue;
 
         bool enough_information = try_move_pri_per_app(app, pri_replicas_low, pri_lower_count);
+
+        ddebug("replicas_low = %d, lower_count = %d", *pri_replicas_low, *pri_lower_count);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
