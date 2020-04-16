@@ -860,8 +860,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information =
-            balancer_per_app(app, false, true, pri_replicas_low, pri_lower_count);
+        bool enough_information = copy_secondary_per_app(app);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
