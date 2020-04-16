@@ -124,7 +124,10 @@ private:
     bool copy_primary_per_app(const std::shared_ptr<app_state> &app,
                               bool still_have_less_than_average,
                               int replicas_low);
-    bool primary_balancer_per_app(const std::shared_ptr<app_state> &app);
+    bool balancer_per_app(const std::shared_ptr<app_state> &app,
+                          const bool copy_pri,
+                          int *primary_replicas_low,
+                          int *lower_count);
 
     bool copy_secondary_per_app(const std::shared_ptr<app_state> &app);
 

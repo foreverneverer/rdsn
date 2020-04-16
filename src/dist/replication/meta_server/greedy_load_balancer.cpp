@@ -710,10 +710,17 @@ void greedy_load_balancer::shortest_path(std::vector<bool> &visit,
 }
 
 // load balancer based on ford-fulkerson
-bool greedy_load_balancer::primary_balancer_per_app(const std::shared_ptr<app_state> &app)
+bool greedy_load_balancer::balancer_per_app(const std::shared_ptr<app_state> &app,
+                                            const bool copy_pri,
+                                            int *pri_replicas_low,
+                                            int *pri_lower_count)
 {
     dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
-    ddebug("primary balancer for app(%s:%d)", app->app_name.c_str(), app->app_id);
+    ddebug("balancer for app(%s:%d), copy_pri = %s", app->app_name.c_str(), app->app_id, copy_pri);
+
+    if (copy_pri && pri_replicas_low && pri_lower_count) {
+        return copy_primary_per_app(app, *pri_lower_count != 0, *pri_replicas_low);
+    }
 
     const node_mapper &nodes = *(t_global_view->nodes);
     int replicas_low = app->partition_count / t_alive_nodes;
@@ -774,11 +781,13 @@ bool greedy_load_balancer::primary_balancer_per_app(const std::shared_ptr<app_st
     shortest_path(visit, flow, prev, network);
     // we can't make the server load more balanced
     // by moving primaries to secondaries
+    *pri_replicas_low = replicas_low;
+    *pri_lower_count = lower_count;
     if (!visit[graph_nodes - 1] || flow[graph_nodes - 1] == 0) {
         if (!_only_move_primary) {
-            return copy_primary_per_app(app, lower_count != 0, replicas_low);
+            return copy_secondary_per_app(app);
         } else {
-            ddebug("stop to move primary for app(%s) coz it is disabled", app->get_logname());
+            ddebug("stop to move secondary for app(%s) coz it is disabled", app->get_logname());
             return true;
         }
     }
@@ -817,12 +826,14 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         }
     }
 
+    int *pri_replicas_low;
+    int *pri_lower_count;
     for (const auto &kv : apps) {
         const std::shared_ptr<app_state> &app = kv.second;
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information = primary_balancer_per_app(app);
+        bool enough_information = balancer_per_app(app, false, pri_replicas_low, pri_lower_count);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
@@ -864,7 +875,8 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information = copy_secondary_per_app(app);
+        bool enough_information =
+            balancer_per_app(app, true && _only_move_primary, pri_replicas_low, pri_lower_count);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
