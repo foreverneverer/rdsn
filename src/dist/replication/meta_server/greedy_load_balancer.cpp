@@ -387,7 +387,7 @@ bool greedy_load_balancer::copy_secondary_per_app(const std::shared_ptr<app_stat
     int total_partitions = 0;
     for (const auto &pair : *(t_global_view->nodes)) {
         const node_state &ns = pair.second;
-        future_partitions[address_id[ns.addr()]] = ns.partition_count(app->app_id);
+        future_partitions[address_id[ns.addr()]] = (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
         total_partitions += (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
 
         if (!calc_disk_load(app->app_id, ns.addr(), false, node_loads[address_id[ns.addr()]])) {
