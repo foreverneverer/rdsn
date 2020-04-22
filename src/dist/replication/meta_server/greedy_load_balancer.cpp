@@ -265,7 +265,7 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
                                                 int replicas_low)
 {
     const node_mapper &nodes = *(t_global_view->nodes);
-    
+
     for(const auto &node : nodes){
         ddebug("%s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
@@ -885,6 +885,13 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         return;
     }
 
+     if (!balance_checker) {
+        if (!t_migration_result->empty()) {
+            ddebug("stop to do copy secondary balance coz we already has actions to do");
+            return;
+        }
+    }
+
     // todo
     ddebug("copy_secondary_per_app");
     for (const auto &kv : apps) {
@@ -922,7 +929,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
 
     /*if (!balance_checker) {
         if (!t_migration_result->empty()) {
-            ddebug("stop to do secondary balance coz we already has actions to do");
+            ddebug("stop to do copy primary balance coz we already has actions to do");
             return;
         }
     }*/
