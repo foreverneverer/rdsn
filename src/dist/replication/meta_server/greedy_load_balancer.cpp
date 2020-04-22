@@ -265,6 +265,11 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
                                                 int replicas_low)
 {
     const node_mapper &nodes = *(t_global_view->nodes);
+
+    for(const auto node : *(t_global_view->nodes)){
+        ddebug("\n %s|%s|%s", node.first, node.second.primary_count(), node.second.secondary_count());
+    }
+
     std::vector<int> future_primaries(address_vec.size(), 0);
     std::unordered_map<dsn::rpc_address, disk_load> node_loads;
 
@@ -383,6 +388,10 @@ bool greedy_load_balancer::copy_secondary_per_app(const std::shared_ptr<app_stat
 {
     std::vector<int> future_partitions(address_vec.size(), 0);
     std::vector<disk_load> node_loads(address_vec.size());
+
+    for(const auto node : *(t_global_view->nodes)){
+        ddebug("\n %s|%s|%s", node.first, node.second.primary_count(), node.second.secondary_count());
+    }
 
     int total_partitions = 0;
     for (const auto &pair : *(t_global_view->nodes)) {
@@ -718,6 +727,9 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
     ddebug("try to move primary replica for app(%s:%d)", app->app_name.c_str(), app->app_id);
 
     const node_mapper &nodes = *(t_global_view->nodes);
+    for(const auto node : nodes){
+        ddebug("\n %s|%s|%s", node.first, node.second.primary_count(), node.second.secondary_count());
+    }
     int replicas_low = app->partition_count / t_alive_nodes;
     int replicas_high = (app->partition_count + t_alive_nodes - 1) / t_alive_nodes;
 
@@ -908,12 +920,13 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
     // make decision according to disk load.
     // primary_balancer_globally();
 
-    if (!balance_checker) {
+    /*if (!balance_checker) {
         if (!t_migration_result->empty()) {
             ddebug("stop to do secondary balance coz we already has actions to do");
             return;
         }
-    }
+    }*/
+    
 
     // we seperate the primary/secondary balancer for 2 reasons:
     // 1. globally primary balancer may make secondary unbalanced
