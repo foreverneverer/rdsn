@@ -267,7 +267,7 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
     const node_mapper &nodes = *(t_global_view->nodes);
 
     for(const auto node : *(t_global_view->nodes)){
-        ddebug("\n %s|%d|%d", node.first.to_std_string(), node.second.primary_count(), node.second.secondary_count());
+        ddebug("\n %s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
 
     std::vector<int> future_primaries(address_vec.size(), 0);
@@ -390,7 +390,7 @@ bool greedy_load_balancer::copy_secondary_per_app(const std::shared_ptr<app_stat
     std::vector<disk_load> node_loads(address_vec.size());
 
     for(const auto node : *(t_global_view->nodes)){
-        ddebug("\n %s|%d|%d", node.first.to_std_string(), node.second.primary_count(), node.second.secondary_count());
+        ddebug("\n %s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
 
     int total_partitions = 0;
@@ -728,7 +728,7 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
 
     const node_mapper &nodes = *(t_global_view->nodes);
     for(const auto node : nodes){
-        ddebug("\n %s|%d|%d", node.first.to_std_string(), node.second.primary_count(), node.second.secondary_count());
+        ddebug("\n %s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
     int replicas_low = app->partition_count / t_alive_nodes;
     int replicas_high = (app->partition_count + t_alive_nodes - 1) / t_alive_nodes;
