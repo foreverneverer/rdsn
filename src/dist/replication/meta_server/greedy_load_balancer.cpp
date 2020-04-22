@@ -265,11 +265,10 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
                                                 int replicas_low)
 {
     const node_mapper &nodes = *(t_global_view->nodes);
-
-    for(const auto node : *(t_global_view->nodes)){
+    
+    for(const auto &node : nodes){
         ddebug("%s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
-
     std::vector<int> future_primaries(address_vec.size(), 0);
     std::unordered_map<dsn::rpc_address, disk_load> node_loads;
 
