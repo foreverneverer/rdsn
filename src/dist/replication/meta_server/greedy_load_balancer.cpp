@@ -389,12 +389,13 @@ bool greedy_load_balancer::copy_secondary_per_app(const std::shared_ptr<app_stat
     std::vector<int> future_partitions(address_vec.size(), 0);
     std::vector<disk_load> node_loads(address_vec.size());
 
-    for(const auto node : *(t_global_view->nodes)){
+    const node_mapper &nodes = *(t_global_view->nodes);
+    for(const auto &node : nodes){
         ddebug("\n %s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
 
     int total_partitions = 0;
-    for (const auto &pair : *(t_global_view->nodes)) {
+    for (const auto &pair : nodes) {
         const node_state &ns = pair.second;
         future_partitions[address_id[ns.addr()]] = (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
         total_partitions += (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
@@ -727,7 +728,7 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
     ddebug("try to move primary replica for app(%s:%d)", app->app_name.c_str(), app->app_id);
 
     const node_mapper &nodes = *(t_global_view->nodes);
-    for(const auto node : nodes){
+    for(const auto &node : nodes){
         ddebug("\n %s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
     }
     int replicas_low = app->partition_count / t_alive_nodes;
