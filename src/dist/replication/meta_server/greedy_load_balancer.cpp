@@ -260,9 +260,7 @@ const std::string &greedy_load_balancer::get_disk_tag(const rpc_address &node, c
 }
 
 // assume all nodes are alive
-bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state> &app,
-                                                bool still_have_less_than_average,
-                                                int replicas_low)
+bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state> &app)
 {
     const node_mapper &nodes = *(t_global_view->nodes);
 
@@ -276,6 +274,22 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
                node.second.secondary_count(app->app_id),
                node.second.partition_count(app->app_id));
     }
+
+    int replicas_low = app->partition_count / t_alive_nodes;
+    int replicas_high = (app->partition_count + t_alive_nodes - 1) / t_alive_nodes;
+
+    // todo
+    ddebug("replicas_low = %d, replicas_high = %d", replicas_low, replicas_high);
+    int lower_count = 0, higher_count = 0;
+    for (auto iter = nodes.begin(); iter != nodes.end(); ++iter) {
+        int c = iter->second.primary_count(app->app_id);
+        if (c > replicas_high)
+            higher_count++;
+        else if (c < replicas_low)
+            lower_count++;
+    }
+
+    bool still_have_less_than_average = (lower_count != 0);
 
     std::vector<int> future_primaries(address_vec.size(), 0);
     std::unordered_map<dsn::rpc_address, disk_load> node_loads;
@@ -735,9 +749,7 @@ void greedy_load_balancer::shortest_path(std::vector<bool> &visit,
 }
 
 // load balancer based on ford-fulkerson
-bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state> &app,
-                                                int *pri_replicas_low,
-                                                int *pri_lower_count)
+bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state> &app)
 {
     dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
     ddebug("try to move primary replica for app(%s:%d)", app->app_name.c_str(), app->app_id);
@@ -769,11 +781,6 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
 
     // todo
     ddebug("replicas_low = %d, lower_count = %d", replicas_low, lower_count);
-    *pri_replicas_low = replicas_low;
-    *pri_lower_count = lower_count;
-
-    // todo
-    ddebug("pri_replicas_low = %d, pri_lower_count = %d", replicas_low, lower_count);
 
     if (higher_count == 0 && lower_count == 0) {
         // todo
@@ -871,9 +878,6 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         }
     }
 
-    int pri_replicas_low = 0;
-    int pri_lower_count = 0;
-
     // todo
     ddebug("try_move_pri_per_app");
     for (const auto &kv : apps) {
@@ -881,10 +885,8 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information = try_move_pri_per_app(app, &pri_replicas_low, &pri_lower_count);
+        bool enough_information = try_move_pri_per_app(app);
 
-        // todo
-        ddebug("replicas_low = %d, lower_count = %d", pri_replicas_low, pri_lower_count);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
@@ -969,7 +971,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (app->status != app_status::AS_AVAILABLE)
             continue;
 
-        bool enough_information = copy_primary_per_app(app, pri_lower_count != 0, pri_replicas_low);
+        bool enough_information = copy_primary_per_app(app);
         if (!enough_information) {
             // Even if we don't have enough info for current app,
             // the decisions made by previous apps are kept.
