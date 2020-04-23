@@ -973,14 +973,20 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
     ddebug("copy_primary_per_app");
     for (const auto &kv : apps) {
         if (balance_checker) {
+            bool moved = false;
             for (const auto &pair : *t_migration_result) {
                 if (pair.first.get_app_id() == kv.first) {
+                    moved = true;
                     ddebug("app(%d) has moved but no apply,so no need copy", kv.first);
                     break;
                 }
             }
+            if (moved) {
+                continue;
+            }
         }
 
+        ddebug("app(%d) has not moved but, so need copy", kv.first);
         const std::shared_ptr<app_state> &app = kv.second;
         if (app->status != app_status::AS_AVAILABLE)
             continue;
