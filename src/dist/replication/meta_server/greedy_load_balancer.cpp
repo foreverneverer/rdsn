@@ -975,7 +975,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         if (balance_checker) {
             for (const auto &pair : *t_migration_result) {
                 if (pair.first.get_app_id() == kv.first) {
-                    ddebug("app(%s) has moved but no applay,so no need copy", app->get_logname());
+                    ddebug("app(%d) has moved but no apply,so no need copy", kv.first);
                     break;
                 }
             }
