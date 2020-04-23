@@ -266,9 +266,17 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
 {
     const node_mapper &nodes = *(t_global_view->nodes);
 
-    for(const auto &node : nodes){
-        ddebug("%s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
+    for (const auto &node : nodes) {
+        ddebug("%s=>%d|%d|%d=>%d|%d|%d",
+               node.second.addr().to_string(),
+               node.second.primary_count(),
+               node.second.secondary_count(),
+               node.second.partition_count(),
+               node.second.primary_count(app->app_id),
+               node.second.secondary_count(app->app_id),
+               node.second.partition_count(app->app_id));
     }
+
     std::vector<int> future_primaries(address_vec.size(), 0);
     std::unordered_map<dsn::rpc_address, disk_load> node_loads;
 
@@ -389,14 +397,22 @@ bool greedy_load_balancer::copy_secondary_per_app(const std::shared_ptr<app_stat
     std::vector<disk_load> node_loads(address_vec.size());
 
     const node_mapper &nodes = *(t_global_view->nodes);
-    for(const auto &node : nodes){
-        ddebug("%s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
+    for (const auto &node : nodes) {
+        ddebug("%s=>%d|%d|%d=>%d|%d|%d",
+               node.second.addr().to_string(),
+               node.second.primary_count(),
+               node.second.secondary_count(),
+               node.second.partition_count(),
+               node.second.primary_count(app->app_id),
+               node.second.secondary_count(app->app_id),
+               node.second.partition_count(app->app_id));
     }
 
     int total_partitions = 0;
     for (const auto &pair : nodes) {
         const node_state &ns = pair.second;
-        future_partitions[address_id[ns.addr()]] = (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
+        future_partitions[address_id[ns.addr()]] =
+            (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
         total_partitions += (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
 
         if (!calc_disk_load(app->app_id, ns.addr(), false, node_loads[address_id[ns.addr()]])) {
@@ -727,8 +743,15 @@ bool greedy_load_balancer::try_move_pri_per_app(const std::shared_ptr<app_state>
     ddebug("try to move primary replica for app(%s:%d)", app->app_name.c_str(), app->app_id);
 
     const node_mapper &nodes = *(t_global_view->nodes);
-    for(const auto &node : nodes){
-        ddebug("%s|%d|%d", node.second.addr().to_string(), node.second.primary_count(), node.second.secondary_count());
+    for (const auto &node : nodes) {
+        ddebug("%s=>%d|%d|%d=>%d|%d|%d",
+               node.second.addr().to_string(),
+               node.second.primary_count(),
+               node.second.secondary_count(),
+               node.second.partition_count(),
+               node.second.primary_count(app->app_id),
+               node.second.secondary_count(app->app_id),
+               node.second.partition_count(app->app_id));
     }
     int replicas_low = app->partition_count / t_alive_nodes;
     int replicas_high = (app->partition_count + t_alive_nodes - 1) / t_alive_nodes;
@@ -885,7 +908,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         return;
     }
 
-     if (!balance_checker) {
+    if (!balance_checker) {
         if (!t_migration_result->empty()) {
             ddebug("stop to do copy secondary balance coz we already has actions to do");
             return;
@@ -933,7 +956,6 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
             return;
         }
     }*/
-    
 
     // we seperate the primary/secondary balancer for 2 reasons:
     // 1. globally primary balancer may make secondary unbalanced
