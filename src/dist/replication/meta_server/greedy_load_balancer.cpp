@@ -432,8 +432,8 @@ bool greedy_load_balancer::copy_secondary_per_app(const std::shared_ptr<app_stat
     for (const auto &pair : nodes) {
         const node_state &ns = pair.second;
         future_partitions[address_id[ns.addr()]] =
-            (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
-        total_partitions += (ns.partition_count(app->app_id) - ns.primary_count(app->app_id));
+            (ns.partition_count(app->app_id));
+        total_partitions += (ns.partition_count(app->app_id));
 
         if (!calc_disk_load(app->app_id, ns.addr(), false, node_loads[address_id[ns.addr()]])) {
             dwarn("stop copy secondary as some replica infos aren't collected, node(%s), app(%s)",
@@ -957,12 +957,12 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
     // make decision according to disk load.
     // primary_balancer_globally();
 
-    /*if (!balance_checker) {
+    if (!balance_checker) {
         if (!t_migration_result->empty()) {
             ddebug("stop to do copy primary balance coz we already has actions to do");
             return;
         }
-    }*/
+    }
 
     // we seperate the primary/secondary balancer for 2 reasons:
     // 1. globally primary balancer may make secondary unbalanced
