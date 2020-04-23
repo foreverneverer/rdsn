@@ -289,6 +289,12 @@ bool greedy_load_balancer::copy_primary_per_app(const std::shared_ptr<app_state>
             lower_count++;
     }
 
+    if (higher_count == 0 && lower_count == 0) {
+        // todo
+        ddebug("the primaries are balanced for app(%s:%d)", app->app_name.c_str(), app->app_id);
+        return true;
+    }
+
     bool still_have_less_than_average = (lower_count != 0);
 
     std::vector<int> future_primaries(address_vec.size(), 0);
@@ -966,6 +972,15 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
     // todo
     ddebug("copy_primary_per_app");
     for (const auto &kv : apps) {
+        if (balance_checker) {
+            for (const auto &pair : *t_migration_result) {
+                if (pair.first.get_app_id() == kv.first) {
+                    ddebug("app(%s) has moved but no applay,so no need copy", app->get_logname());
+                    break;
+                }
+            }
+        }
+
         const std::shared_ptr<app_state> &app = kv.second;
         if (app->status != app_status::AS_AVAILABLE)
             continue;
