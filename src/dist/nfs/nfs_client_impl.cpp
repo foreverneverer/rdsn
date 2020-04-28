@@ -33,8 +33,6 @@
  *     xxxx-xx-xx, author, fix bug about xxx
  */
 #include <dsn/utility/filesystem.h>
-#include <dsn/utility/defer.h>
-#include <dsn/utility/TokenBucket.h>
 #include <queue>
 #include "nfs_client_impl.h"
 
