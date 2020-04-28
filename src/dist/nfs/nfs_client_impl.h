@@ -146,7 +146,7 @@ public:
         file_context_ptr file_ctx; // reference to the owner
         int index;
         uint64_t offset;
-        uint32_t size;
+        uint64_t size;
         bool is_last;
         copy_response response;
         ::dsn::task_ptr remote_copy_task;
