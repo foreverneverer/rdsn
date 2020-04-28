@@ -295,7 +295,7 @@ public:
 
 public:
     nfs_client_impl(nfs_opts &opts);
-    virtual ~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }
+    virtual ~nfs_client_impl();
 
     // copy file request entry
     void begin_remote_copy(std::shared_ptr<remote_copy_request> &rci, aio_task *nfs_task);

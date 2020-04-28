@@ -76,6 +76,8 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
         new folly::TokenBucket(copy_rate_limit * 1e6 / BYTE_TO_BIT, burst_size));
 }
 
+nfs_client_impl::~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }
+
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
                                         aio_task *nfs_task)
 {
