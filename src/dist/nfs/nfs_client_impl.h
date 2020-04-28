@@ -42,6 +42,13 @@
 
 #include "nfs_client.h"
 
+namespace folly {
+template <typename Clock>
+class BasicTokenBucket;
+
+using TokenBucket = BasicTokenBucket<std::chrono::steady_clock>;
+}
+
 namespace dsn {
 namespace service {
 
@@ -310,7 +317,11 @@ private:
     void handle_completion(const user_request_ptr &req, error_code err);
 
 private:
+    const int BYTE_TO_BIT = 8;
+
     nfs_opts &_opts;
+
+    std::unique_ptr<folly::TokenBucket> _copy_token_bucket; // rate limit of copy from remote
 
     std::atomic<int> _concurrent_copy_request_count; // record concurrent request count, limited
                                                      // by max_concurrent_remote_copy_requests.

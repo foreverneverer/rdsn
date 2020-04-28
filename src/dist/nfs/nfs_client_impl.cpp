@@ -33,6 +33,8 @@
  *     xxxx-xx-xx, author, fix bug about xxx
  */
 #include <dsn/utility/filesystem.h>
+#include <dsn/utility/defer.h>
+#include <dsn/utility/TokenBucket.h>
 #include <queue>
 #include "nfs_client_impl.h"
 
@@ -65,6 +67,13 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
         "recent_write_fail_count",
         COUNTER_TYPE_VOLATILE_NUMBER,
         "nfs client write fail count count in the recent period");
+
+    uint32_t copy_rate_limit = (uint32_t)dsn_config_get_value_uint64(
+        "replication", "copy_limit_rate", 100, "rate limit of fds(Mb/s)");
+
+    uint32_t burst_size = 3 * copy_rate_limit * 1e6 / BYTE_TO_BIT;
+    _copy_token_bucket.reset(
+        new folly::TokenBucket(copy_rate_limit * 1e6 / BYTE_TO_BIT, burst_size));
 }
 
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
@@ -217,6 +226,9 @@ void nfs_client_impl::continue_copy()
             zauto_lock l(req->lock);
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
+
+                _copy_token_bucket->consumeWithBorrowAndWait(req->size);
+
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
                 copy_req.file_name = req->file_ctx->file_name;
