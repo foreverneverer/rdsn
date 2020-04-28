@@ -44,9 +44,6 @@
 #include "nfs_client.h"
 
 namespace folly {
-template <typename Clock>
-class BasicTokenBucket;
-
 using TokenBucket = BasicTokenBucket<std::chrono::steady_clock>;
 }
 
