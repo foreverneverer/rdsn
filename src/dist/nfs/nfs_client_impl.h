@@ -39,7 +39,8 @@
 #include <dsn/tool-api/zlocks.h>
 #include <dsn/perf_counter/perf_counter_wrapper.h>
 #include <dsn/dist/nfs_node.h>
-
+#include <dsn/utility/defer.h>
+#include <dsn/utility/TokenBucket.h>
 #include "nfs_client.h"
 
 namespace folly {
