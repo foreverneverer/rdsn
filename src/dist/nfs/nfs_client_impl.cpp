@@ -79,6 +79,7 @@ nfs_client_impl::~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
                                         aio_task *nfs_task)
 {
+    ddebug("begin copy remote file!");
     user_request_ptr req(new user_request());
     req->high_priority = rci->high_priority;
     req->file_size_req.source = rci->source;
@@ -104,6 +105,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                                         const ::dsn::service::get_file_size_response &resp,
                                         const user_request_ptr &ureq)
 {
+    ddebug("end get remote file size!");
     if (err != ::dsn::ERR_OK) {
         derror("{nfs_service} remote get file size failed, source = %s, dir = %s, err = %s",
                ureq->file_size_req.source.to_string(),
@@ -175,7 +177,9 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
 
 void nfs_client_impl::continue_copy()
 {
+    ddebug("continue_copy!");
     if (_buffered_local_write_count >= _opts.max_buffered_local_writes) {
+        ddebug("continue_copy 1!");
         // exceed max_buffered_local_writes limit, pause.
         // the copy task will be triggered by continue_copy() invoked in local_write_callback().
         return;
@@ -184,6 +188,7 @@ void nfs_client_impl::continue_copy()
     if (++_concurrent_copy_request_count > _opts.max_concurrent_remote_copy_requests) {
         // exceed max_concurrent_remote_copy_requests limit, pause.
         // the copy task will be triggered by continue_copy() invoked in end_copy().
+        ddebug("continue_copy 2!");
         --_concurrent_copy_request_count;
         return;
     }
@@ -225,6 +230,7 @@ void nfs_client_impl::continue_copy()
         {
             zauto_lock l(req->lock);
             const user_request_ptr &ureq = req->file_ctx->user_req;
+            ddebug("folly!!!");
             if (req->is_valid) {
 
                 derror("may be delay!");
