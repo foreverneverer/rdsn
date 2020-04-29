@@ -227,7 +227,9 @@ void nfs_client_impl::continue_copy()
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
 
+                derror("may be delay!");
                 _copy_token_bucket->consumeWithBorrowAndWait(req->size);
+                derror("delay compilete!");
 
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
