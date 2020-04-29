@@ -121,10 +121,8 @@ private:
     bool move_primary_based_on_flow_per_app(const std::shared_ptr<app_state> &app,
                                             const std::vector<int> &prev,
                                             const std::vector<int> &flow);
-    bool copy_primary_per_app(const std::shared_ptr<app_state> &app,
-                              bool still_have_less_than_average,
-                              int replicas_low);
-    bool primary_balancer_per_app(const std::shared_ptr<app_state> &app);
+    bool copy_primary_per_app(const std::shared_ptr<app_state> &app);
+    bool try_move_pri_per_app(const std::shared_ptr<app_state> &app);
 
     bool copy_secondary_per_app(const std::shared_ptr<app_state> &app);
 
