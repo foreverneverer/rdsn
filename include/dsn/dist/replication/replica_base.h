@@ -40,6 +40,11 @@ struct replica_base
     {
     }
 
+    replica_base(gpid id, string_view name)
+        : _gpid(id), _name(name)
+    {
+    }
+
     explicit replica_base(replica_base *rhs)
         : replica_base(rhs->get_gpid(), rhs->replica_name(), rhs->_app_name)
     {
