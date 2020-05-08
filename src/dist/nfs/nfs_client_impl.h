@@ -144,7 +144,7 @@ public:
         file_context_ptr file_ctx; // reference to the owner
         int index;
         uint64_t offset;
-        uint64_t size;
+        uint32_t size;
         bool is_last;
         copy_response response;
         ::dsn::task_ptr remote_copy_task;
@@ -315,11 +315,9 @@ private:
     void handle_completion(const user_request_ptr &req, error_code err);
 
 private:
-    const int BYTE_TO_BIT = 8;
-
     nfs_opts &_opts;
 
-    std::unique_ptr<folly::TokenBucket> _copy_token_bucket; // rate limit of copy from remote
+    std::unique_ptr<folly::TokenBucket> _copy_token_bucket; // rate limiter of copy from remote
 
     std::atomic<int> _concurrent_copy_request_count; // record concurrent request count, limited
                                                      // by max_concurrent_remote_copy_requests.

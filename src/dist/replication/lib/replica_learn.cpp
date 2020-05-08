@@ -971,7 +971,6 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                static_cast<int>(resp.state.files.size()),
                high_priority ? "high" : "low");
 
-               ddebug("start copy remote file!");
         _potential_secondary_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
             resp.config.primary,
             resp.base_local_dir,
