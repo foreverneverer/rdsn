@@ -66,11 +66,8 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
         COUNTER_TYPE_VOLATILE_NUMBER,
         "nfs client write fail count count in the recent period");
 
-    uint32_t copy_rate_limit = (uint32_t)dsn_config_get_value_uint64(
-        "replication", "copy_limit_rate", 100, "rate limit of fds(Mb/s)");
-
-    uint32_t burst_size = 1.5 * copy_rate_limit * 1e6;
-    _copy_token_bucket.reset(new folly::TokenBucket(copy_rate_limit * 1e6, burst_size));
+    uint32_t burst_size = 1.5 * _opts.nfs_copy_limit_rate * 1e6;
+    _copy_token_bucket.reset(new folly::TokenBucket(_opts.nfs_copy_limit_rate * 1e6, burst_size));
 }
 
 nfs_client_impl::~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }

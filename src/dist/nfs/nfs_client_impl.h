@@ -53,6 +53,7 @@ namespace service {
 struct nfs_opts
 {
     uint32_t nfs_copy_block_bytes;
+    uint32_t nfs_copy_limit_rate;
     int max_concurrent_remote_copy_requests;
     int max_concurrent_local_writes;
     int max_buffered_local_writes;
@@ -109,6 +110,9 @@ struct nfs_opts
                                              10000,
                                              "rpc timeout in milliseconds for nfs copy, "
                                              "0 means use default timeout of rpc engine");
+
+        nfs_copy_limit_rate = (uint32_t)dsn_config_get_value_uint64(
+            "replication", "nfs_copy_limit_rate", 100, "limit rate of copying from remote(Mb/s)");
     }
 };
 
