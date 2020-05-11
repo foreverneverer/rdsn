@@ -73,7 +73,11 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
     register_cli_commands();
 }
 
-nfs_client_impl::~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }
+nfs_client_impl::~nfs_client_impl()
+{
+    _tracker.cancel_outstanding_tasks();
+    dsn::command_manager::instance().deregister_command(_ctrl_max_copy_rate);
+}
 
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
                                         aio_task *nfs_task)
