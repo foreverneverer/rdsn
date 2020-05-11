@@ -80,7 +80,7 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
 nfs_client_impl::~nfs_client_impl()
 {
     _tracker.cancel_outstanding_tasks();
-    dsn::command_manager::instance().deregister_command(_ctrl_max_copy_rate);
+    dsn::command_manager::instance().deregister_command(_ctrl_nfs_max_copy_rate);
 }
 
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
@@ -523,7 +523,7 @@ void nfs_client_impl::handle_completion(const user_request_ptr &req, error_code 
 
 void nfs_client_impl::register_cli_commands()
 {
-    _ctrl_max_copy_rate = dsn::command_manager::instance().register_app_command(
+    _ctrl_nfs_max_copy_rate = dsn::command_manager::instance().register_app_command(
         {"nfs.max_copy_rate"},
         "nfs.max_copy_rate [num | DEFAULT]",
         "control the max rate(Mb/s) to copy file from remote node",
@@ -550,7 +550,7 @@ void nfs_client_impl::register_cli_commands()
             }
             return result;
         });
-    dassert(_ctrl_max_copy_rate, "register cli handler failed");
+    dassert(_ctrl_nfs_max_copy_rate, "register cli handler failed");
 }
 }
 }
