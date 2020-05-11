@@ -516,8 +516,8 @@ void nfs_client_impl::handle_completion(const user_request_ptr &req, error_code 
 void nfs_client_impl::register_cli_commands()
 {
     _ctrl_max_copy_rate = dsn::command_manager::instance().register_app_command(
-        {"nfs.copy_token_bucket"},
-        "nfs.copy_token_bucket [num | DEFAULT]",
+        {"nfs.max_copy_rate"},
+        "nfs.max_copy_rate [num | DEFAULT]",
         "control the max rate(Mb/s) to copy file from remote node",
         [this](const std::vector<std::string> &args) {
             std::string result("OK");
