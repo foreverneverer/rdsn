@@ -40,6 +40,8 @@
 namespace dsn {
 namespace service {
 
+DSN_DEFINE_int32("nfs", max_copy_rate, 500, "max rate of copying from remote node(Mb/s)");
+
 nfs_client_impl::nfs_client_impl(nfs_opts &opts)
     : _opts(opts),
       _concurrent_copy_request_count(0),
@@ -67,8 +69,10 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
         COUNTER_TYPE_VOLATILE_NUMBER,
         "nfs client write fail count count in the recent period");
 
-    uint32_t burst_size = 1.5 * FLAGS_max_copy_rate * 1e6;
-    _copy_token_bucket.reset(new folly::TokenBucket(FLAGS_max_copy_rate * 1e6, burst_size));
+    _opts.max_copy_rate = FLAGS_max_copy_rate;
+
+    uint32_t burst_size = 1.5 * _opts.max_copy_rate * 1e6;
+    _copy_token_bucket.reset(new folly::TokenBucket(_opts.max_copy_rate * 1e6, burst_size));
 
     register_cli_commands();
 }
@@ -526,12 +530,12 @@ void nfs_client_impl::register_cli_commands()
         [this](const std::vector<std::string> &args) {
             std::string result("OK");
             if (args.empty()) {
-                result = std::to_string(FLAGS_max_copy_rate);
+                result = std::to_string(_opts.max_copy_rate);
             } else {
                 if (args[0] == "DEFAULT") {
-                    uint32_t burst_size = 1.5 * FLAGS_max_copy_rate * 1e6;
+                    uint32_t burst_size = 1.5 * _opts.max_copy_rate * 1e6;
                     _copy_token_bucket.reset(
-                        new folly::TokenBucket(FLAGS_max_copy_rate * 1e6, burst_size));
+                        new folly::TokenBucket(_opts.max_copy_rate * 1e6, burst_size));
                 } else {
                     int32_t max_copy_rate = 0;
                     if (!dsn::buf2int32(args[0], max_copy_rate) || max_copy_rate < 0) {
@@ -540,7 +544,7 @@ void nfs_client_impl::register_cli_commands()
                         uint32_t burst_size = 1.5 * max_copy_rate * 1e6;
                         _copy_token_bucket.reset(
                             new folly::TokenBucket(max_copy_rate * 1e6, burst_size));
-                        FLAGS_max_copy_rate = max_copy_rate;
+                        _opts.max_copy_rate = max_copy_rate;
                     }
                 }
             }

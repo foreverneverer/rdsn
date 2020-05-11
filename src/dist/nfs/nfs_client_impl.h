@@ -51,11 +51,10 @@ using TokenBucket = BasicTokenBucket<std::chrono::steady_clock>;
 namespace dsn {
 namespace service {
 
-DSN_DEFINE_int32("nfs", max_copy_rate, 500, "max rate of copying from remote node(Mb/s)");
-
 struct nfs_opts
 {
     uint32_t nfs_copy_block_bytes;
+    uint32_t max_copy_rate;
     int max_concurrent_remote_copy_requests;
     int max_concurrent_local_writes;
     int max_buffered_local_writes;
