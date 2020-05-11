@@ -69,10 +69,10 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
         COUNTER_TYPE_VOLATILE_NUMBER,
         "nfs client write fail count count in the recent period");
 
-    _opts.max_copy_rate = FLAGS_max_copy_rate;
+    uint32_t burst_size = 1.5 * FLAGS_max_copy_rate * 1e6;
+    _copy_token_bucket.reset(new folly::TokenBucket(FLAGS_max_copy_rate * 1e6, burst_size));
 
-    uint32_t burst_size = 1.5 * _opts.max_copy_rate * 1e6;
-    _copy_token_bucket.reset(new folly::TokenBucket(_opts.max_copy_rate * 1e6, burst_size));
+    _opts.max_copy_rate = FLAGS_max_copy_rate;
 
     register_cli_commands();
 }
