@@ -53,7 +53,7 @@ namespace service {
 struct nfs_opts
 {
     uint32_t nfs_copy_block_bytes;
-    uint32_t nfs_copy_limit_rate;
+    uint32_t max_copy_rate;
     int max_concurrent_remote_copy_requests;
     int max_concurrent_local_writes;
     int max_buffered_local_writes;
@@ -111,8 +111,8 @@ struct nfs_opts
                                              "rpc timeout in milliseconds for nfs copy, "
                                              "0 means use default timeout of rpc engine");
 
-        nfs_copy_limit_rate = (uint32_t)dsn_config_get_value_uint64(
-            "replication", "nfs_copy_limit_rate", 100, "limit rate of copying from remote(Mb/s)");
+        max_copy_rate = (uint32_t)dsn_config_get_value_uint64(
+            "nfs", "max_copy_rate", 500, "max rate of copying from remote node(Mb/s)");
     }
 };
 
@@ -318,10 +318,13 @@ private:
 
     void handle_completion(const user_request_ptr &req, error_code err);
 
+    void register_cli_commands();
+
 private:
     nfs_opts &_opts;
 
     std::unique_ptr<folly::TokenBucket> _copy_token_bucket; // rate limiter of copy from remote
+    dsn_handle_t _ctrl_copy_token_bucket;
 
     std::atomic<int> _concurrent_copy_request_count; // record concurrent request count, limited
                                                      // by max_concurrent_remote_copy_requests.

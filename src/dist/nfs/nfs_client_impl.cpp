@@ -34,6 +34,7 @@
  */
 #include <dsn/utility/filesystem.h>
 #include <queue>
+#include <dsn/tool-api/command_manager.h>
 #include "nfs_client_impl.h"
 
 namespace dsn {
@@ -66,8 +67,10 @@ nfs_client_impl::nfs_client_impl(nfs_opts &opts)
         COUNTER_TYPE_VOLATILE_NUMBER,
         "nfs client write fail count count in the recent period");
 
-    uint32_t burst_size = 1.5 * _opts.nfs_copy_limit_rate * 1e6;
-    _copy_token_bucket.reset(new folly::TokenBucket(_opts.nfs_copy_limit_rate * 1e6, burst_size));
+    uint32_t burst_size = 1.5 * _opts.max_copy_rate * 1e6;
+    _copy_token_bucket.reset(new folly::TokenBucket(_opts.max_copy_rate * 1e6, burst_size));
+
+    register_cli_commands();
 }
 
 nfs_client_impl::~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }
@@ -508,6 +511,37 @@ void nfs_client_impl::handle_completion(const user_request_ptr &req, error_code 
 
     // notify aio_task
     req->nfs_task->enqueue(err, err == ERR_OK ? total_size : 0);
+}
+
+void nfs_client_impl::register_cli_commands()
+{
+    _ctrl_copy_token_bucket = dsn::command_manager::instance().register_app_command(
+        {"nfs.copy_token_bucket"},
+        "nfs.copy_token_bucket [num | DEFAULT]",
+        "control the max rate(Mb/s) to copy file from remote node",
+        [this](const std::vector<std::string> &args) {
+            std::string result("OK");
+            if (args.empty()) {
+                result = std::to_string(_opts.max_copy_rate);
+            } else {
+                if (args[0] == "DEFAULT") {
+                    uint32_t burst_size = 1.5 * _opts.max_copy_rate * 1e6;
+                    _copy_token_bucket.reset(
+                        new folly::TokenBucket(_opts.max_copy_rate * 1e6, burst_size));
+                } else {
+                    int32_t max_copy_rate = 0;
+                    if (!dsn::buf2int32(args[0], max_copy_rate) || max_copy_rate < 0) {
+                        result = std::string("ERR: invalid arguments");
+                    } else {
+                        uint32_t burst_size = 1.5 * max_copy_rate * 1e6;
+                        _copy_token_bucket.reset(
+                            new folly::TokenBucket(max_copy_rate * 1e6, burst_size));
+                    }
+                }
+            }
+            return result;
+        });
+    dassert(_ctrl_copy_token_bucket, "register cli handler failed");
 }
 }
 }
