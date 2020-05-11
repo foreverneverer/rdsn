@@ -56,7 +56,6 @@ DSN_DEFINE_int32("nfs", max_copy_rate, 500, "max rate of copying from remote nod
 struct nfs_opts
 {
     uint32_t nfs_copy_block_bytes;
-    uint32_t max_copy_rate;
     int max_concurrent_remote_copy_requests;
     int max_concurrent_local_writes;
     int max_buffered_local_writes;
@@ -113,8 +112,6 @@ struct nfs_opts
                                              10000,
                                              "rpc timeout in milliseconds for nfs copy, "
                                              "0 means use default timeout of rpc engine");
-
-        max_copy_rate = FLAGS_max_copy_rate;
     }
 };
 
