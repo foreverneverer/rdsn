@@ -515,7 +515,7 @@ void nfs_client_impl::handle_completion(const user_request_ptr &req, error_code 
 
 void nfs_client_impl::register_cli_commands()
 {
-    _ctrl_copy_token_bucket = dsn::command_manager::instance().register_app_command(
+    _ctrl_max_copy_rate = dsn::command_manager::instance().register_app_command(
         {"nfs.copy_token_bucket"},
         "nfs.copy_token_bucket [num | DEFAULT]",
         "control the max rate(Mb/s) to copy file from remote node",
@@ -541,7 +541,7 @@ void nfs_client_impl::register_cli_commands()
             }
             return result;
         });
-    dassert(_ctrl_copy_token_bucket, "register cli handler failed");
+    dassert(_ctrl_max_copy_rate, "register cli handler failed");
 }
 }
 }

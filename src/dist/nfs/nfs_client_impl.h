@@ -324,7 +324,7 @@ private:
     nfs_opts &_opts;
 
     std::unique_ptr<folly::TokenBucket> _copy_token_bucket; // rate limiter of copy from remote
-    dsn_handle_t _ctrl_copy_token_bucket;
+    dsn_handle_t _ctrl_max_copy_rate; // use remote-command modify the max_copy_rate
 
     std::atomic<int> _concurrent_copy_request_count; // record concurrent request count, limited
                                                      // by max_concurrent_remote_copy_requests.
