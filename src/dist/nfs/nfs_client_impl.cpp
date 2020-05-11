@@ -540,6 +540,7 @@ void nfs_client_impl::register_cli_commands()
                         uint32_t burst_size = 1.5 * max_copy_rate * 1e6;
                         _copy_token_bucket.reset(
                             new folly::TokenBucket(max_copy_rate * 1e6, burst_size));
+                        _opts.max_copy_rate = max_copy_rate;
                     }
                 }
             }
