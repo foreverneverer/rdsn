@@ -41,6 +41,7 @@
 #include <dsn/dist/nfs_node.h>
 #include <dsn/utility/defer.h>
 #include <dsn/utility/TokenBucket.h>
+#include <dsn/utility/flags.h>
 #include "nfs_client.h"
 
 namespace folly {
@@ -49,6 +50,8 @@ using TokenBucket = BasicTokenBucket<std::chrono::steady_clock>;
 
 namespace dsn {
 namespace service {
+
+DSN_DEFINE_int32("nfs", max_copy_rate, 500, "max rate of copying from remote node(Mb/s)");
 
 struct nfs_opts
 {
@@ -111,8 +114,7 @@ struct nfs_opts
                                              "rpc timeout in milliseconds for nfs copy, "
                                              "0 means use default timeout of rpc engine");
 
-        max_copy_rate = (uint32_t)dsn_config_get_value_uint64(
-            "nfs", "max_copy_rate", 500, "max rate of copying from remote node(Mb/s)");
+        max_copy_rate = FLAGS_max_copy_rate;
     }
 };
 
