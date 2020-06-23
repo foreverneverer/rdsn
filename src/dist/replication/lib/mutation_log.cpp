@@ -474,21 +474,21 @@ mutation_log::mutation_log(const std::string &dir, int32_t max_log_file_mb, gpid
         _total_aio_count.init_global_counter("replica",
                                              "app.pegasus",
                                              "total_aio_count",
-                                             COUNTER_TYPE_COUNT,
+                                             COUNTER_TYPE_NUMBER,
                                              "statistic the memory usage of rocksdb block cache");
 
         _plog_aio_count.init_global_counter(
             "replica",
             "app.pegasus",
             "plog_aio_count",
-            COUNTER_TYPE_COUNT,
+            COUNTER_TYPE_NUMBER,
             "statistic the through bytes of rocksdb write rate limiter");
 
         _slog_aio_count.init_global_counter(
             "replica",
             "app.pegasus",
             "slog_aio_count",
-            COUNTER_TYPE_COUNT,
+            COUNTER_TYPE_NUMBER,
             "statistic the through bytes of rocksdb write rate limiter");
     });
 }
