@@ -22,6 +22,7 @@ void log_block::init()
 
 void log_appender::append_mutation(const mutation_ptr &mu, const aio_task_ptr &cb)
 {
+    mu->tracer->add_point("log_appender::append_mutation", dsn_now_ns());
     _mutations.push_back(mu);
     if (cb) {
         _callbacks.push_back(cb);

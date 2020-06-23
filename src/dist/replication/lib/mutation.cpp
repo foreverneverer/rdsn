@@ -167,6 +167,7 @@ void mutation::add_client_request(task_code code, dsn::message_ex *request)
 
 void mutation::write_to(const std::function<void(const blob &)> &inserter) const
 {
+    tracer->add_point("mutation::write_to", dsn_now_ns());
     binary_writer writer(1024);
     write_mutation_header(writer, data.header);
     writer.write_pod(static_cast<int>(data.updates.size()));

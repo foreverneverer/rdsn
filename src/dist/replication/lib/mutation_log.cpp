@@ -44,6 +44,7 @@ namespace replication {
                                             int hash,
                                             int64_t *pending_size)
 {
+    // todo perf-counter
     auto d = mu->data.header.decree;
     ::dsn::aio_task_ptr cb =
         callback ? file::create_aio_task(
