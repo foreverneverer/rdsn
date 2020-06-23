@@ -190,8 +190,6 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
 
 ////////////////////////////////////////////////////
 
-::dsn::perf_counter_wrapper mutation_log_private::_plog_aio_count;
-
 mutation_log_private::mutation_log_private(const std::string &dir,
                                            int32_t max_log_file_mb,
                                            gpid gpid,
