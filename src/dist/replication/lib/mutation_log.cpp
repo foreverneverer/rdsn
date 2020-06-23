@@ -50,6 +50,8 @@ namespace replication {
         callback ? file::create_aio_task(
                        callback_code, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
+    _total_aio_count->increment();
+    _slog_aio_count->increment();
 
     _slock.lock();
 
@@ -66,6 +68,8 @@ namespace replication {
     // start to write if possible
     if (!_is_writing.load(std::memory_order_acquire)) {
         write_pending_mutations(true);
+        mu->tracer->add_point("mutation_log_shared::write_pending_mutations_complete",
+                              dsn_now_ns());
         if (pending_size) {
             *pending_size = 0;
         }
@@ -166,6 +170,8 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
             // ATTENTION: callback may be called before this code block executed done.
             for (auto &c : pending->callbacks()) {
                 c->enqueue(err, sz);
+                _total_aio_count->decrement();
+                _slog_aio_count->decrement();
             }
 
             // start to write next if possible
@@ -183,6 +189,8 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
 }
 
 ////////////////////////////////////////////////////
+
+::dsn::perf_counter_wrapper mutation_log_private::_plog_aio_count;
 
 mutation_log_private::mutation_log_private(const std::string &dir,
                                            int32_t max_log_file_mb,
@@ -415,6 +423,8 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
             //
             // FIXME : the file could have been closed
             lf->flush();
+            _plog_aio_count->decrement();
+            _total_aio_count->decrement();
 
             // update _private_max_commit_on_disk after written into log file done
             update_max_commit_on_disk(max_commit);
@@ -456,6 +466,29 @@ mutation_log::mutation_log(const std::string &dir, int32_t max_log_file_mb, gpid
                 r->get_gpid().get_partition_index());
     }
     mutation_log::init_states();
+
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _total_aio_count.init_global_counter("replica",
+                                             "app.pegasus",
+                                             "total_aio_count",
+                                             COUNTER_TYPE_NUMBER,
+                                             "statistic the memory usage of rocksdb block cache");
+
+        _plog_aio_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "plog_aio_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _slog_aio_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "slog_aio_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the through bytes of rocksdb write rate limiter");
+    });
 }
 
 void mutation_log::init_states()
@@ -2084,6 +2117,8 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  tracker,
                                  std::forward<aio_handler>(callback),
                                  hash);
+        _total_aio_count->increment();
+        _plog_aio_count->increment();
     } else {
         tsk = file::write_vector(_handle,
                                  buffer_vector.data(),
