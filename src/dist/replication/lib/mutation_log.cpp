@@ -37,6 +37,10 @@
 namespace dsn {
 namespace replication {
 
+dsn::perf_counter_wrapper _plog_aio_count;
+dsn::perf_counter_wrapper _slog_aio_count;
+dsn::perf_counter_wrapper _total_aio_count;
+
 ::dsn::task_ptr mutation_log_shared::append(mutation_ptr &mu,
                                             dsn::task_code callback_code,
                                             dsn::task_tracker *tracker,

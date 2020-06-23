@@ -48,10 +48,6 @@
 namespace dsn {
 namespace replication {
 
-dsn::perf_counter_wrapper _plog_aio_count;
-dsn::perf_counter_wrapper _slog_aio_count;
-dsn::perf_counter_wrapper _total_aio_count;
-
 class log_file;
 typedef dsn::ref_ptr<log_file> log_file_ptr;
 
