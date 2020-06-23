@@ -398,6 +398,8 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
                                                     std::shared_ptr<log_appender> &pending,
                                                     decree max_commit)
 {
+    _total_aio_count->increment();
+    _plog_aio_count->increment();
     lf->commit_log_blocks(
         *pending,
         LPC_WRITE_REPLICATION_LOG_PRIVATE,
@@ -2119,8 +2121,6 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  tracker,
                                  std::forward<aio_handler>(callback),
                                  hash);
-        _total_aio_count->increment();
-        _plog_aio_count->increment();
     } else {
         tsk = file::write_vector(_handle,
                                  buffer_vector.data(),
