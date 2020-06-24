@@ -27,7 +27,7 @@ public:
     // this variable can be used for calc the 1th, 2th complete prepare time used
     std::set<uint64_t> primary_receive_prepare_ack_time_used;
 
-    std::unordered_map<std::string, uint64_t> points;
+    std::map<std::string, uint64_t> points;
 
 public:
     latency_tracer(int id, const std::string &name)
