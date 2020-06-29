@@ -27,6 +27,7 @@
 #include "disk_engine.h"
 
 #include <dsn/tool-api/file_io.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace file {
@@ -49,6 +50,7 @@ namespace file {
                              aio_handler &&callback,
                              int hash /*= 0*/)
 {
+    derror_f("aio_task_ptr read");
     auto cb = create_aio_task(callback_code, tracker, std::move(callback), hash);
     cb->get_aio_context()->buffer = buffer;
     cb->get_aio_context()->buffer_size = count;
@@ -69,6 +71,7 @@ namespace file {
                               aio_handler &&callback,
                               int hash /*= 0*/)
 {
+    derror_f("aio_task_ptr write");
     auto cb = create_aio_task(callback_code, tracker, std::move(callback), hash);
     cb->get_aio_context()->buffer = (char *)buffer;
     cb->get_aio_context()->buffer_size = count;
@@ -89,6 +92,7 @@ namespace file {
                                      aio_handler &&callback,
                                      int hash /*= 0*/)
 {
+    derror_f("aio_task_ptr write_vector");
     auto cb = create_aio_task(callback_code, tracker, std::move(callback), hash);
     cb->get_aio_context()->file = file;
     cb->get_aio_context()->file_offset = offset;

@@ -54,7 +54,7 @@ public:
     void exec()
     {
         auto &sp = _node->spec();
-
+        derror_f("task::exec_internal()7");
         if (_start) {
             error_code err;
             err = _node->start_app();

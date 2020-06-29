@@ -5,6 +5,7 @@
 #include "core/core/task_engine.h"
 #include <dsn/tool-api/file_io.h>
 #include <dsn/utility/error_code.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 
@@ -18,6 +19,7 @@ aio_task::aio_task(dsn::task_code code, aio_handler &&cb, int hash, service_node
 {
     _is_null = (_cb == nullptr);
 
+    derror_f("aio_task::aio_task");
     dassert(TASK_TYPE_AIO == spec().type,
             "%s is not of AIO type, please use DEFINE_TASK_CODE_AIO to define the task code",
             spec().name.c_str());
@@ -28,6 +30,7 @@ aio_task::aio_task(dsn::task_code code, aio_handler &&cb, int hash, service_node
 
 void aio_task::collapse()
 {
+    derror_f("aio_task::collapse()");
     if (!_unmerged_write_buffers.empty()) {
         std::shared_ptr<char> buffer(dsn::utils::make_shared_array<char>(_aio_ctx->buffer_size));
         char *dest = buffer.get();
@@ -46,6 +49,7 @@ void aio_task::collapse()
 
 void aio_task::enqueue(error_code err, size_t transferred_size)
 {
+    derror_f("aio_task::enqueue");
     set_error_code(err);
     _transferred_size = transferred_size;
 

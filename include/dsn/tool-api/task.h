@@ -50,6 +50,8 @@
 #include <dsn/tool-api/auto_codes.h>
 #include <dsn/c/api_task.h>
 #include <dsn/c/api_layer1.h>
+#include <dsn/dist/fmt_logging.h>
+
 
 namespace dsn {
 
@@ -335,6 +337,7 @@ public:
 
     void exec() override
     {
+        derror_f("task::exec_internal()1");
         if (dsn_likely(_cb != nullptr)) {
             _cb();
         }
@@ -390,7 +393,9 @@ public:
         : task(code, hash, node), _cb(std::move(cb))
     {
     }
-    virtual void exec() override { dsn::apply(_cb, std::move(_values)); }
+    virtual void exec() override { 
+        derror_f("task::exec_internal()2");
+        dsn::apply(_cb, std::move(_values)); }
 
     void enqueue_with(const First &t, const Remaining &... r, int delay_ms = 0)
     {
@@ -429,6 +434,7 @@ public:
 
     void exec() override
     {
+        derror_f("task::exec_internal()3");
         if (0 == _enqueue_ts_ns ||
             dsn_now_ns() - _enqueue_ts_ns <
                 static_cast<uint64_t>(_request->header->client.timeout_ms) * 1000000ULL) {
@@ -474,6 +480,7 @@ public:
 
     void exec() override
     {
+        derror_f("task::exec_internal()4");
         if (dsn_likely(nullptr != _cb)) {
             _cb(_error, _request, _response);
         }
@@ -595,6 +602,7 @@ public:
     // invoked on aio completed
     virtual void exec() override
     {
+        derror_f("task::exec_internal()5");
         if (nullptr != _cb) {
             _cb(_error, _transferred_size);
         }

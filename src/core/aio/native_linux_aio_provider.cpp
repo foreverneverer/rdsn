@@ -28,6 +28,7 @@
 
 #include <fcntl.h>
 #include <cstdlib>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 
@@ -35,6 +36,7 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
                                                      aio_provider *inner_provider)
     : aio_provider(disk, inner_provider)
 {
+    derror_f("native_linux_aio_provider");
     memset(&_ctx, 0, sizeof(_ctx));
     auto ret = io_setup(128, &_ctx); // 128 concurrent events
     dassert(ret == 0, "io_setup error, ret = %d", ret);
@@ -48,6 +50,7 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
 
 native_linux_aio_provider::~native_linux_aio_provider()
 {
+    derror_f("~native_linux_aio_provider");
     if (!_is_running) {
         return;
     }
@@ -61,6 +64,7 @@ native_linux_aio_provider::~native_linux_aio_provider()
 
 dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, int pmode)
 {
+    derror_f("native_linux_aio_provider::open");
     dsn_handle_t fh = (dsn_handle_t)(uintptr_t)::open(file_name, flag, pmode);
     if (fh == DSN_INVALID_FILE_HANDLE) {
         derror("create file failed, err = %s", strerror(errno));
@@ -70,6 +74,7 @@ dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, in
 
 error_code native_linux_aio_provider::close(dsn_handle_t fh)
 {
+     derror_f("native_linux_aio_provider::close");
     if (fh == DSN_INVALID_FILE_HANDLE || ::close((int)(uintptr_t)(fh)) == 0) {
         return ERR_OK;
     } else {
@@ -80,6 +85,7 @@ error_code native_linux_aio_provider::close(dsn_handle_t fh)
 
 error_code native_linux_aio_provider::flush(dsn_handle_t fh)
 {
+    derror_f("native_linux_aio_provider::flush");
     if (fh == DSN_INVALID_FILE_HANDLE || ::fsync((int)(uintptr_t)(fh)) == 0) {
         return ERR_OK;
     } else {
@@ -90,13 +96,17 @@ error_code native_linux_aio_provider::flush(dsn_handle_t fh)
 
 aio_context *native_linux_aio_provider::prepare_aio_context(aio_task *tsk)
 {
+    derror_f("native_linux_aio_provider::prepare_aio_context");
     return new linux_disk_aio_context(tsk);
 }
 
-void native_linux_aio_provider::aio(aio_task *aio_tsk) { aio_internal(aio_tsk, true); }
+void native_linux_aio_provider::aio(aio_task *aio_tsk) { 
+    derror_f("native_linux_aio_provider::aio");
+    aio_internal(aio_tsk, true); }
 
 void native_linux_aio_provider::get_event()
 {
+    derror_f("native_linux_aio_provider::get_event()");
     struct io_event events[1];
     int ret;
 
@@ -127,6 +137,7 @@ void native_linux_aio_provider::get_event()
 
 void native_linux_aio_provider::complete_aio(struct iocb *io, int bytes, int err)
 {
+    derror_f("native_linux_aio_provider::complete_aio");
     linux_disk_aio_context *aio = CONTAINING_RECORD(io, linux_disk_aio_context, cb);
     error_code ec;
     if (err != 0) {
@@ -150,6 +161,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                                                    bool async,
                                                    /*out*/ uint32_t *pbytes /*= nullptr*/)
 {
+    derror_f("native_linux_aio_provider::aio_internal");
     struct iocb *cbs[1];
     linux_disk_aio_context *aio;
     int ret;

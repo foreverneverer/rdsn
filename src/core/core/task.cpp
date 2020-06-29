@@ -160,6 +160,7 @@ bool task::set_retry(bool enqueue_immediately /*= true*/)
 
 void task::exec_internal()
 {
+    derror_f("task::exec_internal()");
     task_state READY_STATE = TASK_STATE_READY;
     task_state RUNNING_STATE = TASK_STATE_RUNNING;
     bool notify_if_necessary = true;
@@ -376,6 +377,7 @@ const char *task::get_current_node_name()
 
 void task::enqueue()
 {
+    derror_f("task::enqueue()");
     dassert(_node != nullptr, "service node unknown for this task");
     dassert(_spec->type != TASK_TYPE_RPC_RESPONSE,
             "tasks with TASK_TYPE_RPC_RESPONSE type use task::enqueue(caller_pool()) instead");
@@ -387,6 +389,7 @@ void task::enqueue()
 
 void task::enqueue(task_worker_pool *pool)
 {
+    derror_f("task::enqueue(task_worker_pool *pool)");
     this->add_ref(); // released in exec_internal (even when cancelled)
 
     dassert(pool != nullptr,

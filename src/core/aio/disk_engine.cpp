@@ -27,6 +27,7 @@
 #include "disk_engine.h"
 #include "sim_aio_provider.h"
 #include "core/core/service_engine.h"
+#include <dsn/dist/fmt_logging.h>
 
 using namespace dsn::utils;
 
@@ -37,6 +38,7 @@ DEFINE_TASK_CODE_AIO(LPC_AIO_BATCH_WRITE, TASK_PRIORITY_COMMON, THREAD_POOL_DEFA
 //----------------- disk_file ------------------------
 aio_task *disk_write_queue::unlink_next_workload(void *plength)
 {
+    derror_f("disk_write_queue::unlink_next_workload");
     uint64_t next_offset;
     uint32_t &sz = *(uint32_t *)plength;
     sz = 0;
@@ -80,18 +82,21 @@ disk_file::disk_file(dsn_handle_t handle) : _handle(handle) {}
 
 aio_task *disk_file::read(aio_task *tsk)
 {
+    derror_f("disk_file::read");
     tsk->add_ref(); // release on completion, see `on_read_completed`.
     return _read_queue.add_work(tsk, nullptr);
 }
 
 aio_task *disk_file::write(aio_task *tsk, void *ctx)
 {
+     derror_f("disk_file::write");
     tsk->add_ref(); // release on completion
     return _write_queue.add_work(tsk, ctx);
 }
 
 aio_task *disk_file::on_read_completed(aio_task *wk, error_code err, size_t size)
 {
+     derror_f("disk_file::on_read_completed");
     dassert(wk->next == nullptr, "");
     auto ret = _read_queue.on_work_completed(wk, nullptr);
     wk->enqueue(err, size);
@@ -102,6 +107,7 @@ aio_task *disk_file::on_read_completed(aio_task *wk, error_code err, size_t size
 
 aio_task *disk_file::on_write_completed(aio_task *wk, void *ctx, error_code err, size_t size)
 {
+    derror_f("disk_file::on_write_completed");
     auto ret = _write_queue.on_work_completed(wk, ctx);
 
     while (wk) {
@@ -136,6 +142,7 @@ aio_task *disk_file::on_write_completed(aio_task *wk, void *ctx, error_code err,
 //----------------- disk_engine ------------------------
 disk_engine::disk_engine()
 {
+    derror_f("disk_engine::disk_engine()");
     _node = service_engine::instance().get_all_nodes().begin()->second.get();
 
     // use native_linux_aio_provider in default
@@ -150,6 +157,7 @@ disk_engine::~disk_engine() {}
 
 disk_file *disk_engine::open(const char *file_name, int flag, int pmode)
 {
+    derror_f("disk_engine::open");
     dsn_handle_t nh = _provider->open(file_name, flag, pmode);
     if (nh != DSN_INVALID_FILE_HANDLE) {
         return new disk_file(nh);
@@ -160,6 +168,7 @@ disk_file *disk_engine::open(const char *file_name, int flag, int pmode)
 
 error_code disk_engine::close(disk_file *fh)
 {
+    derror_f("disk_engine::close");
     if (nullptr != fh) {
         auto df = (disk_file *)fh;
         auto ret = _provider->close(df->native_handle());
@@ -172,6 +181,7 @@ error_code disk_engine::close(disk_file *fh)
 
 error_code disk_engine::flush(disk_file *fh)
 {
+    derror_f("disk_engine::flush");
     if (nullptr != fh) {
         auto df = (disk_file *)fh;
         return _provider->flush(df->native_handle());
@@ -182,6 +192,7 @@ error_code disk_engine::flush(disk_file *fh)
 
 void disk_engine::read(aio_task *aio)
 {
+    derror_f("disk_engine::read");
     if (!aio->spec().on_aio_call.execute(task::get_current_task(), aio, true)) {
         aio->enqueue(ERR_FILE_OPERATION_FAILED, 0);
         return;
@@ -210,6 +221,7 @@ public:
 
     virtual void exec() override
     {
+        derror_f("batch_write_io_task::exec6");
         auto df = (disk_file *)_tasks->get_aio_context()->file_object;
         uint32_t sz;
 
@@ -225,6 +237,7 @@ public:
 
 void disk_engine::write(aio_task *aio)
 {
+    derror_f("disk_engine::write");
     if (!aio->spec().on_aio_call.execute(task::get_current_task(), aio, true)) {
         aio->enqueue(ERR_FILE_OPERATION_FAILED, 0);
         return;
@@ -246,6 +259,7 @@ void disk_engine::write(aio_task *aio)
 
 void disk_engine::process_write(aio_task *aio, uint32_t sz)
 {
+    derror_f("disk_engine::process_write");
     aio_context *dio = aio->get_aio_context();
 
     // no batching
@@ -296,6 +310,7 @@ void disk_engine::process_write(aio_task *aio, uint32_t sz)
 
 void disk_engine::complete_io(aio_task *aio, error_code err, uint32_t bytes, int delay_milliseconds)
 {
+    derror_f("disk_engine::complete_io");
     if (err != ERR_OK) {
         dinfo("disk operation failure with code %s, err = %s, aio_task_id = %016" PRIx64,
               aio->spec().name.c_str(),
