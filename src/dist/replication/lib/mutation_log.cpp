@@ -41,6 +41,17 @@ dsn::perf_counter_wrapper _plog_aio_count;
 dsn::perf_counter_wrapper _slog_aio_count;
 dsn::perf_counter_wrapper _total_aio_count;
 
+dsn::perf_counter_wrapper _plog_aio_cb_count;
+dsn::perf_counter_wrapper _slog_aio_cb_count;
+
+dsn::perf_counter_wrapper _slog_aio_tatency;
+dsn::perf_counter_wrapper _plog_aio_tatency;
+
+dsn::perf_counter_wrapper _slog_aio_cb_tatency;
+dsn::perf_counter_wrapper _plog_aio_cb_tatency;
+
+dsn::perf_counter_wrapper _slog_aio_cb_cb_tatency;
+
 ::dsn::task_ptr mutation_log_shared::append(mutation_ptr &mu,
                                             dsn::task_code callback_code,
                                             dsn::task_tracker *tracker,
@@ -136,14 +147,24 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
 {
     _total_aio_count->increment();
     _slog_aio_count->increment();
+    _slog_aio_cb_count->increment();
+    uint64_t start_time = dsn_now_ns();
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
         &_tracker,
-        [this, lf, pending](error_code err, size_t sz) mutable {
+        [this, lf, pending, start_time](error_code err, size_t sz) mutable {
             dassert(_is_writing.load(std::memory_order_relaxed), "");
+            uint64_t io_cm_start = dsn_now_ns();
+            uint64_t io_cm_timeused = io_cm_start - start_time;
+
             _total_aio_count->decrement();
             _slog_aio_count->decrement();
+
+            _slog_aio_tatency->set(io_cm_timeused);
+            if (io_cm_timeused > 100000000) {
+                derror_replica("slog_io_complete:{}", io_cm_timeused);
+            }
 
             for (auto &block : pending->all_blocks()) {
                 auto hdr = (log_block_header *)block.front().data();
@@ -175,7 +196,19 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
             // notify the callbacks
             // ATTENTION: callback may be called before this code block executed done.
             for (auto &c : pending->callbacks()) {
+                uint64_t start_time = dsn_now_ns();
                 c->enqueue(err, sz);
+                uint64_t time_used = dsn_now_ns() - start_time;
+                _slog_aio_cb_cb_tatency->set(time_used);
+                if (time_used > 100000000) {
+                    derror_replica("slog_aio_cb_one_cb_complete:{}", time_used);
+                }
+            }
+
+            _slog_aio_cb_count->decrement();
+            _slog_aio_cb_tatency->set(dsn_now_ns() - io_cm_start);
+            if (dsn_now_ns() - io_cm_start > 100000000) {
+                derror_replica("slog_io_cb_all_cb_complete:{}", dsn_now_ns() - io_cm_start);
             }
 
             // start to write next if possible
@@ -400,12 +433,24 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
 {
     _total_aio_count->increment();
     _plog_aio_count->increment();
+    _plog_aio_cb_count->increment();
+    uint64_t start_time = dsn_now_ns();
     lf->commit_log_blocks(
         *pending,
         LPC_WRITE_REPLICATION_LOG_PRIVATE,
         &_tracker,
-        [this, lf, pending, max_commit](error_code err, size_t sz) mutable {
+        [this, lf, pending, max_commit, start_time](error_code err, size_t sz) mutable {
             dassert(_is_writing.load(std::memory_order_relaxed), "");
+
+            _plog_aio_count->decrement();
+            _total_aio_count->decrement();
+
+            uint64_t io_cm_start = dsn_now_ns();
+            uint64_t io_cm_timeused = io_cm_start - start_time;
+            _plog_aio_tatency->set(io_cm_timeused);
+            if (io_cm_timeused > 100000000) {
+                derror_replica("plog_io_complete:{}", io_cm_timeused);
+            }
 
             for (auto &block : pending->all_blocks()) {
                 auto hdr = (log_block_header *)block.front().data();
@@ -427,8 +472,11 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
             //
             // FIXME : the file could have been closed
             lf->flush();
-            _plog_aio_count->decrement();
-            _total_aio_count->decrement();
+            _plog_aio_cb_count->decrement();
+            _plog_aio_cb_tatency->set(dsn_now_ns() - io_cm_start);
+            if (dsn_now_ns() - io_cm_start > 100000000) {
+                derror_replica("plog_io_cb_complete:{}", dsn_now_ns() - io_cm_start);
+            }
 
             // update _private_max_commit_on_disk after written into log file done
             update_max_commit_on_disk(max_commit);
@@ -492,6 +540,56 @@ mutation_log::mutation_log(const std::string &dir, int32_t max_log_file_mb, gpid
             "slog_aio_count",
             COUNTER_TYPE_NUMBER,
             "statistic the through bytes of rocksdb write rate limiter");
+
+        _plog_aio_cb_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "plog_aio_cb_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _slog_aio_cb_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "slog_aio_cb_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _slog_aio_tatency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "slog_aio_tatency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _plog_aio_tatency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "plog_aio_tatency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _slog_aio_cb_tatency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "slog_aio_cb_tatency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _slog_aio_cb_cb_tatency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "slog_aio_cb_cb_tatency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _plog_aio_cb_tatency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "plog_aio_cb_tatency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
     });
 }
 
