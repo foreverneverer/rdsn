@@ -113,7 +113,7 @@ aio_context *native_linux_aio_provider::prepare_aio_context(aio_task *tsk)
 
 void native_linux_aio_provider::aio(aio_task *aio_tsk) { aio_internal(aio_tsk, true); }
 
-void native_linux_aio_provider::get_event(int id = 0)
+void native_linux_aio_provider::get_event(int id)
 {
     struct io_event events[1];
     int ret;
