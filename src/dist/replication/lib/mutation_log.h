@@ -638,6 +638,7 @@ public:
                                         dsn::task_code evt,
                                         dsn::task_tracker *tracker,
                                         aio_handler &&callback,
+                                        int io_context_id,
                                         int hash);
 
     //

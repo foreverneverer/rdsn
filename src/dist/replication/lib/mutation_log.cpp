@@ -222,6 +222,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                 }
             }
         },
+        1,
         0);
 }
 
@@ -495,6 +496,7 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
                 _plock.unlock();
             }
         },
+        0,
         0);
 }
 
@@ -2168,6 +2170,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                          dsn::task_code evt,
                                          dsn::task_tracker *tracker,
                                          aio_handler &&callback,
+                                         int io_context_id,
                                          int hash)
 {
     dassert(!_is_read, "log file must be of write mode");
@@ -2218,6 +2221,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  evt,
                                  tracker,
                                  std::forward<aio_handler>(callback),
+                                 io_context_id,
                                  hash);
     } else {
         tsk = file::write_vector(_handle,
@@ -2227,6 +2231,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  evt,
                                  tracker,
                                  nullptr,
+                                 io_context_id,
                                  hash);
     }
 

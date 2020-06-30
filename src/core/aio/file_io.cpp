@@ -104,6 +104,31 @@ namespace file {
     return cb;
 }
 
+/*extern*/ aio_task_ptr write_vector(disk_file *file,
+                                     const dsn_file_buffer_t *buffers,
+                                     int buffer_count,
+                                     uint64_t offset,
+                                     task_code callback_code,
+                                     task_tracker *tracker,
+                                     aio_handler &&callback,
+                                     int io_context_id,
+                                     int hash = 0)
+{
+    auto cb = create_aio_task(callback_code, io_context_id, tracker, std::move(callback), hash);
+    cb->get_aio_context()->file = file;
+    cb->get_aio_context()->file_offset = offset;
+    cb->get_aio_context()->type = AIO_Write;
+    for (int i = 0; i < buffer_count; i++) {
+        if (buffers[i].size > 0) {
+            cb->_unmerged_write_buffers.push_back(buffers[i]);
+            cb->get_aio_context()->buffer_size += buffers[i].size;
+        }
+    }
+
+    disk_engine::instance().write(cb);
+    return cb;
+}
+
 aio_context_ptr prepare_aio_context(aio_task *tsk)
 {
     return disk_engine::instance().prepare_aio_context(tsk);
