@@ -28,8 +28,11 @@
 
 #include <fcntl.h>
 #include <cstdlib>
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 
 namespace dsn {
+
+dsn::perf_counter_wrapper _total_native_aio_count;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
                                                      aio_provider *inner_provider)
@@ -43,6 +46,17 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
     _worker = std::thread([this, disk]() {
         task::set_tls_dsn_context(node(), nullptr);
         get_event();
+    });
+
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _total_native_aio_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "_total_native_aio_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the memory usage of rocksdb block cache");
+
     });
 }
 
@@ -117,6 +131,7 @@ void native_linux_aio_provider::get_event()
             dassert(ret == 1, "io_getevents returns %d", ret);
             struct iocb *io = events[0].obj;
             complete_aio(io, static_cast<int>(events[0].res), static_cast<int>(events[0].res2));
+            _total_native_aio_count->decrement();
         } else {
             // on error it returns a negated error number (the negative of one of the values listed
             // in ERRORS
@@ -199,6 +214,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
 
     cbs[0] = &aio->cb;
     ret = io_submit(_ctx, 1, cbs);
+    _total_native_aio_count->increment();
 
     if (ret != 1) {
         if (ret < 0)

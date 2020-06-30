@@ -54,8 +54,6 @@ dsn::perf_counter_wrapper _total_aio_count;
         callback ? file::create_aio_task(
                        callback_code, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
-    _total_aio_count->increment();
-    _slog_aio_count->increment();
 
     _slock.lock();
 
@@ -136,12 +134,16 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
 void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
+    _total_aio_count->increment();
+    _slog_aio_count->increment();
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
         &_tracker,
         [this, lf, pending](error_code err, size_t sz) mutable {
             dassert(_is_writing.load(std::memory_order_relaxed), "");
+            _total_aio_count->decrement();
+            _slog_aio_count->decrement();
 
             for (auto &block : pending->all_blocks()) {
                 auto hdr = (log_block_header *)block.front().data();
@@ -174,8 +176,6 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
             // ATTENTION: callback may be called before this code block executed done.
             for (auto &c : pending->callbacks()) {
                 c->enqueue(err, sz);
-                _total_aio_count->decrement();
-                _slog_aio_count->decrement();
             }
 
             // start to write next if possible
