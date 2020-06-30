@@ -163,7 +163,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
 
             _slog_aio_tatency->set(io_cm_timeused);
             if (io_cm_timeused > 100000000) {
-                derror_replica("slog_io_complete:{}", io_cm_timeused);
+                derror_f("slog_io_complete:{}", io_cm_timeused);
             }
 
             for (auto &block : pending->all_blocks()) {
@@ -201,14 +201,14 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                 uint64_t time_used = dsn_now_ns() - start_time;
                 _slog_aio_cb_cb_tatency->set(time_used);
                 if (time_used > 100000000) {
-                    derror_replica("slog_aio_cb_one_cb_complete:{}", time_used);
+                    derror_f("slog_aio_cb_one_cb_complete:{}", time_used);
                 }
             }
 
             _slog_aio_cb_count->decrement();
             _slog_aio_cb_tatency->set(dsn_now_ns() - io_cm_start);
             if (dsn_now_ns() - io_cm_start > 100000000) {
-                derror_replica("slog_io_cb_all_cb_complete:{}", dsn_now_ns() - io_cm_start);
+                derror_f("slog_io_cb_all_cb_complete:{}", dsn_now_ns() - io_cm_start);
             }
 
             // start to write next if possible
@@ -449,7 +449,7 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
             uint64_t io_cm_timeused = io_cm_start - start_time;
             _plog_aio_tatency->set(io_cm_timeused);
             if (io_cm_timeused > 100000000) {
-                derror_replica("plog_io_complete:{}", io_cm_timeused);
+                derror_f("plog_io_complete:{}", io_cm_timeused);
             }
 
             for (auto &block : pending->all_blocks()) {
@@ -475,7 +475,7 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
             _plog_aio_cb_count->decrement();
             _plog_aio_cb_tatency->set(dsn_now_ns() - io_cm_start);
             if (dsn_now_ns() - io_cm_start > 100000000) {
-                derror_replica("plog_io_cb_complete:{}", dsn_now_ns() - io_cm_start);
+                derror_f("plog_io_cb_complete:{}", dsn_now_ns() - io_cm_start);
             }
 
             // update _private_max_commit_on_disk after written into log file done
