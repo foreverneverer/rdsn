@@ -112,7 +112,7 @@ namespace file {
                                      task_tracker *tracker,
                                      aio_handler &&callback,
                                      int io_context_id,
-                                     int hash = 0)
+                                     int hash)
 {
     auto cb = create_aio_task(callback_code, io_context_id, tracker, std::move(callback), hash);
     cb->get_aio_context()->file = file;
