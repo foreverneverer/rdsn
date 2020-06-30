@@ -463,6 +463,7 @@ void replica::on_prepare(dsn::message_ex *request)
     }
 
     dassert(mu->log_task() == nullptr, "");
+    _stub->_plog_one_mu_append_aio_count->increment();
     mu->log_task() = _stub->_log->append(mu,
                                          LPC_WRITE_REPLICATION_LOG,
                                          &_tracker,
