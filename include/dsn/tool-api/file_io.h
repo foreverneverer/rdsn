@@ -96,6 +96,17 @@ extern aio_task_ptr write_vector(disk_file *file,
                                  aio_handler &&callback,
                                  int hash = 0);
 
+
+extern aio_task_ptr write_vector(disk_file *file,
+                                 const dsn_file_buffer_t *buffers,
+                                 int buffer_count,
+                                 uint64_t offset,
+                                 task_code callback_code,
+                                 task_tracker *tracker,
+                                 aio_handler &&callback,
+                                 int io_context_id,
+                                 int hash = 0);  
+
 extern aio_context_ptr prepare_aio_context(aio_task *tsk);
 
 } // namespace file
