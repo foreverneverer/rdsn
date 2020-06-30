@@ -225,6 +225,8 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                 mu->data.header.log_offset);
         dassert(mu->log_task() == nullptr, "");
         int64_t pending_size;
+
+        _stub->_plog_one_mu_append_aio_count->increment();
         mu->log_task() = _stub->_log->append(mu,
                                              LPC_WRITE_REPLICATION_LOG,
                                              &_tracker,
@@ -475,6 +477,8 @@ void replica::on_prepare(dsn::message_ex *request)
 
 void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t size)
 {
+
+    _stub->_plog_one_mu_append_aio_count->decrement();
     _checker.only_one_thread_access();
 
     mu->tracer->add_point("replica::on_append_log_completed", dsn_now_ns());

@@ -437,6 +437,8 @@ private:
 
     perf_counter_wrapper _counter_recent_write_size_exceed_threshold_count;
 
+    dsn::perf_counter_wrapper _plog_one_mu_append_aio_count;
+
 #ifdef DSN_ENABLE_GPERF
     perf_counter_wrapper _counter_tcmalloc_release_memory_size;
 #endif
