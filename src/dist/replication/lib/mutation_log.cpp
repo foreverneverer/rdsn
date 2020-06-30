@@ -2164,7 +2164,7 @@ aio_task_ptr log_file::commit_log_block(log_block &block,
                                         int hash)
 {
     log_appender pending(offset, block);
-    return commit_log_blocks(pending, evt, tracker, std::move(callback), hash);
+    return commit_log_blocks(pending, evt, tracker, std::move(callback), 0, hash);
 }
 aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                          dsn::task_code evt,
