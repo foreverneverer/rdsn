@@ -63,7 +63,7 @@ dsn::perf_counter_wrapper _slog_aio_cb_cb_tatency;
     auto d = mu->data.header.decree;
     ::dsn::aio_task_ptr cb =
         callback ? file::create_aio_task(
-                       callback_code, tracker, std::forward<aio_handler>(callback), hash)
+                       callback_code, 1, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
 
     _slock.lock();
