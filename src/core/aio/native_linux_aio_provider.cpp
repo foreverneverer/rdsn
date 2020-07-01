@@ -28,11 +28,14 @@
 
 #include <fcntl.h>
 #include <cstdlib>
+#include <dsn/dist/fmt_logging.h>
 #include <dsn/perf_counter/perf_counter_wrapper.h>
 
 namespace dsn {
 
 dsn::perf_counter_wrapper _total_native_aio_count;
+dsn::perf_counter_wrapper _native_aio_count_latency;
+;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
                                                      aio_provider *inner_provider)
@@ -57,6 +60,13 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
             "_total_native_aio_count",
             COUNTER_TYPE_NUMBER,
             "statistic the memory usage of rocksdb block cache");
+
+        _native_aio_count_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_count_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
 
     });
 }
@@ -218,7 +228,12 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     }
 
     cbs[0] = &aio->cb;
+    uint64_t start_time = dsn_now_ns();
     ret = io_submit(_ctx[aio_context_id], 1, cbs);
+    uint64_t time_used = dsn_now_ns() - start_time;
+    if (time_used > 100000000) {
+        derror_f("slog_aio_cb_one_cb_complete:{}", time_used);
+    }
     _total_native_aio_count->increment();
 
     if (ret != 1) {

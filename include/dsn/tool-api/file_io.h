@@ -60,8 +60,8 @@ create_aio_task(task_code code, task_tracker *tracker, aio_handler &&callback, i
     return t;
 }
 
-inline aio_task_ptr
-create_aio_task(task_code code, int io_context_id, task_tracker *tracker, aio_handler &&callback, int hash = 0)
+inline aio_task_ptr create_aio_task(
+    task_code code, int io_context_id, task_tracker *tracker, aio_handler &&callback, int hash = 0)
 {
     aio_task_ptr t(new aio_task(code, io_context_id, std::move(callback), hash));
     t->set_tracker((task_tracker *)tracker);
@@ -96,7 +96,6 @@ extern aio_task_ptr write_vector(disk_file *file,
                                  aio_handler &&callback,
                                  int hash = 0);
 
-
 extern aio_task_ptr write_vector(disk_file *file,
                                  const dsn_file_buffer_t *buffers,
                                  int buffer_count,
@@ -105,7 +104,7 @@ extern aio_task_ptr write_vector(disk_file *file,
                                  task_tracker *tracker,
                                  aio_handler &&callback,
                                  int io_context_id,
-                                 int hash = 0);  
+                                 int hash = 0);
 
 extern aio_context_ptr prepare_aio_context(aio_task *tsk);
 
