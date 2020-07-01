@@ -34,6 +34,7 @@
 namespace dsn {
 
 dsn::perf_counter_wrapper _total_native_aio_count;
+dsn::perf_counter_wrapper _total_native_aio_submit_count;
 dsn::perf_counter_wrapper _native_aio_submit_latency;
 ;
 
@@ -57,7 +58,14 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
         _total_native_aio_count.init_global_counter(
             "replica",
             "app.pegasus",
-            "_total_native_aio_count",
+            "total_native_aio_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the memory usage of rocksdb block cache");
+
+        _total_native_aio_submit_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "total_native_aio_count",
             COUNTER_TYPE_NUMBER,
             "statistic the memory usage of rocksdb block cache");
 
@@ -231,9 +239,11 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     uint64_t start_time = dsn_now_ns();
     ret = io_submit(_ctx[aio_context_id], 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
-    if (time_used > 100000000) {
+    _native_aio_submit_latency->set(time_used);
+    if (time_used > 20000000) {
         derror_f("aio_submit:{}", time_used);
     }
+    _total_native_aio_submit_count->increment();
     _total_native_aio_count->increment();
 
     if (ret != 1) {
