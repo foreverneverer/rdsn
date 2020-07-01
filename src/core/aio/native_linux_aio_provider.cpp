@@ -34,7 +34,7 @@
 namespace dsn {
 
 dsn::perf_counter_wrapper _total_native_aio_count;
-dsn::perf_counter_wrapper _native_aio_count_latency;
+dsn::perf_counter_wrapper _native_aio_submit_latency;
 ;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
@@ -61,10 +61,10 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
             COUNTER_TYPE_NUMBER,
             "statistic the memory usage of rocksdb block cache");
 
-        _native_aio_count_latency.init_global_counter(
+        _native_aio_submit_latency.init_global_counter(
             "replica",
             "app.pegasus",
-            "native_aio_count_latency",
+            "native_aio_submit_latency",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
@@ -232,7 +232,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     ret = io_submit(_ctx[aio_context_id], 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
     if (time_used > 100000000) {
-        derror_f("slog_aio_cb_one_cb_complete:{}", time_used);
+        derror_f("aio_submit:{}", time_used);
     }
     _total_native_aio_count->increment();
 
