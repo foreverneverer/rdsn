@@ -97,6 +97,7 @@ native_linux_aio_provider::~native_linux_aio_provider()
 
 dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, int pmode)
 {
+    pmode = pmode | O_DIRECT;
     dsn_handle_t fh = (dsn_handle_t)(uintptr_t)::open(file_name, flag, pmode);
     if (fh == DSN_INVALID_FILE_HANDLE) {
         derror("create file failed, err = %s", strerror(errno));
