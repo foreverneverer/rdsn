@@ -219,8 +219,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             struct iovec *iov = (struct iovec *)alloca(sizeof(struct iovec) * iovcnt);
             for (int i = 0; i < iovcnt; i++) {
                 const dsn_file_buffer_t &buf = aio->write_buffer_vec->at(i);
-                const dsn_file_buffer_t *p_buf = &buf;
-                posix_memalign((void**)(&p_buf), 512, 1024 * 1024);
+                posix_memalign(const_cast<void**>(&(buf.buffer)), 512, 1024 * 1024);
                 iov[i].iov_base = buf.buffer;
                 iov[i].iov_len = buf.size;
             }
