@@ -201,6 +201,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
 
     switch (aio->type) {
     case AIO_Read:
+        posix_memalign(const_cast<void **>(&aio->buffer), 512, 1024 * 1024);
         io_prep_pread(&aio->cb,
                       static_cast<int>((ssize_t)aio->file),
                       aio->buffer,
@@ -209,6 +210,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         break;
     case AIO_Write:
         if (aio->buffer) {
+            posix_memalign(const_cast<void **>(&aio->buffer), 512, 1024 * 1024);
             io_prep_pwrite(&aio->cb,
                            static_cast<int>((ssize_t)aio->file),
                            aio->buffer,
@@ -219,7 +221,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             struct iovec *iov = (struct iovec *)alloca(sizeof(struct iovec) * iovcnt);
             for (int i = 0; i < iovcnt; i++) {
                 const dsn_file_buffer_t &buf = aio->write_buffer_vec->at(i);
-                posix_memalign(const_cast<void**>(&(buf.buffer)), 512, 1024 * 1024);
+                posix_memalign(const_cast<void **>(&(buf.buffer)), 512, 1024 * 1024);
                 iov[i].iov_base = buf.buffer;
                 iov[i].iov_len = buf.size;
             }
