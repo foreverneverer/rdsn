@@ -259,8 +259,8 @@ std::cout << "TTTTTTTTTTTTTTTTTTTTT:" << rin.sz << std::endl;
         }
         aio_result rout;
 
-        aio_task_ptr tout = file::write_vector(fout,
-                                        buffer_vector,
+        aio_task_ptr tout_vector = file::write_vector(fout,
+                                        buffer_vector.data(),
                                         rin.sz * 100,
                                         offset,
                                         LPC_AIO_TEST_WRITE,
