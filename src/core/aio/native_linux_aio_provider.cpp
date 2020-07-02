@@ -25,7 +25,7 @@
  */
 
 #include "native_linux_aio_provider.h"
-
+#include <stdio.h>
 #include <fcntl.h>
 #include <cstdlib>
 #include <dsn/dist/fmt_logging.h>
@@ -61,7 +61,8 @@ native_linux_aio_provider::~native_linux_aio_provider()
 }
 
 dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, int pmode)
-{
+{   
+    flag = flag | O_DIRECT;
     dsn_handle_t fh = (dsn_handle_t)(uintptr_t)::open(file_name, flag, pmode);
     if (fh == DSN_INVALID_FILE_HANDLE) {
         derror("create file failed, err = %s", strerror(errno));
@@ -117,7 +118,7 @@ void native_linux_aio_provider::get_event()
         {
             dassert(ret == 1, "io_getevents returns %d", ret);
             struct iocb *io = events[0].obj;
-            derror_f("result:{}",static_cast<int>(events[0].res));
+            printf("result:%d",static_cast<int>(events[0].res));
             complete_aio(io, static_cast<int>(events[0].res), static_cast<int>(events[0].res2));
         } else {
             // on error it returns a negated error number (the negative of one of the values listed
@@ -172,10 +173,11 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         break;
     case AIO_Write:
         if (aio->buffer) {
+            posix_memalign(&aio->buffer, 512, 1024);
             io_prep_pwrite(&aio->cb,
                            static_cast<int>((ssize_t)aio->file),
                            aio->buffer,
-                           aio->buffer_size,
+                           1024,
                            aio->file_offset);
         } else {
             int iovcnt = aio->write_buffer_vec->size();
@@ -183,7 +185,8 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             for (int i = 0; i < iovcnt; i++) {
                 const dsn_file_buffer_t &buf = aio->write_buffer_vec->at(i);
                 iov[i].iov_base = buf.buffer;
-                iov[i].iov_len = buf.size;
+                posix_memalign(&(iov[i].iov_base), 512, 1024);
+                iov[i].iov_len = 1024;
             }
             io_prep_pwritev(
                 &aio->cb, static_cast<int>((ssize_t)aio->file), iov, iovcnt, aio->file_offset);

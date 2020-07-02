@@ -27,7 +27,7 @@
 #include "disk_engine.h"
 #include "sim_aio_provider.h"
 #include "core/core/service_engine.h"
-
+#include <stdio.h>
 using namespace dsn::utils;
 
 namespace dsn {
@@ -247,10 +247,12 @@ void disk_engine::write(aio_task *aio)
 void disk_engine::process_write(aio_task *aio, uint32_t sz)
 {
     aio_context *dio = aio->get_aio_context();
-
+    printf("disk_engine:%d", sz);
+    printf("buffer_size:%d", dio->buffer_size);
     // no batching
     if (dio->buffer_size == sz) {
         if (dio->buffer == nullptr) {
+            printf("wwwwwwwwwww");
             if (dio->support_write_vec) {
                 dio->write_buffer_vec = &aio->_unmerged_write_buffers;
             } else {

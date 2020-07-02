@@ -212,8 +212,11 @@ TEST(core, dsn_file)
     dsn::disk_file *fout = file::open("command.copy.txt", O_DIRECT|O_CREAT|O_WRONLY, 0666);
     ASSERT_NE(nullptr, fout);
     char buffer[1024];
+ //   posix_memalign((void**)&buffer, sysconf(_SC_PAGESIZE), sysconf(_SC_PAGESIZE));
+    std::cout << "memememememememememememeem:"  << std::endl;
     uint64_t offset = 0;
     while (true) {
+        std::cout << "sizeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:"  << std::endl;
         aio_result rin;
         aio_task_ptr tin = file::read(fin,
                                       buffer,
@@ -235,10 +238,13 @@ TEST(core, dsn_file)
 
         tin->wait();
         ASSERT_EQ(rin.err, tin->error());
-        if (rin.err != ERR_OK) {
+        std::cout << "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY:"  << std::endl;
+std::cout << "TTTTTTTTTTTTTTTTTTTTT:" << rin.sz << std::endl; 
+       if (rin.err != ERR_OK) {
             ASSERT_EQ(ERR_HANDLE_EOF, rin.err);
             break;
         }
+        std::cout << "sizeZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ:" << rin.sz << std::endl;
         ASSERT_LT(0u, rin.sz);
         ASSERT_EQ(rin.sz, tin->get_transferred_size());
         // this is only true for simulator
@@ -247,10 +253,11 @@ TEST(core, dsn_file)
         }
 
         aio_result rout;
-        posix_memalign((void**)&buffer, 4096, 1024);
+posix_memalign((void**)&buffer, 4096, 4096);
+//        posix_memalign((void**)&buffer, 4096, 1024);
         aio_task_ptr tout = file::write(fout,
                                         buffer,
-                                        rin.sz,
+                                        4096,
                                         offset,
                                         LPC_AIO_TEST_WRITE,
                                         nullptr,
@@ -261,6 +268,7 @@ TEST(core, dsn_file)
                                         0);
         ASSERT_NE(nullptr, tout);
         tout->wait();
+//         ASSERT_EQ(rin.sz, rout.sz);
         ASSERT_EQ(ERR_OK, rout.err);
         ASSERT_EQ(ERR_OK, tout->error());
         ASSERT_EQ(rin.sz, rout.sz);
