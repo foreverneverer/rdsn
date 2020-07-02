@@ -209,7 +209,7 @@ TEST(core, dsn_file)
 
     dsn::disk_file *fin = file::open("command.txt", O_RDONLY, 0);
     ASSERT_NE(nullptr, fin);
-    dsn::disk_file *fout = file::open("command.copy.txt", O_DIRECT|O_CREAT|O_WRONLY, 0666);
+    dsn::disk_file *fout = file::open("command.copy.txt", O_CREAT|O_WRONLY, 0666);
     ASSERT_NE(nullptr, fout);
     char buffer[1024];
  //   posix_memalign((void**)&buffer, sysconf(_SC_PAGESIZE), sysconf(_SC_PAGESIZE));
@@ -252,9 +252,29 @@ std::cout << "TTTTTTTTTTTTTTTTTTTTT:" << rin.sz << std::endl;
             ASSERT_EQ(1, tin->get_count());
         }
 
+        std::vector<dsn_file_buffer_t> buffer_vector(100);
+
+        for(int i = 0; i < 100; i++){
+            buffer_vector[i].buffer = reinterpret_cast<void *>(const_cast<char *>(buffer));
+        }
         aio_result rout;
-posix_memalign((void**)&buffer, 4096, 4096);
-//        posix_memalign((void**)&buffer, 4096, 1024);
+
+        aio_task_ptr tout = file::write_vector(fout,
+                                        buffer_vector,
+                                        rin.sz * 100,
+                                        offset,
+                                        LPC_AIO_TEST_WRITE,
+                                        nullptr,
+                                        [&rout](dsn::error_code err, size_t sz) {
+                                            rout.err = err;
+                                            rout.sz = sz;
+                                        },
+                                        0);
+//      posix_memalign((void**)&buffer, 4096, 4096);
+//      posix_memalign((void**)&buffer, 4096, 1024);
+
+        ASSERT_EQ(ERR_OK, rout.err);
+
         aio_task_ptr tout = file::write(fout,
                                         buffer,
                                         4096,
