@@ -61,6 +61,7 @@ native_linux_aio_provider::~native_linux_aio_provider()
 
 dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, int pmode)
 {
+    flag = flag | O_DIRECT;
     dsn_handle_t fh = (dsn_handle_t)(uintptr_t)::open(file_name, flag, pmode);
     if (fh == DSN_INVALID_FILE_HANDLE) {
         derror("create file failed, err = %s", strerror(errno));
@@ -170,10 +171,11 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         break;
     case AIO_Write:
         if (aio->buffer) {
+            posix_memalign(&aio->buffer, 512, 1024);
             io_prep_pwrite(&aio->cb,
                            static_cast<int>((ssize_t)aio->file),
                            aio->buffer,
-                           aio->buffer_size,
+                           1024,
                            aio->file_offset);
         } else {
             int iovcnt = aio->write_buffer_vec->size();
@@ -183,6 +185,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                 iov[i].iov_base = buf.buffer;
                 iov[i].iov_len = buf.size;
             }
+            posix_memalign((void**)&iov, 512, 1024 * iovcnt);
             io_prep_pwritev(
                 &aio->cb, static_cast<int>((ssize_t)aio->file), iov, iovcnt, aio->file_offset);
         }
