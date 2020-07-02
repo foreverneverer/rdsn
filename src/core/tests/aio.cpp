@@ -209,7 +209,7 @@ TEST(core, dsn_file)
 
     dsn::disk_file *fin = file::open("command.txt", O_RDONLY, 0);
     ASSERT_NE(nullptr, fin);
-    dsn::disk_file *fout = file::open("command.copy.txt", O_RDWR | O_CREAT | O_TRUNC, 0666);
+    dsn::disk_file *fout = file::open("command.copy.txt", O_DIRECT|O_CREAT|O_WRONLY, 0666);
     ASSERT_NE(nullptr, fout);
     char buffer[1024];
     uint64_t offset = 0;
@@ -247,6 +247,7 @@ TEST(core, dsn_file)
         }
 
         aio_result rout;
+        posix_memalign((void**)&buffer, 4096, 1024);
         aio_task_ptr tout = file::write(fout,
                                         buffer,
                                         rin.sz,
