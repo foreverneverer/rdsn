@@ -28,6 +28,7 @@
 
 #include <fcntl.h>
 #include <cstdlib>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 
@@ -116,6 +117,7 @@ void native_linux_aio_provider::get_event()
         {
             dassert(ret == 1, "io_getevents returns %d", ret);
             struct iocb *io = events[0].obj;
+            derror_f("result:{}",static_cast<int>(events[0].res));
             complete_aio(io, static_cast<int>(events[0].res), static_cast<int>(events[0].res2));
         } else {
             // on error it returns a negated error number (the negative of one of the values listed
