@@ -118,7 +118,7 @@ void native_linux_aio_provider::get_event()
         {
             dassert(ret == 1, "io_getevents returns %d", ret);
             struct iocb *io = events[0].obj;
-            printf("result:%d",static_cast<int>(events[0].res));
+            printf("resultAAAAAA:%d",static_cast<int>(events[0].res));
             complete_aio(io, static_cast<int>(events[0].res), static_cast<int>(events[0].res2));
         } else {
             // on error it returns a negated error number (the negative of one of the values listed
@@ -173,11 +173,11 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         break;
     case AIO_Write:
         if (aio->buffer) {
-            posix_memalign(&aio->buffer, 512, 1024);
+            //posix_memalign(&aio->buffer, 512, 1024);
             io_prep_pwrite(&aio->cb,
                            static_cast<int>((ssize_t)aio->file),
                            aio->buffer,
-                           1024,
+                           aio->buffer_size,
                            aio->file_offset);
         } else {
             int iovcnt = aio->write_buffer_vec->size();
@@ -185,8 +185,8 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             for (int i = 0; i < iovcnt; i++) {
                 const dsn_file_buffer_t &buf = aio->write_buffer_vec->at(i);
                 iov[i].iov_base = buf.buffer;
-                posix_memalign(&(iov[i].iov_base), 512, 1024);
-                iov[i].iov_len = 1024;
+                //posix_memalign(&(iov[i].iov_base), 512, 1024);
+                iov[i].iov_len = buf.size;
             }
             io_prep_pwritev(
                 &aio->cb, static_cast<int>((ssize_t)aio->file), iov, iovcnt, aio->file_offset);
