@@ -89,6 +89,7 @@ log_file::~log_file() { close(); }
     auto lf = new log_file(path, hfile, index, start_offset, true);
     lf->reset_stream();
     blob hdr_blob;
+    printf("this is read_next_log_block(hdr_blob) for first open!\n");
     err = lf->read_next_log_block(hdr_blob);
     if (err == ERR_INVALID_DATA || err == ERR_INCOMPLETE_DATA || err == ERR_HANDLE_EOF ||
         err == ERR_FILE_OPERATION_FAILED) {
@@ -135,11 +136,13 @@ log_file::~log_file() { close(); }
         return nullptr;
     }
 
-    disk_file *hfile = file::open(path, O_RDWR | O_CREAT | O_BINARY | O_DIRECT, 0666);
+    disk_file *hfile = file::open(path, O_RDWR | O_CREAT | O_BINARY | O_DIRECT | O_APPEND, 0666);
     if (!hfile) {
         dwarn("create log %s failed", path);
         return nullptr;
     }
+
+    //dassert(file::prefallocate(hfile, 0, 0, 1024*1024*1024) >= 0, "must>0");
 
     return new log_file(path, hfile, index, start_offset, false);
 }
@@ -204,6 +207,7 @@ error_code log_file::read_next_log_block(/*out*/ ::dsn::blob &bb)
 error_code log_file::read_next_log_block(/*out*/ ::dsn::blob &bb, /*out*/ bool &is_padding_blk)
 {
     dassert(_is_read, "log file must be of read mode");
+    printf("read header only\n");
     auto err = _stream->read_next(sizeof(log_block_header), bb);
     if (err != ERR_OK || bb.length() != sizeof(log_block_header)) {
         if (err == ERR_OK || err == ERR_HANDLE_EOF) {
@@ -218,16 +222,24 @@ error_code log_file::read_next_log_block(/*out*/ ::dsn::blob &bb, /*out*/ bool &
 
         return err;
     }
+     derror("read data block header success, size = %d vs %d, err = %s",
+                   bb.length(),
+                   (int)sizeof(log_block_header),
+                   err.to_string());
     log_block_header hdr = *reinterpret_cast<const log_block_header *>(bb.data());
-
     if (hdr.magic != 0xdeadbeef && hdr.magic != MAGIC_PADDING_BLOCK) {
-        derror("invalid data header magic: 0x%x", hdr.magic);
+        derror_f("invalid data header magic: {}", hdr.magic);
         return ERR_INVALID_DATA;
     }
     if (hdr.magic == MAGIC_PADDING_BLOCK) {
+        derror_f("is padding data", hdr.magic);
         is_padding_blk = true;
+        //return ERR_OK;
+    } else {
+         derror_f("common data: {}", hdr.magic);
     }
 
+    printf("read body\n");
     err = _stream->read_next(hdr.length, bb);
     if (err != ERR_OK || hdr.length != bb.length()) {
         derror("read data block body failed, size = %d vs %d, err = %s",
@@ -243,14 +255,20 @@ error_code log_file::read_next_log_block(/*out*/ ::dsn::blob &bb, /*out*/ bool &
         return err;
     }
 
+     derror("read data block body success, size = %d vs %d, err = %s",
+               bb.length(),
+               (int)hdr.length,
+               err.to_string());
+               printf("start crc..............\n");
     auto crc = dsn::utils::crc32_calc(
         static_cast<const void *>(bb.data()), static_cast<size_t>(hdr.length), _crc32);
     if (crc != hdr.body_crc) {
         derror("crc checking failed");
         return ERR_INVALID_DATA;
     }
-    _crc32 = crc;
 
+    _crc32 = crc;
+    printf(" crc ok..............\n");
     return ERR_OK;
 }
 

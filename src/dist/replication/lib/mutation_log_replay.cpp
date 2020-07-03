@@ -27,9 +27,11 @@ namespace replication {
     error_s err;
     size_t start_offset = 0;
     while (true) {
+        printf("replying.............\n");
         err = replay_block(log, callback, start_offset, end_offset);
         if (!err.is_ok()) {
             // Stop immediately if failed
+            printf("replay_block error\n");
             break;
         }
 
@@ -58,31 +60,46 @@ namespace replication {
     int64_t global_start_offset = start_offset + log->start_offset();
     end_offset = global_start_offset; // reset end_offset to the start.
 
+    derror_f("current endoffset:{}", end_offset);
+
     // reads the entire block into memory
-    error_code err = log->read_next_log_block(bb);
+    printf("thi is read next for file last block replay.......\n");
+    bool is = false;
+    error_code err = log->read_next_log_block(bb, is);
+    printf("error:%s\n", err.to_string());
     if (err != ERR_OK) {
+        printf("log->read_next_log_block error\n");
         return error_s::make(err, "failed to read log block");
     }
 
-    reader = dsn::make_unique<binary_reader>(bb);
     end_offset += sizeof(log_block_header);
+    if (is) {
+       end_offset += bb.size();
+       return error_s::ok();
+ }
+
+    reader = dsn::make_unique<binary_reader>(bb);
 
     // The first block is log_file_header.
     if (global_start_offset == log->start_offset()) {
         end_offset += log->read_file_header(*reader);
         if (!log->is_right_header()) {
+            printf("log->read_file_header error\n");
             return error_s::make(ERR_INVALID_DATA, "failed to read log file header");
         }
         // continue to parsing the data block
     }
 
+    printf("get mutation.............\n");
     while (!reader->is_eof()) {
         auto old_size = reader->get_remaining_size();
+        derror_f("log remaining size:{}", old_size);
         mutation_ptr mu = mutation::read_from(*reader, nullptr);
         dassert(nullptr != mu, "");
         mu->set_logged();
-
+        derror_f("mu->data.header.log_offset = {}", mu->data.header.log_offset);
         if (mu->data.header.log_offset != end_offset) {
+            derror_f("mu->data.header.log_offset[{}] != end_offset[{}] error\n", mu->data.header.log_offset, end_offset);
             return FMT_ERR(ERR_INVALID_DATA,
                            "offset mismatch in log entry and mutation {} vs {}",
                            end_offset,
@@ -169,6 +186,7 @@ namespace replication {
             // In this case, the correctness is relying on the check of start_offset.
             dwarn("delay handling error: %s", err.to_string());
         } else {
+            printf("mutation_log::replay error\n");
             // for other errors, we should break
             break;
         }

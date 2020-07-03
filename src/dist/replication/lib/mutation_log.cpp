@@ -33,6 +33,7 @@
 #include <dsn/utility/fail_point.h>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/tool-api/async_calls.h>
+#include <errno.h>
 
 namespace dsn {
 namespace replication {
@@ -505,6 +506,7 @@ error_code mutation_log::open(replay_callback read_callback,
 
     error_code err = ERR_OK;
     for (auto &fpath : file_list) {
+        printf("open file:%s\n", fpath.c_str());
         log_file_ptr log = log_file::open_read(fpath.c_str(), err);
         if (log == nullptr) {
             if (err == ERR_HANDLE_EOF || err == ERR_INCOMPLETE_DATA ||
@@ -619,6 +621,7 @@ error_code mutation_log::open(replay_callback read_callback,
     }
 
     // replay with the found files
+    printf("file all find and open with first block, replay with the last block of every file");
     std::map<int, log_file_ptr> replay_logs(replay_begin, replay_end);
     int64_t end_offset = 0;
     err = replay(

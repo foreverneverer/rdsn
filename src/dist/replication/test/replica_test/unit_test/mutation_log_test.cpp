@@ -449,18 +449,21 @@ TEST_F(mutation_log_test, open)
     { // writing logs
         mutation_log_ptr mlog = create_private_log(4);
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 10; i++) {
             mutation_ptr mu = create_test_mutation("hello!", 2 + i);
             mutations.push_back(mu);
             mlog->append(mu, LPC_AIO_IMMEDIATE_CALLBACK, nullptr, nullptr, 0);
         }
     }
 
+    printf("append okokok\n");
+
     { // reading logs
         mutation_log_ptr mlog =
             new mutation_log_private(_log_dir, 4, get_gpid(), _replica.get(), 1024, 512, 10000);
 
         int mutation_index = -1;
+        printf("start replay\n");
         mlog->open(
             [&mutations, &mutation_index](int log_length, mutation_ptr &mu) -> bool {
                 mutation_ptr wmu = mutations[++mutation_index];

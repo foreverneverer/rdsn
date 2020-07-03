@@ -58,7 +58,7 @@ public:
     // return DSN_INVALID_FILE_HANDLE if failed
     // TODO(wutao1): return uint64_t instead (because we only support linux now)
     virtual dsn_handle_t open(const char *file_name, int flag, int pmode) = 0;
-
+    virtual error_code prefallocate(dsn_handle_t fh, int mode, off_t offset, off_t len) = 0;
     virtual error_code close(dsn_handle_t fh) = 0;
     virtual error_code flush(dsn_handle_t fh) = 0;
 

@@ -45,6 +45,8 @@ namespace file {
 ///
 extern disk_file *open(const char *file_name, int flag, int pmode);
 
+extern error_code prefallocate(disk_file *file, int mode, off_t offset, off_t len);
+
 /// close the file handle
 extern error_code close(disk_file *file);
 

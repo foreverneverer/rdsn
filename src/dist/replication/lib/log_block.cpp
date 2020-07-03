@@ -3,7 +3,7 @@
 // can be found in the LICENSE file in the root directory of this source tree.
 
 #include "log_block.h"
-
+#include <dsn/dist/fmt_logging.h>
 #include <boost/interprocess/mapped_region.hpp>
 
 namespace dsn {
@@ -29,10 +29,12 @@ void log_appender::append_mutation(const mutation_ptr &mu, const aio_task_ptr &c
         _callbacks.push_back(cb);
     }
     log_block *blk = &_blocks.back();
+    derror_f("current block size:start={}, total={}, header = {} ", blk->start_offset(),  blk->size(), blk->get_log_block_header()->length);
     if (_blocks.back().size() > DEFAULT_MAX_BLOCK_BYTES) {
         blk = append_empty_block();
     }
     mu->data.header.log_offset = blk->start_offset() + blk->size();
+    derror_f("current mu header offset:{}", mu->data.header.log_offset);
     mu->write_to([blk](const blob &bb) { blk->add(bb); });
 }
 

@@ -24,8 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include <dsn/dist/fmt_logging.h>
-#include <dsn/tool-api/aio_task.h>
 #include "disk_engine.h"
 #include "sim_aio_provider.h"
 #include "core/core/service_engine.h"
@@ -33,13 +31,8 @@
 using namespace dsn::utils;
 
 namespace dsn {
-using namespace aio;
 
 DEFINE_TASK_CODE_AIO(LPC_AIO_BATCH_WRITE, TASK_PRIORITY_COMMON, THREAD_POOL_DEFAULT)
-
-const char *native_aio_provider = "dsn::tools::native_aio_provider";
-DSN_REGISTER_COMPONENT_PROVIDER(native_linux_aio_provider, native_aio_provider);
-DSN_REGISTER_COMPONENT_PROVIDER(sim_aio_provider, "dsn::tools::sim_aio_provider");
 
 //----------------- disk_file ------------------------
 aio_task *disk_write_queue::unlink_next_workload(void *plength)
@@ -145,17 +138,15 @@ disk_engine::disk_engine()
 {
     _node = service_engine::instance().get_all_nodes().begin()->second.get();
 
-    aio_provider *provider = utils::factory_store<aio_provider>::create(
-        FLAGS_aio_factory_name, dsn::PROVIDER_TYPE_MAIN, this);
-    // use native_aio_provider in default
-    if (nullptr == provider) {
-        derror_f("The config value of aio_factory_name is invalid, use {} in default",
-                 native_aio_provider);
-        provider = utils::factory_store<aio_provider>::create(
-            native_aio_provider, dsn::PROVIDER_TYPE_MAIN, this);
+    // use native_linux_aio_provider in default
+    if (!strcmp(FLAGS_aio_factory_name, "dsn::tools::sim_aio_provider")) {
+        _provider.reset(new aio::sim_aio_provider(this));
+    } else {
+        _provider.reset(new native_linux_aio_provider(this));
     }
-    _provider.reset(provider);
 }
+
+disk_engine::~disk_engine() {}
 
 disk_file *disk_engine::open(const char *file_name, int flag, int pmode)
 {
@@ -164,6 +155,17 @@ disk_file *disk_engine::open(const char *file_name, int flag, int pmode)
         return new disk_file(nh);
     } else {
         return nullptr;
+    }
+}
+
+error_code disk_engine::prefallocate(disk_file *fh, int mode, off_t offset, off_t len)
+{
+    if (nullptr != fh) {
+        auto df = (disk_file *)fh;
+        auto ret = _provider->prefallocate(df->native_handle(), mode, offset, len);
+        return ret;
+    } else {
+        return ERR_INVALID_HANDLE;
     }
 }
 

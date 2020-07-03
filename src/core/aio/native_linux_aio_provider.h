@@ -47,6 +47,7 @@ public:
     ~native_linux_aio_provider() override;
 
     dsn_handle_t open(const char *file_name, int flag, int pmode) override;
+    error_code prefallocate(dsn_handle_t fh, int mode, off_t offset, off_t len) override;
     error_code close(dsn_handle_t fh) override;
     error_code flush(dsn_handle_t fh) override;
     void submit_aio_task(aio_task *aio) override;

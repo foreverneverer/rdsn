@@ -36,6 +36,10 @@ namespace file {
     return disk_engine::instance().open(file_name, flag, pmode);
 }
 
+/*extern*/ error_code prefallocate(disk_file *file, int mode, off_t offset, off_t len){
+    return disk_engine::instance().prefallocate(file, mode, offset, len);
+}
+
 /*extern*/ error_code close(disk_file *file) { return disk_engine::instance().close(file); }
 
 /*extern*/ error_code flush(disk_file *file) { return disk_engine::instance().flush(file); }

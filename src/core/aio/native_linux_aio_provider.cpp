@@ -66,6 +66,16 @@ dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, in
     return fh;
 }
 
+error_code native_linux_aio_provider::prefallocate(dsn_handle_t fh, int mode, off_t offset, off_t len){
+    if(fh == DSN_INVALID_FILE_HANDLE || fallocate((int)(uintptr_t)(fh), mode,offset, len) >= 0){
+        return ERR_OK;
+    } else {
+        derror("prefallocate file failed, err = %s", strerror(errno));
+        return ERR_FILE_OPERATION_FAILED;
+    }
+}
+
+
 error_code native_linux_aio_provider::close(dsn_handle_t fh)
 {
     if (fh == DSN_INVALID_FILE_HANDLE || ::close((int)(uintptr_t)(fh)) == 0) {
@@ -160,6 +170,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
 
     switch (aio->type) {
     case AIO_Read:
+        printf("size read result=%d\n", aio->buffer_size);
         io_prep_pread(&aio->cb,
                       static_cast<int>((ssize_t)aio->file),
                       aio->buffer,
@@ -168,6 +179,8 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         break;
     case AIO_Write:
         if (aio->buffer) {
+            //posix_memalign(&aio->buffer, 512, aio->buffer_size);
+            printf("size write result=%d\n", aio->buffer_size);
             io_prep_pwrite(&aio->cb,
                            static_cast<int>((ssize_t)aio->file),
                            aio->buffer,
