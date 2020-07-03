@@ -236,7 +236,7 @@ error_code log_file::read_next_log_block(/*out*/ ::dsn::blob &bb, /*out*/ bool &
                err.to_string());
 
         if (err == ERR_OK || err == ERR_HANDLE_EOF) {
-            // because already read log_block_header above, so here must be incomplete data
+            // because already read log_block_header above, so here must be imcomplete data
             err = ERR_INCOMPLETE_DATA;
         }
 
