@@ -41,6 +41,7 @@ dsn::perf_counter_wrapper _native_aio_submit_latency;
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk,
                                                      aio_provider *inner_provider)
     : aio_provider(disk, inner_provider)
+native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
 {
     for (int i = 0; i < 2; i++) {
         memset(&_ctx[i], 0, sizeof(_ctx[i]));
@@ -130,7 +131,7 @@ aio_context *native_linux_aio_provider::prepare_aio_context(aio_task *tsk)
     return new linux_disk_aio_context(tsk);
 }
 
-void native_linux_aio_provider::aio(aio_task *aio_tsk) { aio_internal(aio_tsk, true); }
+void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk) { aio_internal(aio_tsk, true); }
 
 void native_linux_aio_provider::get_event(int id)
 {

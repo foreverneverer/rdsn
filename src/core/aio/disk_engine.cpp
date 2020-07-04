@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#include <dsn/dist/fmt_logging.h>
+#include <dsn/tool-api/aio_task.h>
 #include "disk_engine.h"
 #include "sim_aio_provider.h"
 #include "core/core/service_engine.h"
@@ -31,8 +33,13 @@
 using namespace dsn::utils;
 
 namespace dsn {
+using namespace aio;
 
 DEFINE_TASK_CODE_AIO(LPC_AIO_BATCH_WRITE, TASK_PRIORITY_COMMON, THREAD_POOL_DEFAULT)
+
+const char *native_aio_provider = "dsn::tools::native_aio_provider";
+DSN_REGISTER_COMPONENT_PROVIDER(native_linux_aio_provider, native_aio_provider);
+DSN_REGISTER_COMPONENT_PROVIDER(sim_aio_provider, "dsn::tools::sim_aio_provider");
 
 //----------------- disk_file ------------------------
 aio_task *disk_write_queue::unlink_next_workload(void *plength)
@@ -138,66 +145,16 @@ disk_engine::disk_engine()
 {
     _node = service_engine::instance().get_all_nodes().begin()->second.get();
 
-    // use native_linux_aio_provider in default
-    if (!strcmp(FLAGS_aio_factory_name, "dsn::tools::sim_aio_provider")) {
-        _provider.reset(new aio::sim_aio_provider(this, nullptr));
-    } else {
-        _provider.reset(new native_linux_aio_provider(this, nullptr));
+    aio_provider *provider = utils::factory_store<aio_provider>::create(
+        FLAGS_aio_factory_name, dsn::PROVIDER_TYPE_MAIN, this);
+    // use native_aio_provider in default
+    if (nullptr == provider) {
+        derror_f("The config value of aio_factory_name is invalid, use {} in default",
+                 native_aio_provider);
+        provider = utils::factory_store<aio_provider>::create(
+            native_aio_provider, dsn::PROVIDER_TYPE_MAIN, this);
     }
-}
-
-disk_engine::~disk_engine() {}
-
-disk_file *disk_engine::open(const char *file_name, int flag, int pmode)
-{
-    dsn_handle_t nh = _provider->open(file_name, flag, pmode);
-    if (nh != DSN_INVALID_FILE_HANDLE) {
-        return new disk_file(nh);
-    } else {
-        return nullptr;
-    }
-}
-
-error_code disk_engine::close(disk_file *fh)
-{
-    if (nullptr != fh) {
-        auto df = (disk_file *)fh;
-        auto ret = _provider->close(df->native_handle());
-        delete df;
-        return ret;
-    } else {
-        return ERR_INVALID_HANDLE;
-    }
-}
-
-error_code disk_engine::flush(disk_file *fh)
-{
-    if (nullptr != fh) {
-        auto df = (disk_file *)fh;
-        return _provider->flush(df->native_handle());
-    } else {
-        return ERR_INVALID_HANDLE;
-    }
-}
-
-void disk_engine::read(aio_task *aio)
-{
-    if (!aio->spec().on_aio_call.execute(task::get_current_task(), aio, true)) {
-        aio->enqueue(ERR_FILE_OPERATION_FAILED, 0);
-        return;
-    }
-
-    auto dio = aio->get_aio_context();
-    auto df = (disk_file *)dio->file;
-    dio->file = df->native_handle();
-    dio->file_object = df;
-    dio->engine = this;
-    dio->type = AIO_Read;
-
-    auto wk = df->read(aio);
-    if (wk) {
-        return _provider->aio(wk);
-    }
+    _provider.reset(provider);
 }
 
 class batch_write_io_task : public aio_task
@@ -258,7 +215,7 @@ void disk_engine::process_write(aio_task *aio, uint32_t sz)
             }
         }
         dassert(dio->buffer || dio->write_buffer_vec, "");
-        _provider->aio(aio);
+        _provider->submit_aio_task(aio);
     }
 
     // batching
@@ -315,7 +272,7 @@ void disk_engine::complete_io(aio_task *aio, error_code err, uint32_t bytes, int
         if (aio->get_aio_context()->type == AIO_Read) {
             auto wk = df->on_read_completed(aio, err, (size_t)bytes);
             if (wk) {
-                _provider->aio(wk);
+                _provider->submit_aio_task(wk);
             }
         }
 

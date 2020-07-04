@@ -37,7 +37,7 @@
 #include "scheduler.h"
 
 #include "env.sim.h"
-#include "task_engine.sim.h"
+#include "core/task/task_engine.sim.h"
 #include "sim_clock.h"
 
 namespace dsn {
@@ -103,9 +103,6 @@ void simulator::install(service_spec &spec)
 
     if (spec.semaphore_factory_name == "")
         spec.semaphore_factory_name = ("dsn::tools::sim_semaphore_provider");
-
-    if (spec.nfs_factory_name == "")
-        spec.nfs_factory_name = "dsn::service::nfs_node_simple";
 
     for (auto it = spec.threadpool_specs.begin(); it != spec.threadpool_specs.end(); ++it) {
         threadpool_spec &tspec = *it;

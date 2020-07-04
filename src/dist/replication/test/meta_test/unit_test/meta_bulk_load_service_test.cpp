@@ -61,6 +61,22 @@ public:
             APP_NAME, CLUSTER, provider, app_id, partition_count, hint_msg);
     }
 
+    error_code control_bulk_load(int32_t app_id,
+                                 bulk_load_control_type::type type,
+                                 bulk_load_status::type app_status)
+    {
+        bulk_svc()._app_bulk_load_info[app_id].status = app_status;
+
+        auto request = dsn::make_unique<control_bulk_load_request>();
+        request->app_name = APP_NAME;
+        request->type = type;
+
+        control_bulk_load_rpc rpc(std::move(request), RPC_CM_CONTROL_BULK_LOAD);
+        bulk_svc().on_control_bulk_load(rpc);
+        wait_all();
+        return rpc.response().err;
+    }
+
     void mock_meta_bulk_load_context(int32_t app_id,
                                      int32_t in_progress_partition_count,
                                      bulk_load_status::type status)
@@ -104,6 +120,11 @@ public:
         wait_all();
     }
 
+    void reset_local_bulk_load_states(int32_t app_id, const std::string &app_name)
+    {
+        bulk_svc().reset_local_bulk_load_states(app_id, app_name);
+    }
+
 public:
     int32_t APP_ID = 1;
     std::string APP_NAME = "bulk_load_test";
@@ -138,6 +159,33 @@ TEST_F(bulk_load_service_test, start_bulk_load_succeed)
     ASSERT_EQ(resp.err, ERR_OK);
     ASSERT_TRUE(app_is_bulk_loading(APP_NAME));
 
+    fail::teardown();
+}
+
+/// control bulk load unit tests
+TEST_F(bulk_load_service_test, control_bulk_load_test)
+{
+    create_app(APP_NAME);
+    std::shared_ptr<app_state> app = find_app(APP_NAME);
+    app->is_bulk_loading = true;
+    mock_meta_bulk_load_context(app->app_id, app->partition_count, bulk_load_status::BLS_INVALID);
+    fail::setup();
+    fail::cfg("meta_update_app_status_on_remote_storage_unlocked", "return()");
+
+    // TODO(heyuchen): add restart/cancel/force_cancel test cases
+    struct control_test
+    {
+        bulk_load_control_type::type type;
+        bulk_load_status::type app_status;
+        error_code expected_err;
+    } tests[] = {
+        {bulk_load_control_type::BLC_PAUSE, bulk_load_status::BLS_DOWNLOADING, ERR_OK},
+        {bulk_load_control_type::BLC_PAUSE, bulk_load_status::BLS_DOWNLOADED, ERR_INVALID_STATE}};
+
+    for (auto test : tests) {
+        ASSERT_EQ(control_bulk_load(app->app_id, test.type, test.app_status), test.expected_err);
+    }
+    reset_local_bulk_load_states(app->app_id, APP_NAME);
     fail::teardown();
 }
 
@@ -235,6 +283,34 @@ public:
         _resp.__set_is_group_ingestion_finished(secondary_istatus == ingestion_status::IS_SUCCEED);
     }
 
+    void mock_response_cleaned_up_flag(bool all_cleaned_up, bulk_load_status::type status)
+    {
+        create_basic_response(ERR_OK, status);
+
+        partition_bulk_load_state state, state2;
+        state.__set_is_cleaned_up(true);
+        _resp.group_bulk_load_state[PRIMARY] = state;
+        _resp.group_bulk_load_state[SECONDARY1] = state;
+
+        state2.__set_is_cleaned_up(all_cleaned_up);
+        _resp.group_bulk_load_state[SECONDARY2] = state2;
+        _resp.__set_is_group_bulk_load_context_cleaned_up(all_cleaned_up);
+    }
+
+    void mock_response_paused(bool is_group_paused)
+    {
+        create_basic_response(ERR_OK, bulk_load_status::BLS_PAUSED);
+
+        partition_bulk_load_state state, state2;
+        state.__set_is_paused(true);
+        state2.__set_is_paused(is_group_paused);
+
+        _resp.group_bulk_load_state[PRIMARY] = state;
+        _resp.group_bulk_load_state[SECONDARY1] = state;
+        _resp.group_bulk_load_state[SECONDARY2] = state2;
+        _resp.__set_is_group_bulk_load_paused(is_group_paused);
+    }
+
     void test_on_partition_bulk_load_reply(int32_t in_progress_count,
                                            bulk_load_status::type status,
                                            error_code resp_err = ERR_OK)
@@ -325,6 +401,36 @@ TEST_F(bulk_load_process_test, normal_succeed)
     mock_response_ingestion_status(ingestion_status::IS_SUCCEED);
     test_on_partition_bulk_load_reply(1, bulk_load_status::BLS_INGESTING);
     ASSERT_EQ(get_app_bulk_load_status(_app_id), bulk_load_status::BLS_SUCCEED);
+}
+
+TEST_F(bulk_load_process_test, succeed_not_all_finished)
+{
+    mock_response_cleaned_up_flag(false, bulk_load_status::BLS_SUCCEED);
+    test_on_partition_bulk_load_reply(_partition_count, bulk_load_status::BLS_SUCCEED);
+    ASSERT_EQ(get_app_bulk_load_status(_app_id), bulk_load_status::BLS_SUCCEED);
+}
+
+TEST_F(bulk_load_process_test, succeed_all_finished)
+{
+    mock_response_cleaned_up_flag(true, bulk_load_status::BLS_SUCCEED);
+    test_on_partition_bulk_load_reply(1, bulk_load_status::BLS_SUCCEED);
+    ASSERT_FALSE(app_is_bulk_loading(APP_NAME));
+}
+
+// TODO(heyuchen): add half cleanup test while failed
+
+TEST_F(bulk_load_process_test, pausing)
+{
+    mock_response_paused(false);
+    test_on_partition_bulk_load_reply(1, bulk_load_status::BLS_PAUSING);
+    ASSERT_EQ(get_app_bulk_load_status(_app_id), bulk_load_status::BLS_PAUSING);
+}
+
+TEST_F(bulk_load_process_test, pause_succeed)
+{
+    mock_response_paused(true);
+    test_on_partition_bulk_load_reply(1, bulk_load_status::BLS_PAUSING);
+    ASSERT_EQ(get_app_bulk_load_status(_app_id), bulk_load_status::BLS_PAUSED);
 }
 
 // TODO(heyuchen): add other unit tests for `on_partition_bulk_load_reply`

@@ -944,7 +944,7 @@ struct partition_bulk_load_state
     1:optional i32              download_progress = 0;
     2:optional dsn.error_code   download_status;
     3:optional ingestion_status ingest_status = ingestion_status.IS_INVALID;
-    4:optional bool             is_cleanuped = false;
+    4:optional bool             is_cleaned_up = false;
     5:optional bool             is_paused = false;
 }
 
@@ -978,7 +978,7 @@ struct bulk_load_response
     6:optional bulk_load_metadata                       metadata;
     7:optional i32                                      total_download_progress;
     8:optional bool                                     is_group_ingestion_finished;
-    9:optional bool                                     is_group_bulk_load_context_cleaned;
+    9:optional bool                                     is_group_bulk_load_context_cleaned_up;
     10:optional bool                                    is_group_bulk_load_paused;
 }
 
@@ -1022,6 +1022,32 @@ struct ingestion_response
     1:dsn.error_code    err;
     // rocksdb ingestion error code
     2:i32               rocksdb_error;
+}
+
+enum bulk_load_control_type
+{
+    BLC_PAUSE,
+    BLC_RESTART,
+    BLC_CANCEL,
+    BLC_FORCE_CANCEL
+}
+
+// client -> meta server, pause/restart/cancel/force_cancel bulk load
+struct control_bulk_load_request
+{
+    1:string                    app_name;
+    2:bulk_load_control_type    type;
+}
+
+struct control_bulk_load_response
+{
+    // Possible error:
+    // - ERR_APP_NOT_EXIST: app not exist
+    // - ERR_APP_DROPPED: app has been dropped
+    // - ERR_INACTIVE_STATE: app is not executing bulk load
+    // - ERR_INVALID_STATE: current bulk load process can not be paused/restarted/canceled
+    1:dsn.error_code    err;
+    2:optional string   hint_msg;
 }
 
 /*
