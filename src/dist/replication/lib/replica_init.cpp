@@ -198,8 +198,7 @@ error_code replica::init_app_and_prepare_list(bool create_new)
 {
     dassert(nullptr == _app, "");
     error_code err;
-    std::string log_dir = utils::filesystem::path_combine(dir(), "plog");
-
+std::string log_dir = utils::filesystem::path_combine(fmt::format("{}{}","/home/work/log/pegasus/c4tst-injection/replica",dir()), "plog");
     _app.reset(replication_app_base::new_storage_instance(_app_info.app_type, this));
     dassert(nullptr == _private_log, "private log must not be initialized yet");
 

@@ -28,8 +28,11 @@
 
 #include <fcntl.h>
 #include <cstdlib>
-
+#include <dsn/perf_counter/perf_counter_wrapper.h>
+#include <dsn/dist/fmt_logging.h>
 namespace dsn {
+
+dsn::perf_counter_wrapper _native_aio_submit_latency;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
 {
@@ -41,6 +44,17 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
     _worker = std::thread([this, disk]() {
         task::set_tls_dsn_context(node(), nullptr);
         get_event();
+    });
+
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _native_aio_submit_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_submit_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
     });
 }
 
@@ -196,7 +210,14 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     }
 
     cbs[0] = &aio->cb;
+    uint64_t start_time = dsn_now_ns();
     ret = io_submit(_ctx, 1, cbs);
+    uint64_t time_used = dsn_now_ns() - start_time;
+    _native_aio_submit_latency->set(time_used);
+    if (time_used > 20000000) {
+        derror_f("aio_submit:{}, type:{}", time_used, aio->type);
+    }
+   // ret = io_submit(_ctx, 1, cbs);
 
     if (ret != 1) {
         if (ret < 0)
