@@ -225,7 +225,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     uint64_t time_used = dsn_now_ns() - start_time;
     _native_aio_submit_latency->set(time_used);
     if (time_used > 20000000) {
-        derror_f("aio_submit:{}, context_id:{}, type:{}", time_used, aio_context_id, aio->type);
+        derror_f("aio_submit:{}, type:{}", time_used, aio->type);
     }
 
     if (ret != 1) {
