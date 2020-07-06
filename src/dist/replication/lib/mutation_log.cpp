@@ -775,6 +775,10 @@ error_code mutation_log::create_new_log_file()
     uint64_t start = dsn_now_ns();
     log_file_ptr logf =
         log_file::create_write(_dir.c_str(), _last_file_index + 1, _global_end_offset);
+
+    auto ret = file::prefallocate(logf->file_handle(), 0, 0, _max_log_file_size_in_bytes);
+    dassert(ret >= 0, "fallocate result must > 0, {}", strerror(errno));
+    
     if (logf == nullptr) {
         derror("cannot create log file with index %d", _last_file_index + 1);
         return ERR_FILE_OPERATION_FAILED;
@@ -886,13 +890,14 @@ std::pair<log_file_ptr, int64_t> mutation_log::mark_new_offset(size_t size,
     }
 
     int64_t current_file_size = _global_end_offset - _current_log_file->start_offset();
-    if (current_file_size + size > 32 * 1024) {
-        derror_f("curren file size({}) + appending_size({}) = total_size({}) > 32768, will "
+    if (current_file_size + size > _max_log_file_size_in_bytes) {
+        derror_f("curren file size({}) + appending_size({}) = total_size({}) > {}, will "
                  "re-fallocate size",
                  current_file_size,
                  size,
-                 current_file_size + size);
-        int64_t relocate_size = current_file_size + size - 32 * 1024;
+                 current_file_size + size,
+                 _max_log_file_size_in_bytes);
+        int64_t relocate_size = current_file_size + size - _max_log_file_size_in_bytes;
         auto ret = file::prefallocate(
             _current_log_file->file_handle(), 0, current_file_size, relocate_size);
         dassert_f(ret >= 0, "refallocate failed, {}", strerror(errno));
