@@ -141,7 +141,7 @@ log_file::~log_file() { close(); }
         return nullptr;
     }
 
-    int ret = file::prefallocate(hfile, 0, 0, 35 * 1024 * 1024);
+    int ret = file::prefallocate(hfile, 0, 0, 32 * 1024 * 1024);
     dassert(ret >= 0, "fallocate result must > 0, {}", strerror(errno));
 
     return new log_file(path, hfile, index, start_offset, false);
@@ -284,6 +284,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
     pending.finish();
 
     auto size = (long long)pending.size();
+
     size_t vec_size = pending.blob_count();
     std::vector<dsn_file_buffer_t> buffer_vector(vec_size);
     int buffer_idx = 0;
@@ -315,6 +316,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
 
     aio_task_ptr tsk;
     int64_t local_offset = pending.start_offset() - start_offset();
+
     if (callback) {
         tsk = file::write_vector(_handle,
                                  buffer_vector.data(),

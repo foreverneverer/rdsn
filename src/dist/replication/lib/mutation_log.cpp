@@ -885,6 +885,12 @@ std::pair<log_file_ptr, int64_t> mutation_log::mark_new_offset(size_t size,
         dassert(_current_log_file != nullptr, "");
     }
 
+    int64_t current_file_size = _global_end_offset - _current_log_file->start_offset();
+    if (current_file_size + size > 32 * 1024 * 1024) {
+        int64_t relocate_size = current_file_size + size - 32 * 1024 * 1024;
+        file::prefallocate(_current_log_file->file_handle(), 0, current_file_size, relocate_size);
+    }
+
     int64_t write_start_offset = _global_end_offset;
     _global_end_offset += size;
 

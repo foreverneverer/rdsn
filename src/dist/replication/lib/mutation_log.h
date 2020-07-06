@@ -56,6 +56,8 @@ public:
 
     typedef std::function<void(dsn::error_code err)> io_failure_callback;
 
+    log_file_ptr current_log_file = nullptr;
+
 public:
     // append a log mutation
     // return value: nullptr for error
