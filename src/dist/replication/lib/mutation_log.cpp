@@ -890,7 +890,9 @@ std::pair<log_file_ptr, int64_t> mutation_log::mark_new_offset(size_t size,
     }
 
     int64_t current_file_size = _global_end_offset - _current_log_file->start_offset();
-    derror_f("curren file size({}) + appending_size({}) = total_size({}) ? {}",
+    derror_f("curren file({}{private={}}) size({}) + appending_size({}) = total_size({}) ? {}",
+             _current_log_file->path().c_str(),
+             _is_private,
              current_file_size,
              size,
              current_file_size + size,
