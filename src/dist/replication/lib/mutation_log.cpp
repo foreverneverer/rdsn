@@ -898,8 +898,10 @@ std::pair<log_file_ptr, int64_t> mutation_log::mark_new_offset(size_t size,
              current_file_size + size,
              _max_log_file_size_in_bytes);
     if (current_file_size + size > _max_log_file_size_in_bytes) {
-        derror_f("curren file size({}) + appending_size({}) = total_size({}) > {}, will "
-                 "re-fallocate size",
+        derror_f("curren file({},private={}) size({}) + appending_size({}) = total_size({}) > {}, "
+                 "will re-fallocate it.",
+                 _current_log_file->path().c_str(),
+                 _is_private,
                  current_file_size,
                  size,
                  current_file_size + size,
