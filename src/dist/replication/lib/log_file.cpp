@@ -141,7 +141,7 @@ log_file::~log_file() { close(); }
         return nullptr;
     }
 
-    int ret = file::prefallocate(hfile, 0, 0, 32 * 1024 * 1024);
+    auto ret = file::prefallocate(hfile, 0, 0, 32 * 1024);
     dassert(ret >= 0, "fallocate result must > 0, {}", strerror(errno));
 
     return new log_file(path, hfile, index, start_offset, false);
