@@ -41,7 +41,7 @@ namespace file {
     }
 }
 
-error_code prefallocate(disk_file *fh, int mode, off_t offset, off_t len)
+/*extern*/ error_code prefallocate(disk_file *fh, int mode, off_t offset, off_t len)
 {
     if (nullptr != fh) {
         auto df = (disk_file *)fh;
