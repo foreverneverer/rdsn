@@ -778,7 +778,7 @@ error_code mutation_log::create_new_log_file()
 
     auto ret = file::prefallocate(logf->file_handle(), 0, 0, _max_log_file_size_in_bytes);
     dassert(ret >= 0, "fallocate result must > 0, {}", strerror(errno));
-    
+
     if (logf == nullptr) {
         derror("cannot create log file with index %d", _last_file_index + 1);
         return ERR_FILE_OPERATION_FAILED;
@@ -890,6 +890,11 @@ std::pair<log_file_ptr, int64_t> mutation_log::mark_new_offset(size_t size,
     }
 
     int64_t current_file_size = _global_end_offset - _current_log_file->start_offset();
+    derror_f("curren file size({}) + appending_size({}) = total_size({}) ? {}",
+             current_file_size,
+             size,
+             current_file_size + size,
+             _max_log_file_size_in_bytes);
     if (current_file_size + size > _max_log_file_size_in_bytes) {
         derror_f("curren file size({}) + appending_size({}) = total_size({}) > {}, will "
                  "re-fallocate size",
