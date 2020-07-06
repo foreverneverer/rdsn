@@ -432,6 +432,9 @@ private:
     perf_counter_wrapper _counter_recent_read_busy_count;
     perf_counter_wrapper _counter_recent_write_busy_count;
 
+    dsn::perf_counter_wrapper _plog_primary_one_mu_append_aio_latency;
+    dsn::perf_counter_wrapper _plog_secondary_one_mu_append_aio_latency;
+
     perf_counter_wrapper _counter_recent_write_size_exceed_threshold_count;
 
 #ifdef DSN_ENABLE_GPERF

@@ -335,6 +335,18 @@ void replica_stub::install_perf_counters()
         COUNTER_TYPE_VOLATILE_NUMBER,
         "write size exceed threshold count in the recent period");
 
+    _plog_primary_one_mu_append_aio_latency.init_app_counter(
+        "eon.replica_stub",
+        "plog_one_mu_append_aio_count",
+        COUNTER_TYPE_NUMBER_PERCENTILES,
+        "write size exceed threshold count in the recent period");
+
+    _plog_secondary_one_mu_append_aio_latency.init_app_counter(
+        "eon.replica_stub",
+        "slog_one_mu_append_aio_count",
+        COUNTER_TYPE_NUMBER_PERCENTILES,
+        "write size exceed threshold count in the recent period");
+
 #ifdef DSN_ENABLE_GPERF
     _counter_tcmalloc_release_memory_size.init_app_counter("eon.replica_stub",
                                                            "tcmalloc.release.memory.size",

@@ -142,6 +142,10 @@ public:
     // used by pending mutation queue only
     mutation *next;
 
+    // only test
+    uint64_t appen_start;
+    bool primary;
+
     void set_is_sync_to_child(bool sync_to_child) { _is_sync_to_child = sync_to_child; }
     bool is_sync_to_child() { return _is_sync_to_child; }
 
