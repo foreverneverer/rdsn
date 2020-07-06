@@ -150,7 +150,6 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                 derror_f("slog_io_complete:{}", io_cm_timeused);
             }
 
-
             if (err == ERR_OK) {
                 dcheck_eq(sz, pending->size());
 

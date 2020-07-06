@@ -79,6 +79,17 @@ dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, in
     return fh;
 }
 
+error_code
+native_linux_aio_provider::prefallocate(dsn_handle_t fh, int mode, off_t offset, off_t len)
+{
+    if (fh == DSN_INVALID_FILE_HANDLE || fallocate((int)(uintptr_t)(fh), mode, offset, len) >= 0) {
+        return ERR_OK;
+    } else {
+        derror("prefallocate file failed, err = %s", strerror(errno));
+        return ERR_FILE_OPERATION_FAILED;
+    }
+}
+
 error_code native_linux_aio_provider::close(dsn_handle_t fh)
 {
     if (fh == DSN_INVALID_FILE_HANDLE || ::close((int)(uintptr_t)(fh)) == 0) {

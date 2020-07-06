@@ -226,8 +226,8 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
         dassert(mu->log_task() == nullptr, "");
         int64_t pending_size;
 
-         mu->appen_start = dsn_now_ns();
-         mu->primary = true;
+        mu->appen_start = dsn_now_ns();
+        mu->primary = true;
         mu->log_task() = _stub->_log->append(mu,
                                              LPC_WRITE_REPLICATION_LOG,
                                              &_tracker,
@@ -477,13 +477,13 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
     _checker.only_one_thread_access();
 
     uint64_t time_used = dsn_now_ns() - mu->appen_start;
-    if(mu->primary){
+    if (mu->primary) {
         _stub->_plog_primary_one_mu_append_aio_latency->set(time_used);
     } else {
         _stub->_plog_secondary_one_mu_append_aio_latency->set(time_used);
     }
 
-    if(time_used > 100000000){
+    if (time_used > 100000000) {
         derror_f("append complete:{}", time_used);
     }
 

@@ -41,6 +41,17 @@ namespace file {
     }
 }
 
+error_code prefallocate(disk_file *fh, int mode, off_t offset, off_t len)
+{
+    if (nullptr != fh) {
+        auto df = (disk_file *)fh;
+        auto ret = disk_engine::provider().prefallocate(df->native_handle(), mode, offset, len);
+        return ret;
+    } else {
+        return ERR_INVALID_HANDLE;
+    }
+}
+
 /*extern*/ error_code close(disk_file *file)
 {
     if (nullptr != file) {
