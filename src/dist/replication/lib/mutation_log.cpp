@@ -34,6 +34,13 @@
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/tool-api/async_calls.h>
 
+#ifndef FALLOC_FL_KEEP_SIZE
+#define FALLOC_FL_KEEP_SIZE 0x01 /* default is extend size */
+#endif
+#ifndef FALLOC_FL_PUNCH_HOLE
+#define FALLOC_FL_PUNCH_HOLE 0x02 /* de-allocates range */
+#endif
+
 namespace dsn {
 namespace replication {
 
