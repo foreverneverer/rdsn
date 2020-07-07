@@ -335,7 +335,7 @@ fi
 if [ ! -d $TP_OUTPUT/include/rocksdb ]; then
     mkdir -p $TP_BUILD/rocksdb
     cd $TP_BUILD/rocksdb
-    cmake $TP_SRC/pegasus-rocksdb-6.6.4-compatible -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT \
+    cmake $TP_SRC/pegasus-rocksdb-6.6.4-base -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT \
                                                    -DWITH_LZ4=ON \
                                                    -DWITH_ZSTD=ON \
                                                    -DWITH_SNAPPY=ON \
