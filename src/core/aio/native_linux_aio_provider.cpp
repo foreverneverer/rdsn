@@ -193,7 +193,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     case AIO_Write:
         if (aio->buffer) {
             //posix_memalign(&aio->buffer, 4096, aio->buffer_size);
-            derror_f("start={}, size={}", aio->file_offset, aio->buffer_size);
+            //derror_f("start={}, size={}", aio->file_offset, aio->buffer_size);
             io_prep_pwrite(&aio->cb,
                            static_cast<int>((ssize_t)aio->file),
                            aio->buffer,
