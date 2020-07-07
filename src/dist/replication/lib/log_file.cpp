@@ -26,6 +26,7 @@
 
 #include "log_file.h"
 #include "log_file_stream.h"
+#include <boost/filesystem.hpp>
 
 #include <dsn/utility/filesystem.h>
 #include <dsn/utility/crc.h>
@@ -172,7 +173,7 @@ log_file::log_file(
 void log_file::close()
 {
     zauto_lock lock(_write_lock);
-
+    //boost::filesystem::resize_file(_path, _end_offset - _start_offset);
     //_stream implicitly refer to _handle so it needs to be cleaned up first.
     // TODO: We need better abstraction to avoid those manual stuffs..
     _stream.reset(nullptr);

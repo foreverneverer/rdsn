@@ -776,7 +776,7 @@ error_code mutation_log::create_new_log_file()
     log_file_ptr logf =
         log_file::create_write(_dir.c_str(), _last_file_index + 1, _global_end_offset);
 
-    auto ret = file::prefallocate(logf->file_handle(), 0, 0, _max_log_file_size_in_bytes);
+    auto ret = file::prefallocate(logf->file_handle(), FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE, 0, _max_log_file_size_in_bytes);
     dassert(ret >= 0, "fallocate result must > 0, {}", strerror(errno));
 
     if (logf == nullptr) {
@@ -908,7 +908,7 @@ std::pair<log_file_ptr, int64_t> mutation_log::mark_new_offset(size_t size,
                  _max_log_file_size_in_bytes);
         int64_t relocate_size = current_file_size + size - _max_log_file_size_in_bytes;
         auto ret = file::prefallocate(
-            _current_log_file->file_handle(), 0, current_file_size, relocate_size);
+            _current_log_file->file_handle(), FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE , current_file_size, relocate_size);
         dassert_f(ret >= 0, "refallocate failed, {}", strerror(errno));
     }
 
