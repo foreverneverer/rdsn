@@ -173,7 +173,7 @@ log_file::log_file(
 void log_file::close()
 {
     zauto_lock lock(_write_lock);
-    //boost::filesystem::resize_file(_path, _end_offset - _start_offset);
+    // boost::filesystem::resize_file(_path, _end_offset - _start_offset);
     //_stream implicitly refer to _handle so it needs to be cleaned up first.
     // TODO: We need better abstraction to avoid those manual stuffs..
     _stream.reset(nullptr);
@@ -263,15 +263,17 @@ aio_task_ptr log_file::commit_log_block(log_block &block,
                                         dsn::task_code evt,
                                         dsn::task_tracker *tracker,
                                         aio_handler &&callback,
+                                        int context_id,
                                         int hash)
 {
     log_appender pending(offset, block);
-    return commit_log_blocks(pending, evt, tracker, std::move(callback), hash);
+    return commit_log_blocks(pending, evt, tracker, std::move(callback), context_id, hash);
 }
 aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                          dsn::task_code evt,
                                          dsn::task_tracker *tracker,
                                          aio_handler &&callback,
+                                         int context_id,
                                          int hash)
 {
     dassert(!_is_read, "log file must be of write mode");
@@ -326,6 +328,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  evt,
                                  tracker,
                                  std::forward<aio_handler>(callback),
+                                 context_id,
                                  hash);
     } else {
         tsk = file::write_vector(_handle,
@@ -335,6 +338,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  evt,
                                  tracker,
                                  nullptr,
+                                 context_id,
                                  hash);
     }
 
