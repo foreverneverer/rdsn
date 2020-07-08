@@ -132,7 +132,7 @@ void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk) { aio_interna
 
 void native_linux_aio_provider::get_event(int id)
 {
-    struct io_event events[1];
+    struct io_event events[128];
     int ret;
 
     task::set_tls_dsn_context(node(), nullptr);
@@ -146,12 +146,14 @@ void native_linux_aio_provider::get_event(int id)
         if (dsn_unlikely(!_is_running.load(std::memory_order_relaxed))) {
             break;
         }
-        ret = io_getevents(_ctx[id], 1, 1, events, NULL);
-        if (ret > 0) // should be 1
+        ret = io_getevents(_ctx[id], 1, 128, events, NULL);
+        if (ret > 0) // should be < 128
         {
-            dassert(ret == 1, "io_getevents returns %d", ret);
-            struct iocb *io = events[0].obj;
-            complete_aio(io, static_cast<int>(events[0].res), static_cast<int>(events[0].res2));
+            dassert(ret <= 128, "io_getevents returns %d", ret);
+            for (int i = 0; i < ret; i++) {
+                struct iocb *io = events[i].obj;
+                complete_aio(io, static_cast<int>(events[i].res), static_cast<int>(events[i].res2));
+            }
         } else {
             // on error it returns a negated error number (the negative of one of the values listed
             // in ERRORS
