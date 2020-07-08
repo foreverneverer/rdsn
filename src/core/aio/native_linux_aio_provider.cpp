@@ -37,15 +37,16 @@ namespace dsn {
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
 {
-    memset(&_ctx, 0, sizeof(_ctx));
-    auto ret = io_setup(128, &_ctx); // 128 concurrent events
-    dassert(ret == 0, "io_setup error, ret = %d", ret);
-
-    _is_running = true;
-    _worker = std::thread([this, disk]() {
-        task::set_tls_dsn_context(node(), nullptr);
-        get_event();
-    });
+    for (int i = 0; i < 2; i++) {
+        memset(&_ctx[i], 0, sizeof(_ctx[i]));
+        auto ret = io_setup(128, &_ctx[i]);
+        dassert(ret == 0, "io_setup error, ret = %d", ret);
+        _is_running = true;
+        _worker[i] = std::thread([this, i, disk]() {
+            task::set_tls_dsn_context(node(), nullptr);
+            get_event(i);
+        });
+    } // 128 concurrent events
 
     static std::once_flag flag;
     std::call_once(flag, [&]() {
@@ -73,10 +74,13 @@ native_linux_aio_provider::~native_linux_aio_provider()
     }
     _is_running = false;
 
-    auto ret = io_destroy(_ctx);
+    auto ret = io_destroy(_ctx[0]);
     dassert(ret == 0, "io_destroy error, ret = %d", ret);
+    auto ret1 = io_destroy(_ctx[1]);
+    dassert(ret1 == 0, "io_destroy error, ret = %d", ret);
 
-    _worker.join();
+    _worker[0].join();
+    _worker[1].join();
 }
 
 dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, int pmode)
@@ -126,7 +130,7 @@ aio_context *native_linux_aio_provider::prepare_aio_context(aio_task *tsk)
 
 void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk) { aio_internal(aio_tsk, true); }
 
-void native_linux_aio_provider::get_event()
+void native_linux_aio_provider::get_event(int id)
 {
     struct io_event events[1];
     int ret;
@@ -142,7 +146,7 @@ void native_linux_aio_provider::get_event()
         if (dsn_unlikely(!_is_running.load(std::memory_order_relaxed))) {
             break;
         }
-        ret = io_getevents(_ctx, 1, 1, events, NULL);
+        ret = io_getevents(_ctx[id], 1, 1, events, NULL);
         if (ret > 0) // should be 1
         {
             dassert(ret == 1, "io_getevents returns %d", ret);
@@ -233,7 +237,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
 
     cbs[0] = &aio->cb;
     uint64_t start_time = dsn_now_ns();
-    ret = io_submit(_ctx, 1, cbs);
+    ret = io_submit(_ctx[aio_context_id], 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
     if (time_used > 20000000) {
         derror_f("aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}",
