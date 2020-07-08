@@ -62,7 +62,7 @@ create_aio_task(task_code code, task_tracker *tracker, aio_handler &&callback, i
 }
 
 inline aio_task_ptr create_aio_task(
-    task_code code, int io_context_id, task_tracker *tracker, aio_handler &&callback, int hash = 0)
+    task_code code, int io_context_id, task_tracker *tracker, aio_handler &&callback, int hash)
 {
     aio_task_ptr t(new aio_task(code, io_context_id, std::move(callback), hash));
     t->set_tracker((task_tracker *)tracker);

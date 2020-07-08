@@ -82,13 +82,16 @@ public:
     aio_task(task_code code, const aio_handler &cb, int hash = 0, service_node *node = nullptr);
     aio_task(task_code code, aio_handler &&cb, int hash = 0, service_node *node = nullptr);
 
-    aio_task::aio_task(dsn::task_code code,
-                       int io_context_id,
-                       const aio_handler &cb,
-                       int hash,
-                       service_node *node);
-    aio_task::aio_task(
-        dsn::task_code code, int io_context_id, aio_handler &&cb, int hash, service_node *node);
+    aio_task(dsn::task_code code,
+             int io_context_id,
+             const aio_handler &cb,
+             int hash = 0,
+             service_node *node = nullptr);
+    aio_task(dsn::task_code code,
+             int io_context_id,
+             aio_handler &&cb,
+             int hash = 0,
+             service_node *node = nullptr);
     // tell the compiler that we want both the enqueue from base task and ours
     // to prevent the compiler complaining -Werror,-Woverloaded-virtual.
     using task::enqueue;

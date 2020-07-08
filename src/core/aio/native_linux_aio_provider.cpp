@@ -238,7 +238,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     if (time_used > 20000000) {
         derror_f("aio_submit:{}, type:{}", time_used, aio->type);
     }
-    if (aio_context_id = 0) { // 0 means plog
+    if (aio_context_id == 0) { // 0 means plog
         _native_aio_plog_submit_latency->set(time_used);
     } else {
         _native_aio_slog_submit_latency->set(time_used);
