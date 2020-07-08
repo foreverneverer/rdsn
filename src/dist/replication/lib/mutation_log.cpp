@@ -852,6 +852,7 @@ error_code mutation_log::create_new_log_file()
                                    }
                                }
                            },
+                           1,
                            0);
     return ERR_OK;
 }
