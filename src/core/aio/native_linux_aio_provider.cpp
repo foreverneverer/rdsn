@@ -236,7 +236,10 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     ret = io_submit(_ctx, 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
     if (time_used > 20000000) {
-        derror_f("aio_submit:{}, type:{}", time_used, aio->type);
+        derror_f("aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}",
+                 time_used,
+                 aio_context_id,
+                 aio->type);
     }
     if (aio_context_id == 0) { // 0 means plog
         _native_aio_plog_submit_latency->set(time_used);

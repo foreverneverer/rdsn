@@ -337,13 +337,13 @@ void replica_stub::install_perf_counters()
 
     _plog_primary_one_mu_append_aio_latency.init_app_counter(
         "eon.replica_stub",
-        "plog_one_mu_append_aio_count",
+        "plog_primary_one_mu_append_aio_latency",
         COUNTER_TYPE_NUMBER_PERCENTILES,
         "write size exceed threshold count in the recent period");
 
     _plog_secondary_one_mu_append_aio_latency.init_app_counter(
         "eon.replica_stub",
-        "slog_one_mu_append_aio_count",
+        "plog_secondary_one_mu_append_aio_latency",
         COUNTER_TYPE_NUMBER_PERCENTILES,
         "write size exceed threshold count in the recent period");
 
