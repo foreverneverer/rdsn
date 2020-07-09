@@ -283,16 +283,16 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     if (aio_context_id == 0) { // 0 means plog
         _native_aio_plog_submit_latency->set(time_used);
         _native_aio_plog_size->set(aio->buffer_size);
-        _native_aio_too_large_plog_size_count->increment();
-        if (aio->buffer_size >= 1000000) {
+        if (aio->buffer_size >= 100000) {
+            _native_aio_too_large_plog_size_count->increment();
             derror_f("too large plog size: {}", aio->buffer_size);
         }
 
     } else {
         _native_aio_slog_submit_latency->set(time_used);
         _native_aio_slog_size->set(aio->buffer_size);
-        _native_aio_too_large_slog_size_count->increment();
-        if (aio->buffer_size >= 1000000) {
+        if (aio->buffer_size >= 50000) {
+            _native_aio_too_large_slog_size_count->increment();
             derror_f("too large slog size: {}", aio->buffer_size);
         }
     }
