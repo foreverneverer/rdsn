@@ -33,6 +33,8 @@
 
 dsn::perf_counter_wrapper _native_aio_plog_submit_latency;
 dsn::perf_counter_wrapper _native_aio_slog_submit_latency;
+dsn::perf_counter_wrapper _native_aio_plog_size;
+dsn::perf_counter_wrapper _native_aio_slog_size;
 namespace dsn {
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
@@ -61,6 +63,20 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
             "replica",
             "app.pegasus",
             "native_aio_slog_submit_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_plog_size.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_size",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_size.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_size",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
@@ -250,8 +266,10 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     }
     if (aio_context_id == 0) { // 0 means plog
         _native_aio_plog_submit_latency->set(time_used);
+        _native_aio_plog_size->set(aio->buffer_size);
     } else {
         _native_aio_slog_submit_latency->set(time_used);
+        _native_aio_slog_size->set(aio->buffer_size);
     }
 
     if (ret != 1) {
