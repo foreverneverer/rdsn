@@ -35,6 +35,8 @@ dsn::perf_counter_wrapper _native_aio_plog_submit_latency;
 dsn::perf_counter_wrapper _native_aio_slog_submit_latency;
 dsn::perf_counter_wrapper _native_aio_plog_size;
 dsn::perf_counter_wrapper _native_aio_slog_size;
+dsn::perf_counter_wrapper _native_aio_too_large_plog_size_count;
+dsn::perf_counter_wrapper _native_aio_too_large_slog_size_count;
 namespace dsn {
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
@@ -78,6 +80,20 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
             "app.pegasus",
             "native_aio_slog_size",
             COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_too_large_plog_size_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_too_large_plog_size_count",
+            COUNTER_TYPE_NUMBER,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_too_large_slog_size_count.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_too_large_slog_size_count",
+            COUNTER_TYPE_NUMBER,
             "statistic the through bytes of rocksdb write rate limiter");
 
     });
@@ -267,7 +283,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     if (aio_context_id == 0) { // 0 means plog
         _native_aio_plog_submit_latency->set(time_used);
         _native_aio_plog_size->set(aio->buffer_size);
-
+        _native_aio_too_large_plog_size_count->increment();
         if (aio->buffer_size >= 1000000) {
             derror_f("too large plog size: {}", aio->buffer_size);
         }
@@ -275,7 +291,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     } else {
         _native_aio_slog_submit_latency->set(time_used);
         _native_aio_slog_size->set(aio->buffer_size);
-
+        _native_aio_too_large_slog_size_count->increment();
         if (aio->buffer_size >= 1000000) {
             derror_f("too large slog size: {}", aio->buffer_size);
         }
