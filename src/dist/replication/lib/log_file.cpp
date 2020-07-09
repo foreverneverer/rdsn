@@ -321,7 +321,54 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
     int64_t local_offset = pending.start_offset() - start_offset();
 
     if (callback) {
-        tsk = file::write_vector(_handle,
+        if (context_id == 0) {
+            tasking::enqueue(LPC_REPLICATION_PLOG_WRITE,
+                             tracker,
+                             [this,
+                              buffer_vector,
+                              vec_size,
+                              local_offset,
+                              evt,
+                              tracker,
+                              &callback,
+                              context_id,
+                              hash] {
+                                 file::write_vector(_handle,
+                                                    buffer_vector.data(),
+                                                    vec_size,
+                                                    static_cast<uint64_t>(local_offset),
+                                                    evt,
+                                                    tracker,
+                                                    std::forward<aio_handler>(callback),
+                                                    context_id,
+                                                    hash);
+                             },
+                             0);
+        } else {
+            tasking::enqueue(LPC_REPLICATION_SLOG_WRITE,
+                             tracker,
+                             [this,
+                              buffer_vector,
+                              vec_size,
+                              local_offset,
+                              evt,
+                              tracker,
+                              &callback,
+                              context_id,
+                              hash] {
+                                 file::write_vector(_handle,
+                                                    buffer_vector.data(),
+                                                    vec_size,
+                                                    static_cast<uint64_t>(local_offset),
+                                                    evt,
+                                                    tracker,
+                                                    std::forward<aio_handler>(callback),
+                                                    context_id,
+                                                    hash);
+                             },
+                             0);
+        }
+        /*tsk = file::write_vector(_handle,
                                  buffer_vector.data(),
                                  vec_size,
                                  static_cast<uint64_t>(local_offset),
@@ -329,9 +376,42 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  tracker,
                                  std::forward<aio_handler>(callback),
                                  context_id,
-                                 hash);
+                                 hash);*/
     } else {
-        tsk = file::write_vector(_handle,
+        if (context_id == 0) {
+            tasking::enqueue(
+                LPC_REPLICATION_PLOG_WRITE,
+                tracker,
+                [this, buffer_vector, vec_size, local_offset, evt, tracker, context_id, hash] {
+                    file::write_vector(_handle,
+                                       buffer_vector.data(),
+                                       vec_size,
+                                       static_cast<uint64_t>(local_offset),
+                                       evt,
+                                       tracker,
+                                       nullptr,
+                                       context_id,
+                                       hash);
+                },
+                0);
+        } else {
+            tasking::enqueue(
+                LPC_REPLICATION_SLOG_WRITE,
+                tracker,
+                [this, buffer_vector, vec_size, local_offset, evt, tracker, context_id, hash] {
+                    file::write_vector(_handle,
+                                       buffer_vector.data(),
+                                       vec_size,
+                                       static_cast<uint64_t>(local_offset),
+                                       evt,
+                                       tracker,
+                                       nullptr,
+                                       context_id,
+                                       hash);
+                },
+                0);
+        }
+        /*tsk = file::write_vector(_handle,
                                  buffer_vector.data(),
                                  vec_size,
                                  static_cast<uint64_t>(local_offset),
@@ -339,7 +419,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  tracker,
                                  nullptr,
                                  context_id,
-                                 hash);
+                                 hash);*/
     }
 
     _end_offset.fetch_add(size);
