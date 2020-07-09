@@ -141,14 +141,14 @@ public:
                                        dsn::task_code evt,
                                        dsn::task_tracker *tracker,
                                        aio_handler &&callback,
-                                       int id,
-                                       int hash);
+                                       int id = 1,
+                                       int hash = 0);
     dsn::aio_task_ptr commit_log_blocks(log_appender &pending,
                                         dsn::task_code evt,
                                         dsn::task_tracker *tracker,
                                         aio_handler &&callback,
-                                        int id,
-                                        int hash);
+                                        int id = 1,
+                                        int hash = 0);
 
     //
     // others

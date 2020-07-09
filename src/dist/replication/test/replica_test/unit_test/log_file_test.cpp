@@ -43,6 +43,7 @@ TEST_F(log_file_test, commit_log_blocks)
                                             ASSERT_EQ(err, ERR_OK);
                                             ASSERT_EQ(sz, appender->size());
                                         },
+
                                         0);
     tsk->wait();
     ASSERT_EQ(tsk->get_aio_context()->buffer_size, appender->size());
