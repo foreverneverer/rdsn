@@ -60,6 +60,15 @@ create_aio_task(task_code code, task_tracker *tracker, aio_handler &&callback, i
     return t;
 }
 
+inline aio_task_ptr create_aio_task(
+    task_code code, int io_context_id, task_tracker *tracker, aio_handler &&callback, int hash)
+{
+    aio_task_ptr t(new aio_task(code, io_context_id, std::move(callback), hash));
+    t->set_tracker((task_tracker *)tracker);
+    t->spec().on_task_create.execute(task::get_current_task(), t);
+    return t;
+}
+
 extern aio_task_ptr read(disk_file *file,
                          char *buffer,
                          int count,
@@ -85,6 +94,16 @@ extern aio_task_ptr write_vector(disk_file *file,
                                  task_code callback_code,
                                  task_tracker *tracker,
                                  aio_handler &&callback,
+                                 int hash = 0);
+
+extern aio_task_ptr write_vector(disk_file *file,
+                                 const dsn_file_buffer_t *buffers,
+                                 int buffer_count,
+                                 uint64_t offset,
+                                 task_code callback_code,
+                                 task_tracker *tracker,
+                                 aio_handler &&callback,
+                                 int io_context_id,
                                  int hash = 0);
 
 extern aio_context_ptr prepare_aio_context(aio_task *tsk);
