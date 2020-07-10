@@ -333,6 +333,9 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                               callback,
                               context_id,
                               hash] {
+                                 if (vec_size > 100000) {
+                                     derror_f("PLOG:{}", vec_size);
+                                 }
                                  file::write_vector(
                                      _handle,
                                      std::move(buffer_vector.data()),
@@ -357,6 +360,9 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                               callback,
                               context_id,
                               hash] {
+                                 if (vec_size > 100000) {
+                                     derror_f("SLOG:{}", vec_size);
+                                 }
                                  file::write_vector(
                                      _handle,
                                      std::move(buffer_vector.data()),
@@ -385,6 +391,9 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                 LPC_REPLICATION_PLOG_WRITE,
                 tracker,
                 [this, buffer_vector, vec_size, local_offset, evt, tracker, context_id, hash] {
+                    if (vec_size > 100000) {
+                        derror_f("PLOG:{}", vec_size);
+                    }
                     file::write_vector(_handle,
                                        std::move(buffer_vector.data()),
                                        vec_size,
@@ -401,6 +410,9 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                 LPC_REPLICATION_SLOG_WRITE,
                 tracker,
                 [this, buffer_vector, vec_size, local_offset, evt, tracker, context_id, hash] {
+                    if (vec_size > 100000) {
+                        derror_f("SLOG:{}", vec_size);
+                    }
                     file::write_vector(_handle,
                                        std::move(buffer_vector.data()),
                                        vec_size,
