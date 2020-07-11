@@ -531,7 +531,7 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 tasking::enqueue(LPC_WRITE_PLOG,
                      tracker(),
                      [&mu,this]{
-                         auto copy_mu = mu->copy_no_reply(mu);
+                         auto copy_mu(mu);
                          _private_log->append(copy_mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
                      },
                      get_gpid().thread_hash());
