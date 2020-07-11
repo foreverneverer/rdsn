@@ -433,6 +433,7 @@ private:
     perf_counter_wrapper _counter_recent_write_busy_count;
 
     perf_counter_wrapper _counter_recent_write_size_exceed_threshold_count;
+    perf_counter_wrapper _slog_append_complete_aio_latency;
 
 #ifdef DSN_ENABLE_GPERF
     perf_counter_wrapper _counter_tcmalloc_release_memory_size;
