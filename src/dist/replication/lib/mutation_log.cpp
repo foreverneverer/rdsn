@@ -177,6 +177,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                 }
             }
         },
+        1,
         0);
 }
 
@@ -431,6 +432,7 @@ void mutation_log_private::commit_pending_mutations(log_file_ptr &lf,
                 _plock.unlock();
             }
         },
+        0,
         0);
 }
 
@@ -767,6 +769,7 @@ error_code mutation_log::create_new_log_file()
                                    }
                                }
                            },
+                           1,
                            0);
 
     dassert(_global_end_offset ==

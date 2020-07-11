@@ -28,8 +28,15 @@
 
 #include <fcntl.h>
 #include <cstdlib>
+#include <dsn/perf_counter/perf_counter_wrapper.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
+
+dsn::perf_counter_wrapper _native_aio_plog_submit_latency;
+dsn::perf_counter_wrapper _native_aio_slog_submit_latency;
+dsn::perf_counter_wrapper _native_aio_plog_size;
+dsn::perf_counter_wrapper _native_aio_slog_size;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
 {
@@ -42,6 +49,38 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
         task::set_tls_dsn_context(node(), nullptr);
         get_event();
     });
+
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _native_aio_plog_submit_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_submit_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+         _native_aio_slog_submit_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_submit_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+         _native_aio_plog_size.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_size",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+         _native_aio_slog_size.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_size",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+     });	  
 }
 
 native_linux_aio_provider::~native_linux_aio_provider()
@@ -196,7 +235,36 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     }
 
     cbs[0] = &aio->cb;
+    int aio_context_id = aio_tsk->_io_context_id;
+    uint64_t start_time = dsn_now_ns();
     ret = io_submit(_ctx, 1, cbs);
+    uint64_t time_used = dsn_now_ns() - start_time;
+
+    if (aio_context_id == 0) { // 0 means plog
+
+     if (time_used > 20000000) {
+        derror_f("AIOSC:plog_aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}, buffer_size:{}",
+                 time_used,
+                 aio_context_id,
+                 aio->type,
+                 aio->buffer_size);
+    }
+        _native_aio_plog_submit_latency->set(time_used);
+        _native_aio_plog_size->set(aio->buffer_size);
+
+     } else {
+         if (time_used > 20000000) {
+        derror_f("AIOSC:slog_aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}, buffer_size:{}",
+                 time_used,
+                 aio_context_id,
+                 aio->type,
+                 aio->buffer_size);
+    }
+
+        _native_aio_slog_submit_latency->set(time_used);
+        _native_aio_slog_size->set(aio->buffer_size);
+    }
+    
 
     if (ret != 1) {
         if (ret < 0)

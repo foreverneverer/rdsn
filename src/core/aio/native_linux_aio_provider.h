@@ -77,6 +77,7 @@ private:
     io_context_t _ctx;
     std::atomic<bool> _is_running{false};
     std::thread _worker;
+    int _io_context_id;
 };
 
 } // namespace dsn

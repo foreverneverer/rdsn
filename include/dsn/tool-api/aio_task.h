@@ -82,6 +82,17 @@ public:
     aio_task(task_code code, const aio_handler &cb, int hash = 0, service_node *node = nullptr);
     aio_task(task_code code, aio_handler &&cb, int hash = 0, service_node *node = nullptr);
 
+    aio_task(dsn::task_code code,
+             int io_context_id,
+             const aio_handler &cb,
+             int hash = 0,
+             service_node *node = nullptr);
+    aio_task(dsn::task_code code,
+             int io_context_id,
+             aio_handler &&cb,
+             int hash = 0,
+             service_node *node = nullptr);
+
     // tell the compiler that we want both the enqueue from base task and ours
     // to prevent the compiler complaining -Werror,-Woverloaded-virtual.
     using task::enqueue;
@@ -114,6 +125,7 @@ private:
     aio_context_ptr _aio_ctx;
     size_t _transferred_size;
     aio_handler _cb;
+    int _io_context_id;
 };
 typedef dsn::ref_ptr<aio_task> aio_task_ptr;
 
