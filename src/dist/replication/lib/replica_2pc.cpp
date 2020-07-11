@@ -225,6 +225,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                 mu->data.header.log_offset);
         dassert(mu->log_task() == nullptr, "");
         int64_t pending_size;
+        mu->start_time = dsn_now_ns();
         mu->log_task() = _stub->_log->append(mu,
                                              LPC_WRITE_REPLICATION_LOG,
                                              &_tracker,
@@ -526,7 +527,14 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 
     // write local private log if necessary
     if (err == ERR_OK && status() != partition_status::PS_ERROR) {
-        _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+//        _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+tasking::enqueue(LPC_WRITE_PLOG,
+                     tracker(),
+                     [&mu,this]{
+                         auto copy_mu = mu->copy_no_reply(mu);
+                         _private_log->append(copy_mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+                     },
+                     get_gpid().thread_hash());
     }
 }
 
