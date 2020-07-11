@@ -117,6 +117,7 @@ public:
 
     std::vector<dsn_file_buffer_t> _unmerged_write_buffers;
     blob _merged_write_buffer_holder;
+    int _io_context_id;
 
 protected:
     void clear_non_trivial_on_task_end() override { _cb = nullptr; }
@@ -125,7 +126,7 @@ private:
     aio_context_ptr _aio_ctx;
     size_t _transferred_size;
     aio_handler _cb;
-    int _io_context_id;
+
 };
 typedef dsn::ref_ptr<aio_task> aio_task_ptr;
 
