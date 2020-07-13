@@ -115,14 +115,15 @@ public:
         return trace;
     }
 
-    std::string to_string(const std::vector<trace_point> &trace_points)
+    std::string to_string(std::vector<trace_point> &trace_points)
     {
+        sort(trace_points.begin(), trace_points.end());
         std::string trace;
         uint64_t previous_time = start_time;
         // todo(jiashuo) format more appropriately
         for (const auto &point : trace_points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{}]:from_previous={:<30}, from_start={:<30}, ts={:<30}, name={:<30}",
+                "{}\n\tTRACER[{}]:from_previous={:<20}, from_start={:<20}, ts={:<20}, name={:<20}",
                 trace,
                 id,
                 point.ts - previous_time,
