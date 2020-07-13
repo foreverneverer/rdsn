@@ -335,6 +335,8 @@ void replica::on_prepare(dsn::message_ex *request)
         mu = mutation::read_from(reader, request);
     }
 
+    mu->mu_latency_tracer->add_point("on_prepare");
+
     decree decree = mu->data.header.decree;
 
     dinfo("%s: mutation %s on_prepare", name(), mu->name());
@@ -716,6 +718,8 @@ void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
     // for partition_status::PS_POTENTIAL_SECONDARY ONLY
     resp.last_committed_decree_in_app = _app->last_committed_decree();
     resp.last_committed_decree_in_prepare_list = last_committed_decree();
+
+    mu->mu_latency_tracer->add_point("ack_prepare_message");
 
     const std::vector<dsn::message_ex *> &prepare_requests = mu->prepare_requests();
     dassert(!prepare_requests.empty(), "mutation = %s", mu->name());
