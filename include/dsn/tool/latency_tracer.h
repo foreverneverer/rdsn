@@ -120,7 +120,7 @@ public:
 
     std::string to_string(std::vector<trace_point> &trace_points)
     {
-        sort(trace_points.begin(), trace_points.end());
+        //sort(trace_points.begin(), trace_points.end());
         std::string trace;
         uint64_t start_time = trace_points.front().ts;
         uint64_t previous_time = start_time;
