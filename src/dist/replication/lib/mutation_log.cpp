@@ -44,12 +44,15 @@ namespace replication {
                                             int hash,
                                             int64_t *pending_size)
 {
-    mu->mu_latency_tracer->add_point("append");
+    mu->mu_latency_tracer->add_point("link:append");
     auto d = mu->data.header.decree;
+    int64_t link_ts;
     ::dsn::aio_task_ptr cb =
         callback ? file::create_aio_task(
                        callback_code, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
+
+    mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
 
     _slock.lock();
 

@@ -108,8 +108,9 @@ public:
             return trace;
         }
 
-        for(const auto link_tracer : link_tracers) {
-            trace = fmt::format("{}\n-------------------\n{}", trace, link_tracer->dump_trace_points());
+        for (const auto link_tracer : link_tracers) {
+            trace =
+                fmt::format("{}\n-------------------\n{}", trace, link_tracer->dump_trace_points());
         }
         return trace;
     }
