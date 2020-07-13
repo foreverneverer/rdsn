@@ -480,6 +480,7 @@ void replica::on_prepare(dsn::message_ex *request)
 void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t size)
 {
     _checker.only_one_thread_access();
+    mu->mu_latency_tracer->add_point("on_append_log_completed");
 
     int time_used = dsn_now_ns() - mu->start_time;
     _stub->_slog_append_complete_aio_latency->set(time_used);

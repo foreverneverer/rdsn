@@ -93,7 +93,7 @@ aio_task *disk_file::read(aio_task *tsk)
 
 aio_task *disk_file::write(aio_task *tsk, void *ctx)
 {
-    tsk->aio_latency_tracer->add_point("aio_task *disk_file::write_add_queue");
+    tsk->tsk_latency_tracer->add_point("aio_task *disk_file::write_add_queue");
     tsk->add_ref(); // release on completion
     return _write_queue.add_work(tsk, ctx);
 }
@@ -183,7 +183,7 @@ public:
 
 void disk_engine::write(aio_task *aio)
 {
-    aio->aio_latency_tracer->add_point("disk_engine::write");
+    aio->tsk_latency_tracer->add_point("disk_engine::write");
     if (!aio->spec().on_aio_call.execute(task::get_current_task(), aio, true)) {
         aio->enqueue(ERR_FILE_OPERATION_FAILED, 0);
         return;
@@ -206,7 +206,7 @@ void disk_engine::write(aio_task *aio)
 void disk_engine::process_write(aio_task *aio, uint32_t sz)
 {
 
-    aio->aio_latency_tracer->add_point("process_write");
+    aio->tsk_latency_tracer->add_point("process_write");
     aio_context *dio = aio->get_aio_context();
 
     // no batching

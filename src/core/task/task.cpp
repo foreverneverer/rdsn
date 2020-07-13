@@ -119,6 +119,8 @@ task::task(dsn::task_code code, int hash, service_node *node)
     _is_null = false;
     next = nullptr;
 
+    tsk_latency_tracer = std::make_shared<dsn::tool::latency_tracer>(0, "task_init", "write");
+
     if (node != nullptr) {
         _node = node;
     } else {
@@ -173,6 +175,8 @@ void task::exec_internal()
 
         _spec->on_task_begin.execute(this);
 
+        tsk_latency_tracer->add_point("on_task_begin");
+
         exec();
 
         // after exec(), one shot tasks are still in "running".
@@ -182,12 +186,14 @@ void task::exec_internal()
                                            TASK_STATE_FINISHED,
                                            std::memory_order_release,
                                            std::memory_order_relaxed)) {
+            tsk_latency_tracer->add_point("on_task_end");
             _spec->on_task_end.execute(this);
             clear_non_trivial_on_task_end();
         } else {
             if (!_wait_for_cancel) {
                 // for retried tasks such as timer or rpc_response_task
                 notify_if_necessary = false;
+                tsk_latency_tracer->add_point("on_task_end");
                 _spec->on_task_end.execute(this);
 
                 if (ERR_OK == _error)
@@ -198,6 +204,7 @@ void task::exec_internal()
                                                    TASK_STATE_CANCELLED,
                                                    std::memory_order_release,
                                                    std::memory_order_relaxed)) {
+                    tsk_latency_tracer->add_point("on_task_cancelled");
                     _spec->on_task_cancelled.execute(this);
                 }
 
@@ -228,6 +235,7 @@ void task::exec_internal()
 
 bool task::signal_waiters()
 {
+    tsk_latency_tracer->add_point("task::signal_waiters");
     void *evt = _wait_event.load();
     if (evt != nullptr) {
         auto nevt = (utils::notify_event *)evt;
@@ -275,6 +283,8 @@ bool task::wait_on_cancel()
 bool task::wait(int timeout_milliseconds)
 {
     dassert(this != task::get_current_task(), "task cannot wait itself");
+
+    tsk_latency_tracer->add_point("task::wait");
 
     auto cs = state();
 
@@ -388,6 +398,7 @@ void task::enqueue()
 void task::enqueue(task_worker_pool *pool)
 {
     this->add_ref(); // released in exec_internal (even when cancelled)
+    tsk_latency_tracer->add_point("task::enqueue");
 
     dassert(pool != nullptr,
             "pool %s not ready, and there are usually two cases: "

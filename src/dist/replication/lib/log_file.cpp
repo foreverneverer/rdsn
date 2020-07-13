@@ -301,9 +301,10 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
 
     aio_task_ptr tsk;
     int64_t local_offset = pending.start_offset() - start_offset();
+    int64_t link_ts = dsn_now_ns();
+    pending.appender_latency_tracer->add_point("link:write_vector");
     if (callback) {
         tsk = file::write_vector(_handle,
-                                 pending.appender_latency_tracer,
                                  buffer_vector.data(),
                                  vec_size,
                                  static_cast<uint64_t>(local_offset),
@@ -315,7 +316,6 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
 
     } else {
         tsk = file::write_vector(_handle,
-                                 pending.appender_latency_tracer,
                                  buffer_vector.data(),
                                  vec_size,
                                  static_cast<uint64_t>(local_offset),
@@ -325,8 +325,8 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  id,
                                  hash);
     }
-    pending.appender_latency_tracer->set_link_tracer("link:write_vector_complete",
-                                                     tsk->aio_latency_tracer);
+    pending.appender_latency_tracer->set_link_tracer(
+        "link:write_vector", tsk->tsk_latency_tracer, link_ts);
     _end_offset.fetch_add(size);
     return tsk;
 }

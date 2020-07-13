@@ -84,12 +84,20 @@ public:
         trace_points.emplace_back(point);
     }
 
-    void set_link_tracer(const std::string link_point_name, std::shared_ptr<latency_tracer> tracer)
+    void insert_point(const std::string &name, int64_t ts)
+    {
+        trace_point point(name, ts);
+        trace_points.emplace_back(point);
+    }
+
+    void set_link_tracer(const std::string link_point_name,
+                         std::shared_ptr<latency_tracer> tracer,
+                         int64_t ts = dsn_now_ns())
     {
         if (tracer == nullptr) {
             return;
         }
-        tracer->add_point(link_point_name);
+        tracer->insert_point(link_point_name, ts);
         link_tracer = tracer;
     }
 
