@@ -158,6 +158,8 @@ public:
             return;
         }
 
+        int64_t end_time = mu_latency_tracer->trace_points.back().ts;
+
         bool is_request = true;
         for (const auto req : client_requests) {
             if (req == nullptr || req->request_latency_tracer == nullptr) {
@@ -165,8 +167,7 @@ public:
                 break;
             }
 
-            int time_used = req->request_latency_tracer->trace_points.back().ts -
-                            req->request_latency_tracer->trace_points.front().ts;
+            int time_used = end_time - req->request_latency_tracer->trace_points.back().ts;
             if (time_used >= threshold) {
                 derror_f("TRACE:time_used={}\n,{}",
                          time_used,
@@ -178,8 +179,7 @@ public:
             return;
         }
 
-        int time_used =
-            mu_latency_tracer->trace_points.back().ts - mu_latency_tracer->trace_points.front().ts;
+        int time_used = end_time - mu_latency_tracer->trace_points.front().ts;
         if (time_used >= threshold) {
             derror_f("TRACE:time_used={}\n,{}", time_used, mu_latency_tracer->dump_trace_points());
         }
