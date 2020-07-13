@@ -154,7 +154,6 @@ public:
 
     void report_trace_if_execeed(int threshold)
     {
-        derror_f("###########################################");
         if (threshold <= 0) {
             return;
         }
