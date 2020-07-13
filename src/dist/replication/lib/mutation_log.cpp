@@ -44,7 +44,7 @@ namespace replication {
                                             int hash,
                                             int64_t *pending_size)
 {
-    mu->mu_latency_tracer->add_point("link:append");
+    mu->mu_latency_tracer->add_point("append");
     auto d = mu->data.header.decree;
     int64_t link_ts = dsn_now_ns();
     ::dsn::aio_task_ptr cb =
@@ -53,7 +53,7 @@ namespace replication {
                  : nullptr;
 
     if (cb != nullptr) {
-        mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
+        //mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
     }
 
     _slock.lock();
@@ -125,8 +125,8 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
     auto pending = std::move(_pending_write);
 
     for (auto mu : pending->mutations()) {
-        mu->mu_latency_tracer->add_link_tracer("link:append_mutation",
-                                               pending->appender_latency_tracer);
+        //mu->mu_latency_tracer->add_link_tracer("link:append_mutation",
+                                              // pending->appender_latency_tracer);
     }
 
     // seperate commit_log_block from within the lock

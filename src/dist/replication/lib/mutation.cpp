@@ -362,8 +362,8 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
     }
 
     if (request->request_latency_tracer != nullptr) {
-        request->request_latency_tracer->add_link_tracer(
-            "link:add_work", _pending_mutation->mu_latency_tracer, link_ts);
+        //request->request_latency_tracer->add_link_tracer(
+            //"link:add_work", _pending_mutation->mu_latency_tracer, link_ts);
     }
 
     dinfo("add request with trace_id = %016" PRIx64 " into mutation with mutation_tid = %" PRIu64,
