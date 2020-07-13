@@ -124,6 +124,11 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
     // move or reset pending variables
     auto pending = std::move(_pending_write);
 
+    for (auto mu : pending->mutations()) {
+        mu->mu_latency_tracer->add_link_tracer("link:append_mutation",
+                                               pending->appender_latency_tracer);
+    }
+
     // seperate commit_log_block from within the lock
     _slock.unlock();
     commit_pending_mutations(pr.first, pending);

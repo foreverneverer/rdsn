@@ -286,7 +286,7 @@ bool task::wait(int timeout_milliseconds)
 {
     dassert(this != task::get_current_task(), "task cannot wait itself");
 
-    tsk_latency_tracer->add_point("task::wait");
+    // tsk_latency_tracer->add_point("task::wait");
 
     auto cs = state();
 
