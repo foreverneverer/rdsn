@@ -119,7 +119,7 @@ public:
     {
         sort(trace_points.begin(), trace_points.end());
         std::string trace;
-        uint64_t previous_time = start_time;
+        uint64_t previous_time = trace_points.front().ts;
         // todo(jiashuo) format more appropriately
         for (const auto &point : trace_points) {
             trace = fmt::format("{}\n\tTRACER[{}|{}]:from_previous={:<20}, from_start={:<20}, "

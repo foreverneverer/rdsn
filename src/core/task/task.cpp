@@ -210,6 +210,7 @@ void task::exec_internal()
 
                 // always call on_task_end()
                 _spec->on_task_end.execute(this);
+                tsk_latency_tracer->add_point("on_task_end");
 
                 // for timer task, we must call reset_callback after cancelled, because we don't
                 // reset callback after exec()
@@ -222,7 +223,8 @@ void task::exec_internal()
 
     if (notify_if_necessary) {
         if (signal_waiters()) {
-            spec().on_task_wait_notified.execute(this);
+            tsk_latency_tracer->add_point("task::signal_waiters_complete") spec()
+                .on_task_wait_notified.execute(this);
         }
     }
 
