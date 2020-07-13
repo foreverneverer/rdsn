@@ -46,7 +46,7 @@ namespace replication {
 {
     mu->mu_latency_tracer->add_point("link:append");
     auto d = mu->data.header.decree;
-    int64_t link_ts;
+    int64_t link_ts = dsn_now_ns();
     ::dsn::aio_task_ptr cb =
         callback ? file::create_aio_task(
                        callback_code, tracker, std::forward<aio_handler>(callback), hash)

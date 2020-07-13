@@ -158,15 +158,22 @@ public:
             return;
         }
 
+        bool is_request = true;
         for (const auto req : client_requests) {
-            if (req->request_latency_tracer == nullptr) {
+            if (req == nullptr || req->request_latency_tracer == nullptr) {
+                is_request = false;
                 break;
             }
+
             int time_used = req->request_latency_tracer->trace_points.back().ts -
                             req->request_latency_tracer->trace_points.front().ts;
             if (time_used >= threshold) {
                 derror_f("TRACE:time_used=\n,{}", req->request_latency_tracer->dump_trace_points());
             }
+        }
+
+        if (is_request) {
+            return;
         }
 
         int time_used =

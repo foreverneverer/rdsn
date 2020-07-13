@@ -318,7 +318,7 @@ void replica::execute_mutation(mutation_ptr &mu)
 
     mu->mu_latency_tracer->add_point(fmt::format("write_to_rocksdb_finsh[{}]", status()));
 
-    mu->report_trace_if_execeed(100000000);
+    mu->report_trace_if_execeed(1000000);
     if (partition_status::PS_PRIMARY == status()) {
         uint64_t now_ns = dsn_now_ns();
         for (auto update : mu->data.updates) {
