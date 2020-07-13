@@ -343,8 +343,9 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
 {
     task_spec *spec = task_spec::get(code);
 
+    int64_t link_ts = dsn_now_ns();
     if (request->request_latency_tracer != nullptr) {
-        request->request_latency_tracer->add_point("add_work");
+        request->request_latency_tracer->add_point("link:add_work");
     }
 
     // if not allow write batch, switch work queue
@@ -361,7 +362,8 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
     }
 
     if (request->request_latency_tracer != nullptr) {
-        request->request_latency_tracer->link_tracer = _pending_mutation->mu_latency_tracer;
+        request->request_latency_tracer->add_link_tracer(
+            "link:add_work", _pending_mutation->mu_latency_tracer, link_ts);
     }
 
     dinfo("add request with trace_id = %016" PRIx64 " into mutation with mutation_tid = %" PRIu64,
