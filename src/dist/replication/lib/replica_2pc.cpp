@@ -38,6 +38,10 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
 {
     _checker.only_one_thread_access();
 
+    if (request->request_latency_tracer != nullptr) {
+        request->request_latency_tracer->add_point("on_client_write");
+    }
+
     if (_deny_client_write) {
         // Do not relay any message to the peer client to let it timeout, it's OK coz some users
         // may retry immediately when they got a not success code which will make the server side
@@ -121,6 +125,8 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     dassert(partition_status::PS_PRIMARY == status(),
             "invalid partition_status, status = %s",
             enum_to_string(status()));
+
+    mu->mu_latency_tracer->add_point("init_prepare");
 
     error_code err = ERR_OK;
     uint8_t count = 0;
@@ -274,6 +280,8 @@ void replica::send_prepare_message(::dsn::rpc_address addr,
     replica_configuration rconfig;
     _primary_states.get_replica_config(status, rconfig, learn_signature);
     rconfig.__set_pop_all(pop_all_committed_mutations);
+
+    mu->mu_latency_tracer->add_point(fmt::format("send_prepare_message[{}]", addr.to_string()));
 
     {
         rpc_write_stream writer(msg);
@@ -475,7 +483,7 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 
     int time_used = dsn_now_ns() - mu->start_time;
     _stub->_slog_append_complete_aio_latency->set(time_used);
-    if(time_used > 20000000){
+    if (time_used > 20000000) {
         derror_f("AIOSC:slog append complete:{}", time_used);
     }
     dinfo("%s: append shared log completed for mutation %s, size = %u, err = %s",
@@ -553,6 +561,8 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
 
     ::dsn::rpc_address node = request->to_address;
     partition_status::type st = _primary_states.get_node_status(node);
+
+    mu->mu_latency_tracer->add_point(fmt::format("on_prepare_reply[{}]", node.to_string()));
 
     // handle reply
     prepare_ack resp;

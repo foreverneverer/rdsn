@@ -74,6 +74,8 @@ error_code prepare_list::prepare(mutation_ptr &mu,
     decree d = mu->data.header.decree;
     dcheck_gt_replica(d, last_committed_decree());
 
+    mu->mu_latency_tracer->add_point("prepare");
+
     error_code err;
     switch (status) {
     case partition_status::PS_PRIMARY:

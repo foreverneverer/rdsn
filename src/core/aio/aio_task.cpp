@@ -36,20 +36,22 @@ aio_task::aio_task(
     dsn::task_code code, int io_context_id, aio_handler &&cb, int hash, service_node *node)
     : task(code, hash, node), _cb(std::move(cb))
 {
+    aio_latency_tracer = std::make_shared<dsn::tool::latency_tracer>(0, "aio_task", "write");
     _is_null = (_cb == nullptr);
 
-     _io_context_id = io_context_id;
+    _io_context_id = io_context_id;
 
-     dassert(TASK_TYPE_AIO == spec().type,
+    dassert(TASK_TYPE_AIO == spec().type,
             "%s is not of AIO type, please use DEFINE_TASK_CODE_AIO to define the task code",
             spec().name.c_str());
     set_error_code(ERR_IO_PENDING);
 
-     _aio_ctx = file::prepare_aio_context(this);
+    _aio_ctx = file::prepare_aio_context(this);
 }
 
 void aio_task::collapse()
 {
+    aio_latency_tracer->add_point("collapse");
     if (!_unmerged_write_buffers.empty()) {
         std::shared_ptr<char> buffer(dsn::utils::make_shared_array<char>(_aio_ctx->buffer_size));
         char *dest = buffer.get();
@@ -72,6 +74,8 @@ void aio_task::enqueue(error_code err, size_t transferred_size)
     _transferred_size = transferred_size;
 
     spec().on_aio_enqueue.execute(this);
+
+    aio_latency_tracer->add_point("aio_task::enqueue");
 
     task::enqueue(node()->computation()->get_pool(spec().pool_code));
 }

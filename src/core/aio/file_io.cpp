@@ -27,6 +27,7 @@
 #include "disk_engine.h"
 
 #include <dsn/tool-api/file_io.h>
+#include <dsn/tool/latency_tracer.h>
 
 namespace dsn {
 namespace file {
@@ -155,7 +156,7 @@ namespace file {
         }
     }
 
-     disk_engine::instance().write(cb);
+    disk_engine::instance().write(cb);
     return cb;
 }
 

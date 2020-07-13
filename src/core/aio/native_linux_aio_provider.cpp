@@ -59,28 +59,28 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
-         _native_aio_slog_submit_latency.init_global_counter(
+        _native_aio_slog_submit_latency.init_global_counter(
             "replica",
             "app.pegasus",
             "native_aio_slog_submit_latency",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
-         _native_aio_plog_size.init_global_counter(
+        _native_aio_plog_size.init_global_counter(
             "replica",
             "app.pegasus",
             "native_aio_plog_size",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
-         _native_aio_slog_size.init_global_counter(
+        _native_aio_slog_size.init_global_counter(
             "replica",
             "app.pegasus",
             "native_aio_slog_size",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
-     });	  
+    });
 }
 
 native_linux_aio_provider::~native_linux_aio_provider()
@@ -187,6 +187,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                                                    bool async,
                                                    /*out*/ uint32_t *pbytes /*= nullptr*/)
 {
+    aio_tsk->aio_latency_tracer->add_point("aio_internal");
     struct iocb *cbs[1];
     linux_disk_aio_context *aio;
     int ret;
@@ -242,29 +243,30 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
 
     if (aio_context_id == 0) { // 0 means plog
 
-     if (time_used > 20000000) {
-        derror_f("AIOSC:plog_aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}, buffer_size:{}",
-                 time_used,
-                 aio_context_id,
-                 aio->type,
-                 aio->buffer_size);
-    }
+        if (time_used > 20000000) {
+            derror_f(
+                "AIOSC:plog_aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}, buffer_size:{}",
+                time_used,
+                aio_context_id,
+                aio->type,
+                aio->buffer_size);
+        }
         _native_aio_plog_submit_latency->set(time_used);
         _native_aio_plog_size->set(aio->buffer_size);
 
-     } else {
-         if (time_used > 20000000) {
-        derror_f("AIOSC:slog_aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}, buffer_size:{}",
-                 time_used,
-                 aio_context_id,
-                 aio->type,
-                 aio->buffer_size);
-    }
+    } else {
+        if (time_used > 20000000) {
+            derror_f(
+                "AIOSC:slog_aio_submit:{}, context_id(0=plog,1=slog):{}, type:{}, buffer_size:{}",
+                time_used,
+                aio_context_id,
+                aio->type,
+                aio->buffer_size);
+        }
 
         _native_aio_slog_submit_latency->set(time_used);
         _native_aio_slog_size->set(aio->buffer_size);
     }
-    
 
     if (ret != 1) {
         if (ret < 0)
@@ -284,6 +286,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             return ERR_IO_PENDING;
         } else {
             aio->evt->wait();
+            aio_tsk->aio_latency_tracer->add_point("aio_submit_wait_complete");
             delete aio->evt;
             aio->evt = nullptr;
             if (pbytes != nullptr) {

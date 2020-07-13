@@ -75,10 +75,17 @@ private:
 class log_appender
 {
 public:
-    explicit log_appender(int64_t start_offset) { _blocks.emplace_back(start_offset); }
+    explicit log_appender(int64_t start_offset)
+    {
+        appender_latency_tracer =
+            std::make_shared<dsn::tool::latency_tracer>(0, "log_appender", "write");
+        _blocks.emplace_back(start_offset);
+    }
 
     log_appender(int64_t start_offset, log_block &block)
     {
+        appender_latency_tracer =
+            std::make_shared<dsn::tool::latency_tracer>(0, "log_appender", "write");
         block._start_offset = start_offset;
         _blocks.emplace_back(std::move(block));
     }
@@ -97,6 +104,9 @@ public:
     int64_t start_offset() const { return _blocks.cbegin()->start_offset(); }
 
     std::vector<log_block> &all_blocks() { return _blocks; }
+
+    //
+    std::shared_ptr<dsn::tool::latency_tracer> appender_latency_tracer;
 
 protected:
     static constexpr size_t DEFAULT_MAX_BLOCK_BYTES = 1 * 1024 * 1024; // 1MB

@@ -227,6 +227,8 @@ void replica::execute_mutation(mutation_ptr &mu)
     error_code err = ERR_OK;
     decree d = mu->data.header.decree;
 
+    mu->mu_latency_tracer->add_point("execute_mutation");
+
     switch (status()) {
     case partition_status::PS_INACTIVE:
         if (_app->last_committed_decree() + 1 == d) {
@@ -313,6 +315,10 @@ void replica::execute_mutation(mutation_ptr &mu)
     }
 
     // update table level latency perf-counters for primary partition
+
+    mu->mu_latency_tracer->add_point(fmt::format("write_to_rocksdb_finsh[{}]", status()));
+
+    mu->report_trace_if_execeed(100000000);
     if (partition_status::PS_PRIMARY == status()) {
         uint64_t now_ns = dsn_now_ns();
         for (auto update : mu->data.updates) {

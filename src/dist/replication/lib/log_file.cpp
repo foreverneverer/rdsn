@@ -263,6 +263,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
     dassert(!_is_read, "log file must be of write mode");
     dcheck_gt(pending.size(), 0);
 
+    pending.appender_latency_tracer->add_point("commit_log_blocks");
     zauto_lock lock(_write_lock);
     if (!_handle) {
         return nullptr;
@@ -302,6 +303,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
     int64_t local_offset = pending.start_offset() - start_offset();
     if (callback) {
         tsk = file::write_vector(_handle,
+                                 pending.appender_latency_tracer,
                                  buffer_vector.data(),
                                  vec_size,
                                  static_cast<uint64_t>(local_offset),
@@ -310,8 +312,10 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  std::forward<aio_handler>(callback),
                                  id,
                                  hash);
+
     } else {
         tsk = file::write_vector(_handle,
+                                 pending.appender_latency_tracer,
                                  buffer_vector.data(),
                                  vec_size,
                                  static_cast<uint64_t>(local_offset),
@@ -321,7 +325,8 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  id,
                                  hash);
     }
-
+    pending.appender_latency_tracer->set_link_tracer("link:write_vector_complete",
+                                                     tsk->aio_latency_tracer);
     _end_offset.fetch_add(size);
     return tsk;
 }

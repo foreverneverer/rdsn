@@ -28,6 +28,7 @@
 
 #include <dsn/tool-api/task.h>
 #include <vector>
+#include <dsn/tool/latency_tracer.h>
 
 namespace dsn {
 
@@ -111,6 +112,7 @@ public:
     virtual void exec() override
     {
         if (nullptr != _cb) {
+            aio_latency_tracer->add_point("call_back_exec");
             _cb(_error, _transferred_size);
         }
     }
@@ -119,6 +121,8 @@ public:
     blob _merged_write_buffer_holder;
     int _io_context_id;
 
+    std::shared_ptr<dsn::tool::latency_tracer> aio_latency_tracer;
+
 protected:
     void clear_non_trivial_on_task_end() override { _cb = nullptr; }
 
@@ -126,7 +130,6 @@ private:
     aio_context_ptr _aio_ctx;
     size_t _transferred_size;
     aio_handler _cb;
-
 };
 typedef dsn::ref_ptr<aio_task> aio_task_ptr;
 

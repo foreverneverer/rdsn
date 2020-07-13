@@ -39,6 +39,7 @@
 #include <list>
 #include <atomic>
 #include <dsn/utility/link.h>
+#include <dsn/tool/latency_tracer.h>
 
 #ifndef __linux__
 #pragma warning(disable : 4201)
@@ -145,8 +146,35 @@ public:
     //
     int start_time;
 
+    //
+    std::shared_ptr<dsn::tool::latency_tracer> mu_latency_tracer;
+
     void set_is_sync_to_child(bool sync_to_child) { _is_sync_to_child = sync_to_child; }
     bool is_sync_to_child() { return _is_sync_to_child; }
+
+    void report_trace_if_execeed(int threshold)
+    {
+        if (threshold <= 0) {
+            return;
+        }
+
+        for (const auto req : client_requests) {
+            if (req->request_latency_tracer == nullptr) {
+                break;
+            }
+            int time_used = req->request_latency_tracer->trace_points.back().ts -
+                            req->request_latency_tracer->trace_points.front().ts;
+            if (time_used >= threshold) {
+                derror_f("TRACE:time_used=\n,{}", req->request_latency_tracer->dump_trace_points());
+            }
+        }
+
+        int time_used =
+            mu_latency_tracer->trace_points.back().ts - mu_latency_tracer->trace_points.front().ts;
+        if (time_used >= threshold) {
+            derror_f("TRACE:time_used=\n,{}", mu_latency_tracer->dump_trace_points());
+        }
+    }
 
 private:
     union

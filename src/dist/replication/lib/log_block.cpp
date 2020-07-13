@@ -22,6 +22,8 @@ void log_block::init()
 
 void log_appender::append_mutation(const mutation_ptr &mu, const aio_task_ptr &cb)
 {
+    mu->mu_latency_tracer->add_point("append_mutation");
+    mu->mu_latency_tracer->set_link_tracer("link:append_mutation", appender_latency_tracer);
     _mutations.push_back(mu);
     if (cb) {
         _callbacks.push_back(cb);

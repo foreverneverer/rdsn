@@ -106,8 +106,8 @@ TEST(replication, log_file)
         temp_writer.write(str);
         writer->add(temp_writer.get_buffer());
 
-        aio_task_ptr task =
-            lf->commit_log_block(*writer, offset, LPC_AIO_IMMEDIATE_CALLBACK, nullptr, nullptr, 1, 0);
+        aio_task_ptr task = lf->commit_log_block(
+            *writer, offset, LPC_AIO_IMMEDIATE_CALLBACK, nullptr, nullptr, 1, 0);
         task->wait();
         ASSERT_EQ(ERR_OK, task->error());
         ASSERT_EQ(writer->size(), task->get_transferred_size());

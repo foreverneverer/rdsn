@@ -44,6 +44,7 @@ namespace replication {
                                             int hash,
                                             int64_t *pending_size)
 {
+    mu->mu_latency_tracer->add_point("append");
     auto d = mu->data.header.decree;
     ::dsn::aio_task_ptr cb =
         callback ? file::create_aio_task(
@@ -126,6 +127,7 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
 void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
+
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
