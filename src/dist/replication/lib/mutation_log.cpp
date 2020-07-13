@@ -70,7 +70,7 @@ namespace replication {
 
     // start to write if possible
     if (!_is_writing.load(std::memory_order_acquire)) {
-        mu->mu_latency_tracer->add_point("write_pending_mutations");
+        mu->mu_latency_tracer->add_point("write_pending_mutations-->link");
         write_pending_mutations(true);
         if (pending_size) {
             *pending_size = 0;
@@ -127,8 +127,7 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
     auto pending = std::move(_pending_write);
 
     for (auto mu : pending->mutations()) {
-        //mu->mu_latency_tracer->add_link_tracer("link:append_mutation",
-                                              // pending->appender_latency_tracer);
+        mu->mu_latency_tracer->add_link_tracer("link-->write_pending_mutations",pending->appender_latency_tracer);
     }
 
     // seperate commit_log_block from within the lock
