@@ -317,7 +317,7 @@ void replica::execute_mutation(mutation_ptr &mu)
     // update table level latency perf-counters for primary partition
 
     mu->mu_latency_tracer->add_point(
-        fmt::format("write_to_rocksdb_finsh[{}]", enum_to_string(status())));
+        fmt::format("write_to_rocksdb[{}]", enum_to_string(status())));
 
     mu->report_trace_if_execeed(1000000);
     if (partition_status::PS_PRIMARY == status()) {

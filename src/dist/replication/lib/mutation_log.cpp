@@ -62,6 +62,7 @@ namespace replication {
     if (nullptr == _pending_write) {
         _pending_write = std::make_shared<log_appender>(mark_new_offset(0, true).second);
     }
+    mu->mu_latency_tracer->add_point("append_mutation");
     _pending_write->append_mutation(mu, cb);
 
     // update meta
@@ -69,6 +70,7 @@ namespace replication {
 
     // start to write if possible
     if (!_is_writing.load(std::memory_order_acquire)) {
+        mu->mu_latency_tracer->add_point("write_pending_mutations");
         write_pending_mutations(true);
         if (pending_size) {
             *pending_size = 0;
