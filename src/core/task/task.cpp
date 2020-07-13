@@ -223,8 +223,8 @@ void task::exec_internal()
 
     if (notify_if_necessary) {
         if (signal_waiters()) {
-            tsk_latency_tracer->add_point("task::signal_waiters_complete") spec()
-                .on_task_wait_notified.execute(this);
+            tsk_latency_tracer->add_point("task::signal_waiters_complete");
+            spec().on_task_wait_notified.execute(this);
         }
     }
 

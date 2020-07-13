@@ -122,7 +122,7 @@ public:
         uint64_t previous_time = trace_points.front().ts;
         // todo(jiashuo) format more appropriately
         for (const auto &point : trace_points) {
-            trace = fmt::format("{}\n\tTRACER[{}|{}]:from_previous={:<20}, from_start={:<20}, "
+            trace = fmt::format("{}\tTRACER[{}|{}]:from_previous={:<20}, from_start={:<20}, "
                                 "ts={:<20}, name={:<20}",
                                 trace,
                                 type,
