@@ -67,7 +67,7 @@ public:
     // b_request-->start-->stageA -
     // a_request and b_request will be linked by link_tracer and share the points of link_tracer
     // from stageB
-    std::shared_ptr<latency_tracer> link_tracer;
+    std::vector<std::shared_ptr<latency_tracer>> link_tracers;
 
 public:
     latency_tracer(int id, const std::string &start_name, const std::string &type)
@@ -90,7 +90,7 @@ public:
         trace_points.emplace_back(point);
     }
 
-    void set_link_tracer(const std::string link_point_name,
+    void add_link_tracer(const std::string link_point_name,
                          std::shared_ptr<latency_tracer> tracer,
                          int64_t ts = dsn_now_ns())
     {
@@ -98,16 +98,20 @@ public:
             return;
         }
         tracer->insert_point(link_point_name, ts);
-        link_tracer = tracer;
+        link_tracers.emplace_back(tracer);
     }
 
     std::string dump_trace_points()
     {
         std::string trace = to_string(trace_points);
-        if (link_tracer == nullptr) {
+        if (link_tracers.empty()) {
             return trace;
         }
-        return fmt::format("{}\n-------------------\n{}", trace, link_tracer->dump_trace_points());
+
+        for(const auto link_tracer : link_tracers) {
+            trace = fmt::format("{}\n-------------------\n{}", trace, link_tracer->dump_trace_points());
+        }
+        return trace;
     }
 
     std::string to_string(const std::vector<trace_point> &trace_points)
