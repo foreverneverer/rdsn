@@ -156,7 +156,7 @@ rpc_request_task *service_node::generate_intercepted_request_task(message_ex *re
 {
     bool is_write = task_spec::get(req->local_rpc_code)->rpc_request_is_write_operation;
     req->request_latency_tracer = std::make_shared<dsn::tool::latency_tracer>(
-        req->header->id, "generate_intercepted_request_task", "write");
+        req->header->id, "generate_intercepted_request_task", "request");
     rpc_request_task *t = new rpc_request_task(req,
                                                std::bind(&service_app::on_intercepted_request,
                                                          _entity.get(),

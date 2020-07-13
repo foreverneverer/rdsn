@@ -78,14 +78,14 @@ public:
     explicit log_appender(int64_t start_offset)
     {
         appender_latency_tracer =
-            std::make_shared<dsn::tool::latency_tracer>(0, "log_appender", "write");
+            std::make_shared<dsn::tool::latency_tracer>(0, "log_appender", "log_appender");
         _blocks.emplace_back(start_offset);
     }
 
     log_appender(int64_t start_offset, log_block &block)
     {
         appender_latency_tracer =
-            std::make_shared<dsn::tool::latency_tracer>(0, "log_appender", "write");
+            std::make_shared<dsn::tool::latency_tracer>(0, "log_appender", "log_appender");
         block._start_offset = start_offset;
         _blocks.emplace_back(std::move(block));
     }

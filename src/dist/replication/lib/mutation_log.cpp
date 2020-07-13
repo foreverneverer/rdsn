@@ -52,7 +52,9 @@ namespace replication {
                        callback_code, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
 
-    mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
+    if (cb != nullptr) {
+        mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
+    }
 
     _slock.lock();
 

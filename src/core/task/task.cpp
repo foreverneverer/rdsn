@@ -119,7 +119,7 @@ task::task(dsn::task_code code, int hash, service_node *node)
     _is_null = false;
     next = nullptr;
 
-    tsk_latency_tracer = std::make_shared<dsn::tool::latency_tracer>(0, "task_init", "write");
+    tsk_latency_tracer = std::make_shared<dsn::tool::latency_tracer>(0, "task_init", "task");
 
     if (node != nullptr) {
         _node = node;
