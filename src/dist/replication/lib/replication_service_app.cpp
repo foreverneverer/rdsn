@@ -87,6 +87,8 @@ void replication_service_app::on_intercepted_request(dsn::gpid gpid,
                                                      bool is_write,
                                                      dsn::message_ex *msg)
 {
+    msg->request_latency_tracer = std::make_shared<dsn::tool::latency_tracer>(
+        msg->header->id, "on_intercepted_request", "request");
     if (is_write) {
         _stub->on_client_write(gpid, msg);
     } else {
