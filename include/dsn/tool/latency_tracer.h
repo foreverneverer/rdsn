@@ -71,7 +71,10 @@ public:
 
 public:
     latency_tracer(int id, const std::string &start_name, const std::string &type)
-        : id(id), type(type), start_name(start_name), start_time(dsn_now_ns()){};
+        : id(id), type(type), start_name(start_name), start_time(dsn_now_ns())
+    {
+        add_point(start_name);
+    };
 
     // this method is called for any other method which will be recorded methed name and ts
     //
@@ -119,11 +122,12 @@ public:
     {
         sort(trace_points.begin(), trace_points.end());
         std::string trace;
-        uint64_t previous_time = trace_points.front().ts;
+        uint64_t start_time = trace_points.front().ts;
+        uint64_t previous_time = start_time;
         // todo(jiashuo) format more appropriately
         for (const auto &point : trace_points) {
             trace = fmt::format("{}\tTRACER[{}|{}]:from_previous={:<20}, from_start={:<20}, "
-                                "ts={:<20}, name={:<20}",
+                                "ts={:<20}, name={:<20}\n",
                                 trace,
                                 type,
                                 id,

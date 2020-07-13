@@ -169,7 +169,7 @@ public:
 
             int time_used = end_time - req->request_latency_tracer->trace_points.back().ts;
             if (time_used >= threshold) {
-                derror_f("TRACE:time_used={}\n,{}",
+                derror_f("TRACE:time_used={}\n{}",
                          time_used,
                          req->request_latency_tracer->dump_trace_points());
             }
@@ -181,7 +181,7 @@ public:
 
         int time_used = end_time - mu_latency_tracer->trace_points.front().ts;
         if (time_used >= threshold) {
-            derror_f("TRACE:time_used={}\n,{}", time_used, mu_latency_tracer->dump_trace_points());
+            derror_f("TRACE:time_used={}\n{}", time_used, mu_latency_tracer->dump_trace_points());
         }
     }
 
