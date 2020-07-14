@@ -6,6 +6,7 @@
 #include <dsn/service_api_c.h>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/tool-api/zlocks.h>
+#include <dsn/tool-api/task.h>
 
 namespace dsn {
 namespace tool {
@@ -66,7 +67,6 @@ public:
     // -ts: current timestamp
     void add_point(std::string name)
     {
-        //derror_f("tracer={}", id);
         dsn::zauto_write_lock write(lock);
         points[dsn_now_ns()] = name;
     }
