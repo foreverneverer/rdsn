@@ -38,14 +38,14 @@ aio_task::aio_task(
 {
     _is_null = (_cb == nullptr);
 
-     _io_context_id = io_context_id;
+    _io_context_id = io_context_id;
 
-     dassert(TASK_TYPE_AIO == spec().type,
+    dassert(TASK_TYPE_AIO == spec().type,
             "%s is not of AIO type, please use DEFINE_TASK_CODE_AIO to define the task code",
             spec().name.c_str());
     set_error_code(ERR_IO_PENDING);
 
-     _aio_ctx = file::prepare_aio_context(this);
+    _aio_ctx = file::prepare_aio_context(this);
 }
 
 void aio_task::collapse()

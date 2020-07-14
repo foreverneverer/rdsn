@@ -225,6 +225,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                 mu->data.header.log_offset);
         dassert(mu->log_task() == nullptr, "");
         int64_t pending_size;
+        mu->start_time = dsn_now_ns();
         mu->log_task() = _stub->_log->append(mu,
                                              LPC_WRITE_REPLICATION_LOG,
                                              &_tracker,
@@ -475,7 +476,7 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 
     int time_used = dsn_now_ns() - mu->start_time;
     _stub->_slog_append_complete_aio_latency->set(time_used);
-    if(time_used > 20000000){
+    if (time_used > 20000000) {
         derror_f("AIOSC:slog append complete:{}", time_used);
     }
     dinfo("%s: append shared log completed for mutation %s, size = %u, err = %s",

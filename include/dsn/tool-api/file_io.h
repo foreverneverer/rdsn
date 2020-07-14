@@ -69,7 +69,6 @@ inline aio_task_ptr create_aio_task(
     return t;
 }
 
-
 extern aio_task_ptr read(disk_file *file,
                          char *buffer,
                          int count,
@@ -97,7 +96,7 @@ extern aio_task_ptr write_vector(disk_file *file,
                                  aio_handler &&callback,
                                  int hash = 0);
 
-                                 extern aio_task_ptr write_vector(disk_file *file,
+extern aio_task_ptr write_vector(disk_file *file,
                                  const dsn_file_buffer_t *buffers,
                                  int buffer_count,
                                  uint64_t offset,

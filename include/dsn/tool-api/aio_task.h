@@ -126,7 +126,6 @@ private:
     aio_context_ptr _aio_ctx;
     size_t _transferred_size;
     aio_handler _cb;
-
 };
 typedef dsn::ref_ptr<aio_task> aio_task_ptr;
 

@@ -155,7 +155,7 @@ namespace file {
         }
     }
 
-     disk_engine::instance().write(cb);
+    disk_engine::instance().write(cb);
     return cb;
 }
 
