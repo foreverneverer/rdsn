@@ -147,6 +147,10 @@ task::~task()
         delete (utils::notify_event *)_wait_event.load();
         _wait_event.store(nullptr);
     }
+
+    if (tsk_latency_tracer != nullptr) {
+        tsk_latency_tracer->dump_trace_points(100000000);
+    }
 }
 
 bool task::set_retry(bool enqueue_immediately /*= true*/)

@@ -136,6 +136,11 @@ void mutation::copy_from(mutation_ptr &old)
 
 void mutation::add_client_request(task_code code, dsn::message_ex *request)
 {
+    if (request->request_latency_tracer != nullptr) {
+        request->request_latency_tracer->add_point(
+            fmt::format("add_client_request-->link-->mutation[{}]", _tid));
+    }
+
     mu_latency_tracer->add_point("add_client_request");
 
     data.updates.push_back(mutation_update());
@@ -345,7 +350,7 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
 
     int64_t link_ts = dsn_now_ns();
     if (request->request_latency_tracer != nullptr) {
-        request->request_latency_tracer->add_point("add_work-->link");
+        request->request_latency_tracer->add_point("add_work");
     }
 
     // if not allow write batch, switch work queue

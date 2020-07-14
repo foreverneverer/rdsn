@@ -61,13 +61,6 @@ public:
     std::string start_name;
     uint64_t start_time;
     std::vector<trace_point> trace_points;
-    // link_tracer can record such case:
-    // a_request-->start-->stageA -
-    //                            |-->stageB-->end
-    // b_request-->start-->stageA -
-    // a_request and b_request will be linked by link_tracer and share the points of link_tracer
-    // from stageB
-    std::vector<std::shared_ptr<latency_tracer>> link_tracers;
 
 public:
     latency_tracer(int id, const std::string &start_name, const std::string &type)
@@ -81,50 +74,29 @@ public:
     // -name: generally, it is the name of that call this method. but you can define the more
     // significant name to show the events of one moment
     // -ts: current timestamp
-    void add_point(const std::string &name)
+    void add_point(const std::string &name, int64_t ts = dsn_now_ns())
     {
-        trace_point point(name, dsn_now_ns());
-        trace_points.emplace_back(point);
+        trace_points.emplace_back(trace_point(name, ts));
     }
 
-    void insert_point(const std::string &name, int64_t ts)
+    void dump_trace_points(int threshold)
     {
-        trace_point point(name, ts);
-        trace_points.emplace_back(point);
-    }
-
-    void add_link_tracer(const std::string link_point_name,
-                         std::shared_ptr<latency_tracer> tracer,
-                         int64_t ts = dsn_now_ns())
-    {
-        if (tracer == nullptr) {
+        if (threshold <= 0) {
             return;
         }
-        tracer->insert_point(link_point_name, ts);
-        link_tracers.emplace_back(tracer);
-    }
 
-    std::string dump_trace_points()
-    {
-        std::string trace = to_string(trace_points);
-        if (link_tracers.empty()) {
-            return trace;
-        }
-
-        for (const auto link_tracer : link_tracers) {
-            trace =
-                fmt::format("{}\n-------------------\n{}", trace, link_tracer->dump_trace_points());
-        }
-        return trace;
-    }
-
-    std::string to_string(std::vector<trace_point> &trace_points)
-    {
         sort(trace_points.begin(), trace_points.end());
-        std::string trace;
+
         uint64_t start_time = trace_points.front().ts;
+        uint64_t end_time = trace_points.back().ts;
+        uint64_t time_used = end_time - start_time;
+
+        if (trace_points.back().ts - start_time < threshold) {
+            return;
+        }
+
         uint64_t previous_time = start_time;
-        // todo(jiashuo) format more appropriately
+        std::string trace;
         for (const auto &point : trace_points) {
             trace =
                 fmt::format("{}\tTRACER[{:<10}|{:<10}]:from_previous={:<20}, from_start={:<20}, "
@@ -138,7 +110,8 @@ public:
                             point.name);
             previous_time = point.ts;
         }
-        return trace;
+
+        derror_f("TRACE:the request exceed {}\n{}", threshold, trace);
     }
 };
 } // namespace tool

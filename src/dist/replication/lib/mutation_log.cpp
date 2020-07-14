@@ -71,7 +71,7 @@ namespace replication {
 
     // start to write if possible
     if (!_is_writing.load(std::memory_order_acquire)) {
-        mu->mu_latency_tracer->add_point("write_pending_mutations-->link");
+        mu->mu_latency_tracer->add_point("write_pending_mutations-->link-->appender");
         write_pending_mutations(true);
         if (pending_size) {
             *pending_size = 0;

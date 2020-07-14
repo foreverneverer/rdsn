@@ -117,6 +117,7 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
     auto mu = _primary_states.write_queue.add_work(request->rpc_code(), request, this);
 
     if (request->request_latency_tracer != nullptr) {
+        request->request_latency_tracer->dump_trace_points(100000000);
         // request->request_latency_tracer->add_link_tracer("link->add_work",
         // mu->mu_latency_tracer);
     }
@@ -236,6 +237,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                 mu->data.header.log_offset);
         dassert(mu->log_task() == nullptr, "");
         int64_t pending_size;
+        mu->start_time = dsn_now_ns();
         mu->log_task() = _stub->_log->append(mu,
                                              LPC_WRITE_REPLICATION_LOG,
                                              &_tracker,
