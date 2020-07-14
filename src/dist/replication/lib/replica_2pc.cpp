@@ -117,7 +117,8 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
     auto mu = _primary_states.write_queue.add_work(request->rpc_code(), request, this);
 
     if (request->request_latency_tracer != nullptr) {
-        request->request_latency_tracer->add_link_tracer("link->add_work", mu->mu_latency_tracer);
+        // request->request_latency_tracer->add_link_tracer("link->add_work",
+        // mu->mu_latency_tracer);
     }
     if (mu) {
         init_prepare(mu, false);
