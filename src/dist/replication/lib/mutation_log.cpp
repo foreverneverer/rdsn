@@ -51,8 +51,8 @@ namespace replication {
                  : nullptr;
 
     if (cb != nullptr) {
-        cb->ltracer->add_point("append");
         cb->ltracer->id = 1;
+        cb->ltracer->add_point("append");
     }
 
     _slock.lock();
