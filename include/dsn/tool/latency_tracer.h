@@ -61,7 +61,7 @@ public:
     // -name: generally, it is the name of that call this method. but you can define the more
     // significant name to show the events of one moment
     // -ts: current timestamp
-    void add_point(const std::string &name, int64_t ts = dsn_now_ns()) { points.emplace(ts, name); }
+    void add_point(const std::string &name) { points.emplace(dsn_now_ns(), name); }
 
     void dump_trace_points(int threshold)
     {
