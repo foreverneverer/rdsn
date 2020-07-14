@@ -82,10 +82,11 @@ public:
         int64_t start_time = points.begin()->first;
 
         if (points.end()->first - start_time < threshold) {
+            derror_f("s={}\ne={}\nu={}", start_time, points.end()->first, points.end()->first - start_time);
             return;
         }
 
-        int64_t previous_time = points.end()->first;
+        int64_t previous_time = points.begin()->first;
         std::string trace;
         for (const auto &point : points) {
             trace =
