@@ -53,7 +53,7 @@ namespace replication {
                  : nullptr;
 
     if (cb != nullptr) {
-        //mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
+        // mu->mu_latency_tracer->add_link_tracer("link:append", cb->tsk_latency_tracer, link_ts);
     }
 
     _slock.lock();
@@ -127,7 +127,8 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
     auto pending = std::move(_pending_write);
 
     for (auto mu : pending->mutations()) {
-        mu->mu_latency_tracer->add_link_tracer("link-->write_pending_mutations",pending->appender_latency_tracer);
+        mu->mu_latency_tracer->add_link_tracer("link-->write_pending_mutations",
+                                               pending->appender_latency_tracer);
     }
 
     // seperate commit_log_block from within the lock

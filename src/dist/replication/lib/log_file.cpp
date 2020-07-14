@@ -325,8 +325,8 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  id,
                                  hash);
     }
-    //pending.appender_latency_tracer->add_link_tracer(
-     //   "link:write_vector", tsk->tsk_latency_tracer, link_ts);
+    pending.appender_latency_tracer->add_link_tracer(
+        "link->write_vector", tsk->tsk_latency_tracer, link_ts);
     _end_offset.fetch_add(size);
     return tsk;
 }

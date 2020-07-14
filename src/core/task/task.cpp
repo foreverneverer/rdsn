@@ -175,7 +175,7 @@ void task::exec_internal()
 
         _spec->on_task_begin.execute(this);
 
-        //tsk_latency_tracer->add_point("on_task_begin");
+        // tsk_latency_tracer->add_point("on_task_begin");
 
         exec();
 
@@ -186,14 +186,14 @@ void task::exec_internal()
                                            TASK_STATE_FINISHED,
                                            std::memory_order_release,
                                            std::memory_order_relaxed)) {
-            //tsk_latency_tracer->add_point("on_task_end");
+            // tsk_latency_tracer->add_point("on_task_end");
             _spec->on_task_end.execute(this);
             clear_non_trivial_on_task_end();
         } else {
             if (!_wait_for_cancel) {
                 // for retried tasks such as timer or rpc_response_task
                 notify_if_necessary = false;
-                //tsk_latency_tracer->add_point("on_task_end");
+                // tsk_latency_tracer->add_point("on_task_end");
                 _spec->on_task_end.execute(this);
 
                 if (ERR_OK == _error)
@@ -204,13 +204,13 @@ void task::exec_internal()
                                                    TASK_STATE_CANCELLED,
                                                    std::memory_order_release,
                                                    std::memory_order_relaxed)) {
-                    //tsk_latency_tracer->add_point("on_task_cancelled");
+                    // tsk_latency_tracer->add_point("on_task_cancelled");
                     _spec->on_task_cancelled.execute(this);
                 }
 
                 // always call on_task_end()
                 _spec->on_task_end.execute(this);
-                //tsk_latency_tracer->add_point("on_task_end");
+                // tsk_latency_tracer->add_point("on_task_end");
 
                 // for timer task, we must call reset_callback after cancelled, because we don't
                 // reset callback after exec()
@@ -223,7 +223,7 @@ void task::exec_internal()
 
     if (notify_if_necessary) {
         if (signal_waiters()) {
-            //tsk_latency_tracer->add_point("task::signal_waiters_complete");
+            // tsk_latency_tracer->add_point("task::signal_waiters_complete");
             spec().on_task_wait_notified.execute(this);
         }
     }
@@ -237,7 +237,7 @@ void task::exec_internal()
 
 bool task::signal_waiters()
 {
-    //tsk_latency_tracer->add_point("task::signal_waiters");
+    // tsk_latency_tracer->add_point("task::signal_waiters");
     void *evt = _wait_event.load();
     if (evt != nullptr) {
         auto nevt = (utils::notify_event *)evt;
@@ -400,7 +400,7 @@ void task::enqueue()
 void task::enqueue(task_worker_pool *pool)
 {
     this->add_ref(); // released in exec_internal (even when cancelled)
-    //tsk_latency_tracer->add_point("task::enqueue");
+    // tsk_latency_tracer->add_point("task::enqueue");
 
     dassert(pool != nullptr,
             "pool %s not ready, and there are usually two cases: "
