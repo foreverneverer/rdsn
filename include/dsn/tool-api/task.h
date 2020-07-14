@@ -50,6 +50,7 @@
 #include <dsn/tool-api/auto_codes.h>
 #include <dsn/c/api_task.h>
 #include <dsn/c/api_layer1.h>
+#include <dsn/tool/latency_tracer.h>
 
 namespace dsn {
 
@@ -318,6 +319,9 @@ private:
 public:
     // used by task queue only
     task *next;
+
+    //
+    std::shared_ptr<dsn::tool::latency_tracer> ltracer;
 };
 typedef dsn::ref_ptr<dsn::task> task_ptr;
 

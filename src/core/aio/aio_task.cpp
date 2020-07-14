@@ -50,6 +50,7 @@ aio_task::aio_task(
 
 void aio_task::collapse()
 {
+    ltracer->add_point("aio_task::collapse()");
     if (!_unmerged_write_buffers.empty()) {
         std::shared_ptr<char> buffer(dsn::utils::make_shared_array<char>(_aio_ctx->buffer_size));
         char *dest = buffer.get();
@@ -68,6 +69,7 @@ void aio_task::collapse()
 
 void aio_task::enqueue(error_code err, size_t transferred_size)
 {
+    ltracer->add_point("aio_task::enqueue");
     set_error_code(err);
     _transferred_size = transferred_size;
 
