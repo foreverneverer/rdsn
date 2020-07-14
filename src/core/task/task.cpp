@@ -162,7 +162,8 @@ bool task::set_retry(bool enqueue_immediately /*= true*/)
 
 void task::exec_internal()
 {
-    ltracer->add_point("task::exec_internal");
+    if (ltracer != nullptr)
+        ltracer->add_point("task::exec_internal");
     task_state READY_STATE = TASK_STATE_READY;
     task_state RUNNING_STATE = TASK_STATE_RUNNING;
     bool notify_if_necessary = true;
@@ -174,7 +175,8 @@ void task::exec_internal()
         task *parent_task = tls_dsn.current_task;
         tls_dsn.current_task = this;
 
-        ltracer->add_point("task::exec_internal->begin");
+        if (ltracer != nullptr)
+            ltracer->add_point("task::exec_internal->begin");
         _spec->on_task_begin.execute(this);
 
         exec();
@@ -186,16 +188,20 @@ void task::exec_internal()
                                            TASK_STATE_FINISHED,
                                            std::memory_order_release,
                                            std::memory_order_relaxed)) {
-            ltracer->add_point("task::exec_internal->end");
-            ltracer->dump_trace_points(100000000);
+            if (ltracer != nullptr) {
+                ltracer->add_point("task::exec_internal->end");
+                ltracer->dump_trace_points(100000000);
+            }
             _spec->on_task_end.execute(this);
             clear_non_trivial_on_task_end();
         } else {
             if (!_wait_for_cancel) {
                 // for retried tasks such as timer or rpc_response_task
                 notify_if_necessary = false;
-                ltracer->add_point("task::exec_internal->end");
-                ltracer->dump_trace_points(100000000);
+                if (ltracer != nullptr) {
+                    ltracer->add_point("task::exec_internal->end");
+                    ltracer->dump_trace_points(100000000);
+                }
                 _spec->on_task_end.execute(this);
 
                 if (ERR_OK == _error)
@@ -206,15 +212,21 @@ void task::exec_internal()
                                                    TASK_STATE_CANCELLED,
                                                    std::memory_order_release,
                                                    std::memory_order_relaxed)) {
-                    ltracer->add_point("task::exec_internal->cancel");
+                    if (ltracer != nullptr) {
+                        ltracer->add_point("task::exec_internal->cancel");
+                        ltracer->dump_trace_points(100000000);
+                    }
+
                     _spec->on_task_cancelled.execute(this);
-                    ltracer->dump_trace_points(100000000);
                 }
 
                 // always call on_task_end()
-                ltracer->add_point("task::exec_internal->end");
+                if (ltracer != nullptr) {
+                    ltracer->add_point("task::exec_internal->end");
+                    ltracer->dump_trace_points(100000000);
+                }
+
                 _spec->on_task_end.execute(this);
-                ltracer->dump_trace_points(100000000);
 
                 // for timer task, we must call reset_callback after cancelled, because we don't
                 // reset callback after exec()
@@ -227,7 +239,8 @@ void task::exec_internal()
 
     if (notify_if_necessary) {
         if (signal_waiters()) {
-            ltracer->add_point("task::exec_internal->wait_notify");
+            if (ltracer != nullptr)
+                ltracer->add_point("task::exec_internal->wait_notify");
             spec().on_task_wait_notified.execute(this);
         }
     }
@@ -241,8 +254,9 @@ void task::exec_internal()
 
 bool task::signal_waiters()
 {
+    if (ltracer != nullptr)
+        ltracer->add_point("task::signal_waiters");
     void *evt = _wait_event.load();
-    ltracer->add_point("task::signal_waiters");
     if (evt != nullptr) {
         auto nevt = (utils::notify_event *)evt;
         nevt->notify();
@@ -289,7 +303,8 @@ bool task::wait_on_cancel()
 bool task::wait(int timeout_milliseconds)
 {
     dassert(this != task::get_current_task(), "task cannot wait itself");
-    ltracer->add_point("task::wait(timeout_milliseconds)");
+    if (ltracer != nullptr)
+        ltracer->add_point("task::wait(timeout_milliseconds)");
 
     auto cs = state();
 
@@ -324,7 +339,8 @@ bool task::wait(int timeout_milliseconds)
 
 bool task::cancel(bool wait_until_finished, /*out*/ bool *finished /*= nullptr*/)
 {
-    ltracer->add_point("task::cancel");
+    if (ltracer != nullptr)
+        ltracer->add_point("task::cancel");
     task_state READY_STATE = TASK_STATE_READY;
     task *current_tsk = get_current_task();
     bool finish = false;
@@ -392,7 +408,8 @@ const char *task::get_current_node_name()
 
 void task::enqueue()
 {
-    ltracer->add_point("task::enqueue()");
+    if (ltracer != nullptr)
+        ltracer->add_point("task::enqueue()");
     dassert(_node != nullptr, "service node unknown for this task");
     dassert(_spec->type != TASK_TYPE_RPC_RESPONSE,
             "tasks with TASK_TYPE_RPC_RESPONSE type use task::enqueue(caller_pool()) instead");
@@ -404,7 +421,8 @@ void task::enqueue()
 
 void task::enqueue(task_worker_pool *pool)
 {
-    ltracer->add_point("task::enqueue(pool)");
+    if (ltracer != nullptr)
+        ltracer->add_point("task::enqueue(pool)");
     this->add_ref(); // released in exec_internal (even when cancelled)
 
     dassert(pool != nullptr,

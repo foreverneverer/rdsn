@@ -111,7 +111,8 @@ public:
     virtual void exec() override
     {
         if (nullptr != _cb) {
-            ltracer->add_point("aiotsk::exec");
+            if (ltracer != nullptr)
+                ltracer->add_point("aiotsk::exec");
             _cb(_error, _transferred_size);
         }
     }

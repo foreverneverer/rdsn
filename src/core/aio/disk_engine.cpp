@@ -93,7 +93,8 @@ aio_task *disk_file::read(aio_task *tsk)
 
 aio_task *disk_file::write(aio_task *tsk, void *ctx)
 {
-    tsk->ltracer->add_point("disk_file::write");
+    if (tsk != nullptr && tsk->ltracer != nullptr)
+        tsk->ltracer->add_point("disk_file::write");
     tsk->add_ref(); // release on completion
     return _write_queue.add_work(tsk, ctx);
 }
@@ -112,7 +113,8 @@ aio_task *disk_file::on_write_completed(aio_task *wk, void *ctx, error_code err,
 {
     auto ret = _write_queue.on_work_completed(wk, ctx);
 
-    wk->ltracer->add_point("disk_file::on_write_completed");
+    if (wk != nullptr && wk->ltracer != nullptr)
+        wk->ltracer->add_point("disk_file::on_write_completed");
 
     while (wk) {
         aio_task *next = (aio_task *)wk->next;
@@ -185,8 +187,8 @@ public:
 
 void disk_engine::write(aio_task *aio)
 {
-
-    aio->ltracer->add_point("disk_engine::write");
+    if (aio != nullptr && aio->ltracer != nullptr)
+        aio->ltracer->add_point("disk_engine::write");
     if (!aio->spec().on_aio_call.execute(task::get_current_task(), aio, true)) {
         aio->enqueue(ERR_FILE_OPERATION_FAILED, 0);
         return;
@@ -208,7 +210,8 @@ void disk_engine::write(aio_task *aio)
 
 void disk_engine::process_write(aio_task *aio, uint32_t sz)
 {
-    aio->ltracer->add_point("disk_engine::process_write");
+    if (aio != nullptr && aio->ltracer != nullptr)
+        aio->ltracer->add_point("disk_engine::process_write");
     aio_context *dio = aio->get_aio_context();
 
     // no batching
@@ -259,7 +262,8 @@ void disk_engine::process_write(aio_task *aio, uint32_t sz)
 
 void disk_engine::complete_io(aio_task *aio, error_code err, uint32_t bytes, int delay_milliseconds)
 {
-    aio->ltracer->add_point("disk_engine::complete_io");
+    if (aio != nullptr && aio->ltracer != nullptr)
+        aio->ltracer->add_point("disk_engine::complete_io");
     if (err != ERR_OK) {
         dinfo("disk operation failure with code %s, err = %s, aio_task_id = %016" PRIx64,
               aio->spec().name.c_str(),
