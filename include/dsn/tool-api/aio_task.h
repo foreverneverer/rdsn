@@ -113,7 +113,6 @@ public:
         if (nullptr != _cb) {
             if (ltracer != nullptr) {
                 ltracer->add_point("aiotsk_cb::exec");
-                ltracer->dump_trace_points(1000000);
             }
             _cb(_error, _transferred_size);
         }
