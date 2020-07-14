@@ -90,6 +90,7 @@ public:
 
         int64_t previous_time = points.begin()->first;
         std::string trace;
+        ////(jiashuo1)update format
         for (const auto &point : points) {
             trace =
                 fmt::format("{}\n\tTRACER[{:<10}|{:<10}]:from_previous={:<20}, from_start={:<20}, "
