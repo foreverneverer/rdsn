@@ -76,7 +76,7 @@ public:
 
     void dump_trace_points(int threshold)
     {
-        if (threshold <= 0) {
+        if (threshold <= 0 || id == 0) {
             return;
         }
 
