@@ -139,7 +139,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
     for (auto &c : pending->callbacks()) {
         c->ltracer->add_point("aio_start");
     }
-
+    //(jiashuo1)add counter
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,

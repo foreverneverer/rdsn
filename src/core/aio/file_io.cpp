@@ -130,6 +130,8 @@ namespace file {
         }
     }
 
+    //(jiashuo1)set id = 1
+
     disk_engine::instance().write(cb);
     return cb;
 }

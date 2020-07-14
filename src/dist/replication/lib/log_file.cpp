@@ -297,7 +297,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
         }
         _crc32 = hdr->body_crc;
     }
-
+    ////(jiashuo1)hope link
     aio_task_ptr tsk;
     int64_t local_offset = pending.start_offset() - start_offset();
     if (callback) {
