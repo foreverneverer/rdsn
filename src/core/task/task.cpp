@@ -190,7 +190,7 @@ void task::exec_internal()
                                            std::memory_order_relaxed)) {
             if (ltracer != nullptr) {
                 ltracer->add_point("task::exec_internal->end");
-                ltracer->dump_trace_points(100000000);
+                ltracer->dump_trace_points(1000000);
             }
             _spec->on_task_end.execute(this);
             clear_non_trivial_on_task_end();
@@ -200,7 +200,7 @@ void task::exec_internal()
                 notify_if_necessary = false;
                 if (ltracer != nullptr) {
                     ltracer->add_point("task::exec_internal->end");
-                    ltracer->dump_trace_points(100000000);
+                    ltracer->dump_trace_points(1000000);
                 }
                 _spec->on_task_end.execute(this);
 
@@ -214,7 +214,7 @@ void task::exec_internal()
                                                    std::memory_order_relaxed)) {
                     if (ltracer != nullptr) {
                         ltracer->add_point("task::exec_internal->cancel");
-                        ltracer->dump_trace_points(100000000);
+                        ltracer->dump_trace_points(1000000);
                     }
 
                     _spec->on_task_cancelled.execute(this);
@@ -223,7 +223,7 @@ void task::exec_internal()
                 // always call on_task_end()
                 if (ltracer != nullptr) {
                     ltracer->add_point("task::exec_internal->end");
-                    ltracer->dump_trace_points(100000000);
+                    ltracer->dump_trace_points(1000000);
                 }
 
                 _spec->on_task_end.execute(this);
