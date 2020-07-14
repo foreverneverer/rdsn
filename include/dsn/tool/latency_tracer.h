@@ -5,6 +5,7 @@
 #pragma once
 #include <dsn/service_api_c.h>
 #include <dsn/dist/fmt_logging.h>
+#include <dsn/tool-api/zlocks.h>
 
 namespace dsn {
 namespace tool {
@@ -45,6 +46,8 @@ struct latency_tracer
 {
 
 public:
+    dsn::zrwlock_nr lock;
+
     uint64_t id;
     std::string type;
     std::map<int64_t, std::string> points;
@@ -61,13 +64,20 @@ public:
     // -name: generally, it is the name of that call this method. but you can define the more
     // significant name to show the events of one moment
     // -ts: current timestamp
-    void add_point(const std::string &name) { points.emplace(dsn_now_ns(), name); }
+    void add_point(std::string name)
+    {
+        //derror_f("tracer={}", id);
+        dsn::zauto_write_lock write(lock);
+        points[dsn_now_ns()] = name;
+    }
 
     void dump_trace_points(int threshold)
     {
         if (threshold <= 0) {
             return;
         }
+
+        dsn::zauto_read_lock read(lock);
 
         int64_t start_time = points.begin()->first;
 

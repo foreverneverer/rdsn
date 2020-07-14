@@ -29,6 +29,7 @@
 #include "disk_engine.h"
 #include "sim_aio_provider.h"
 #include "core/core/service_engine.h"
+#include <dsn/dist/fmt_logging.h>
 
 using namespace dsn::utils;
 
@@ -210,8 +211,9 @@ void disk_engine::write(aio_task *aio)
 
 void disk_engine::process_write(aio_task *aio, uint32_t sz)
 {
-    if (aio != nullptr && aio->ltracer != nullptr)
+    if (aio != nullptr && aio->ltracer != nullptr) {
         aio->ltracer->add_point("disk_engine::process_write");
+    }
     aio_context *dio = aio->get_aio_context();
 
     // no batching
@@ -262,8 +264,9 @@ void disk_engine::process_write(aio_task *aio, uint32_t sz)
 
 void disk_engine::complete_io(aio_task *aio, error_code err, uint32_t bytes, int delay_milliseconds)
 {
-    if (aio != nullptr && aio->ltracer != nullptr)
+    if (aio != nullptr && aio->ltracer != nullptr) {
         aio->ltracer->add_point("disk_engine::complete_io");
+    }
     if (err != ERR_OK) {
         dinfo("disk operation failure with code %s, err = %s, aio_task_id = %016" PRIx64,
               aio->spec().name.c_str(),
