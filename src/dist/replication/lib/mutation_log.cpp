@@ -50,6 +50,11 @@ namespace replication {
                        callback_code, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
 
+    if (cb != nullptr) {
+        cb->ltracer->add_point("append");
+        cb->ltracer->id = 1;
+    }
+
     _slock.lock();
 
     // init pending buffer
@@ -57,6 +62,11 @@ namespace replication {
         _pending_write = std::make_shared<log_appender>(mark_new_offset(0, true).second);
     }
     _pending_write->append_mutation(mu, cb);
+
+    if (cb != nullptr) {
+        cb->ltracer->add_point("append_mutation");
+        cb->ltracer->id = 1;
+    }
 
     // update meta
     update_max_decree(mu->data.header.pid, d);
@@ -126,6 +136,10 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
 void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
+    for (auto &c : pending->callbacks()) {
+        c->ltracer->add_point("aio_start");
+    }
+
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
@@ -163,6 +177,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
             // notify the callbacks
             // ATTENTION: callback may be called before this code block executed done.
             for (auto &c : pending->callbacks()) {
+                c->ltracer->add_point("aio_complete");
                 c->enqueue(err, sz);
             }
 

@@ -67,6 +67,9 @@ public:
     // -ts: current timestamp
     void add_point(std::string name)
     {
+        if (id == 0) {
+            return;
+        }
         dsn::zauto_write_lock write(lock);
         points[dsn_now_ns()] = name;
     }
@@ -81,8 +84,7 @@ public:
 
         int64_t start_time = points.begin()->first;
 
-        if (points.end()->first - start_time < threshold) {
-            derror_f("s={}\ne={}\nu={}", start_time, points.end()->first, points.end()->first - start_time);
+        if (points.rbegin()->first - start_time < threshold) {
             return;
         }
 
@@ -90,8 +92,8 @@ public:
         std::string trace;
         for (const auto &point : points) {
             trace =
-                fmt::format("{}\tTRACER[{:<10}|{:<10}]:from_previous={:<20}, from_start={:<20}, "
-                            "ts={:<20}, name={:<20}\n",
+                fmt::format("{}\n\tTRACER[{:<10}|{:<10}]:from_previous={:<20}, from_start={:<20}, "
+                            "ts={:<20}, name={:<20}",
                             trace,
                             type,
                             id,
@@ -102,7 +104,7 @@ public:
             previous_time = point.first;
         }
 
-        derror_f("TRACE:the request excceed {}\n{}", threshold, trace);
+        derror_f("{}", trace);
     }
 };
 } // namespace tool
