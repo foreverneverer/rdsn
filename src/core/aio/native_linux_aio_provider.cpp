@@ -187,7 +187,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                                                    bool async,
                                                    /*out*/ uint32_t *pbytes /*= nullptr*/)
 {
-    // aio_tsk->tsk_latency_tracer->add_point("aio_internal");
+    aio_tsk->tsk_latency_tracer->add_point("aio_submit");
     struct iocb *cbs[1];
     linux_disk_aio_context *aio;
     int ret;
@@ -286,7 +286,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             return ERR_IO_PENDING;
         } else {
             aio->evt->wait();
-            // aio_tsk->tsk_latency_tracer->add_point("aio_submit_wait_complete");
+            aio_tsk->tsk_latency_tracer->add_point("aio->evt->wait_ok");
             delete aio->evt;
             aio->evt = nullptr;
             if (pbytes != nullptr) {

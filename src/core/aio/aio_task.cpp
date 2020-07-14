@@ -50,7 +50,7 @@ aio_task::aio_task(
 
 void aio_task::collapse()
 {
-    // tsk_latency_tracer->add_point("collapse");
+    tsk_latency_tracer->add_point("collapse");
     if (!_unmerged_write_buffers.empty()) {
         std::shared_ptr<char> buffer(dsn::utils::make_shared_array<char>(_aio_ctx->buffer_size));
         char *dest = buffer.get();
@@ -74,7 +74,7 @@ void aio_task::enqueue(error_code err, size_t transferred_size)
 
     spec().on_aio_enqueue.execute(this);
 
-    // tsk_latency_tracer->add_point("aio_task::enqueue");
+    tsk_latency_tracer->add_point("aio_task::enqueue");
 
     task::enqueue(node()->computation()->get_pool(spec().pool_code));
 }
