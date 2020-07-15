@@ -88,7 +88,7 @@ void replication_service_app::on_intercepted_request(dsn::gpid gpid,
                                                      dsn::message_ex *msg)
 {
     if (msg->ltracer != nullptr) {
-        msg->ltracer->open_trace(true);
+        // msg->ltracer->open_trace(true);
         msg->ltracer->add_point("on_intercepted_request");
     }
     if (is_write) {

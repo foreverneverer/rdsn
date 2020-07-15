@@ -328,9 +328,13 @@ void replica::execute_mutation(mutation_ptr &mu)
 
     mu->ltracer->add_point("write_rocksdb");
 
+    if (mu->ltracer->dump_trace_points(100000000)) {
+        derror_f("TRACE:**************next*************");
+    }
+
     //
     if (partition_status::PS_PRIMARY == status()) {
-        for (auto request : mu->client_requests) {
+        /*for (auto request : mu->client_requests) {
             if (request == nullptr || request->ltracer == nullptr) {
                 return;
             }
@@ -338,11 +342,11 @@ void replica::execute_mutation(mutation_ptr &mu)
             if (request->ltracer->dump_trace_points(100000000)) {
                 derror_f("TRACE:**************next*************");
             }
-        }
+        }*/
     } else if (partition_status::PS_SECONDARY == status()) {
-        if (mu->ltracer->dump_trace_points(100000000)) {
+        /*if (mu->ltracer->dump_trace_points(100000000)) {
             derror_f("TRACE:**************next*************");
-        }
+        }*/
     }
 }
 
