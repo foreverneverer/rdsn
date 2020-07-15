@@ -73,8 +73,10 @@ public:
         if (id == 0) {
             return;
         }
+
+        int64_t ts = dsn_now_ns();
         dsn::zauto_write_lock write(point_lock);
-        points[dsn_now_ns()] = name;
+        points[ts] = name;
     }
 
     void add_link_tracer(std::shared_ptr<latency_tracer> link_tracer)
