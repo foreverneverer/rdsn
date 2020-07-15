@@ -128,7 +128,7 @@ public:
             previous_time = point.first;
         }
 
-        derror_f("TRACE:id={}, time_used={}\n{}", id = {}, time_used, trace);
+        derror_f("TRACE:id={}, time_used={}\n{}", id, time_used, trace);
 
         for (auto const &tracer : link_tracers) {
             derror_f("TRACE:link------->id[{}]", tracer->id);
