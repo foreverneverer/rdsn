@@ -37,6 +37,8 @@
 namespace dsn {
 namespace replication {
 
+dsn::perf_counter_wrapper _slog_aio_latency;
+
 ::dsn::task_ptr mutation_log_shared::append(mutation_ptr &mu,
                                             dsn::task_code callback_code,
                                             dsn::task_tracker *tracker,
@@ -139,13 +141,16 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
     for (auto &c : pending->callbacks()) {
         c->ltracer->add_point("aio_start");
     }
-    //(jiashuo1)add counter
+
+    int64_t aio_start_time = dsn_now_ns();
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
         &_tracker,
-        [this, lf, pending](error_code err, size_t sz) mutable {
+        [this, lf, pending, aio_start_time](error_code err, size_t sz) mutable {
             dassert(_is_writing.load(std::memory_order_relaxed), "");
+
+            _slog_aio_latency->set(dsn_now_ns() - aio_start_time);
 
             for (auto &block : pending->all_blocks()) {
                 auto hdr = (log_block_header *)block.front().data();
@@ -471,6 +476,16 @@ mutation_log::mutation_log(const std::string &dir, int32_t max_log_file_mb, gpid
                 r->get_gpid().get_partition_index());
     }
     mutation_log::init_states();
+
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _slog_aio_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "slog_aio_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+    });
 }
 
 void mutation_log::init_states()

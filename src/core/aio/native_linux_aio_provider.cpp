@@ -55,28 +55,28 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
         _native_aio_plog_submit_latency.init_global_counter(
             "replica",
             "app.pegasus",
-            "native_aio_plog_submit_latency",
+            "native_aio_plog_submit_latency_ns",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
         _native_aio_slog_submit_latency.init_global_counter(
             "replica",
             "app.pegasus",
-            "native_aio_slog_submit_latency",
+            "native_aio_slog_submit_latency_ns",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
         _native_aio_plog_size.init_global_counter(
             "replica",
             "app.pegasus",
-            "native_aio_plog_size",
+            "native_aio_plog_size_num",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
         _native_aio_slog_size.init_global_counter(
             "replica",
             "app.pegasus",
-            "native_aio_slog_size",
+            "native_aio_slog_size_num",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 

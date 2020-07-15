@@ -47,11 +47,14 @@ struct latency_tracer
 {
 
 public:
-    dsn::zrwlock_nr lock;
+    dsn::zrwlock_nr point_lock;
+    dsn::zrwlock_nr link_tracer_lock;
 
     uint64_t id;
     std::string type;
     std::map<int64_t, std::string> points;
+
+    std::vector<std::shared_ptr<latency_tracer>> link_tracers;
 
 public:
     latency_tracer(int id, const std::string &start_name, const std::string &type)
@@ -70,8 +73,19 @@ public:
         if (id == 0) {
             return;
         }
-        dsn::zauto_write_lock write(lock);
+        dsn::zauto_write_lock write(point_lock);
         points[dsn_now_ns()] = name;
+    }
+
+    void add_link_tracer(std::shared_ptr<latency_tracer> link_tracer)
+    {
+        if (id == 0) {
+            return;
+        }
+
+        dsn::zauto_write_lock write(link_tracer_lock);
+
+        link_tracers.emplace_back(link_tracer);
     }
 
     void dump_trace_points(int threshold)
@@ -80,32 +94,37 @@ public:
             return;
         }
 
-        dsn::zauto_read_lock read(lock);
+        dsn::zauto_read_lock read(point_lock);
 
         int64_t start_time = points.begin()->first;
+        int64_t time_used = points.rbegin()->first - start_time;
 
-        if (points.rbegin()->first - start_time < threshold) {
+        if (time_used < threshold) {
             return;
         }
 
         int64_t previous_time = points.begin()->first;
         std::string trace;
-        ////(jiashuo1)update format
         for (const auto &point : points) {
-            trace =
-                fmt::format("{}\n\tTRACER[{:<10}|{:<10}]:from_previous={:<20}, from_start={:<20}, "
-                            "ts={:<20}, name={:<20}",
-                            trace,
-                            type,
-                            id,
-                            point.first - previous_time,
-                            point.first - start_time,
-                            point.first,
-                            point.second);
+            trace = fmt::format(
+                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<20}, from_previous={:<20}, from_start={:<20}, "
+                "ts={:<20}",
+                trace,
+                type,
+                id,
+                point.second,
+                point.first - previous_time,
+                point.first - start_time,
+                point.first);
             previous_time = point.first;
         }
 
-        derror_f("{}", trace);
+        derror_f("TRACE:time_used={}\n{}", time_used, trace);
+
+        for (auto const &tracer : link_tracers) {
+            derror_f("--------------------------------");
+            tracer->dump_trace_points(threshold);
+        }
     }
 };
 } // namespace tool

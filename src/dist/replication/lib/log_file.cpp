@@ -297,7 +297,6 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
         }
         _crc32 = hdr->body_crc;
     }
-    ////(jiashuo1)hope link
     aio_task_ptr tsk;
     int64_t local_offset = pending.start_offset() - start_offset();
     if (callback) {
@@ -320,6 +319,10 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  nullptr,
                                  id,
                                  hash);
+    }
+
+    for (auto const &tsk_cb : pending.callbacks()) {
+        tsk_cb->ltracer->add_link_tracer(tsk->ltracer);
     }
 
     _end_offset.fetch_add(size);

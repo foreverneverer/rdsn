@@ -130,7 +130,7 @@ namespace file {
         }
     }
 
-    //(jiashuo1)set id = 1
+    cb->ltracer->id = 2;
 
     disk_engine::instance().write(cb);
     return cb;
