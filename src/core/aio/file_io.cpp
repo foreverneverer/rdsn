@@ -130,8 +130,6 @@ namespace file {
         }
     }
 
-    cb->ltracer->id = 2;
-
     disk_engine::instance().write(cb);
     return cb;
 }
@@ -156,6 +154,8 @@ namespace file {
             cb->get_aio_context()->buffer_size += buffers[i].size;
         }
     }
+
+    cb->ltracer->id = 2;
 
     disk_engine::instance().write(cb);
     return cb;
