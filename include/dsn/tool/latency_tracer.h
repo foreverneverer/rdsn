@@ -94,14 +94,14 @@ public:
         link_tracers.emplace_back(link_tracer);
     }
 
-    void dump_trace_points(int threshold)
+    bool dump_trace_points(int threshold)
     {
         if (threshold <= 0 || !is_open) {
-            return;
+            return false;
         }
 
         if (points.empty()) {
-            return;
+            return false;
         }
 
         dsn::zauto_read_lock read(point_lock);
@@ -112,14 +112,14 @@ public:
         // derror_f("TEST:id={},s={},e={},u={}", id, start_time, points.rbegin()->first, time_used);
 
         if (time_used < threshold) {
-            return;
+            return false;
         }
 
         int64_t previous_time = points.begin()->first;
         std::string trace;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<40}, from_previous={:<20}, from_start={:<20}, "
+                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<30}, from_previous={:<13}, from_start={:<13}, "
                 "ts={:<13}",
                 trace,
                 type,
@@ -134,9 +134,10 @@ public:
         derror_f("TRACE:time_used={}\n{}", time_used, trace);
 
         for (auto const &tracer : link_tracers) {
-            derror_f("TRACE:link------->id[{}]", tracer->id);
+            derror_f("link------->id[{}]", tracer->id);
             tracer->dump_trace_points(1);
         }
+        return true;
     }
 };
 } // namespace tool
