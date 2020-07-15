@@ -139,7 +139,7 @@ void mutation::copy_from(mutation_ptr &old)
 
 void mutation::add_client_request(task_code code, dsn::message_ex *request)
 {
-    if (request->ltracer != nullptr) {
+    if (request != nullptr && request->ltracer != nullptr) {
         request->ltracer->add_point("add_client_requst->[mu]init_prepare");
     }
     data.updates.push_back(mutation_update());
@@ -347,7 +347,7 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
 {
     task_spec *spec = task_spec::get(code);
 
-    if (request->ltracer != nullptr) {
+    if (request != nullptr && request->ltracer != nullptr) {
         request->ltracer->add_point("add_work");
     }
 
