@@ -39,7 +39,7 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
     _checker.only_one_thread_access();
 
     if (request != nullptr && request->ltracer != nullptr) {
-        request->ltracer->add_point("on_client_write");
+        //request->ltracer->add_point("on_client_write");
     }
 
     if (_deny_client_write) {
@@ -117,7 +117,7 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
     auto mu = _primary_states.write_queue.add_work(request->rpc_code(), request, this);
 
     if (request != nullptr && request->ltracer != nullptr) {
-        request->ltracer->add_link_tracer(mu->ltracer);
+        //request->ltracer->add_link_tracer(mu->ltracer);
     }
 
     if (mu) {
