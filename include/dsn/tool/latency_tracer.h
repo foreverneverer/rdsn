@@ -129,7 +129,7 @@ public:
         }
 
         if (link_tracers.empty()) {
-            derror_f("TRACE:time_used={}", trace);
+            derror_f("TRACE:time_used={}\n{}", time_used, trace);
         }
 
         for (auto const &tracer : link_tracers) {
