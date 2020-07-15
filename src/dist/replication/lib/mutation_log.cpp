@@ -139,7 +139,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
     for (auto &c : pending->callbacks()) {
-        c->ltracer->add_point("aio_start");
+        c->ltracer->add_point("commit_pending_mutations");
     }
 
     int64_t aio_start_time = dsn_now_ns();
