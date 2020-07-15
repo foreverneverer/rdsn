@@ -123,7 +123,7 @@ public:
 
         for (auto const &tracer : link_tracers) {
             derror_f("--------------------------------");
-            tracer->dump_trace_points(threshold);
+            tracer->dump_trace_points(1);
         }
     }
 };
