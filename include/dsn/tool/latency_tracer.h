@@ -95,7 +95,7 @@ public:
         }
 
         if (points.empty()) {
-            derror_f("TEST:id={},empty", id);
+            // derror_f("TEST:id={},empty", id);
             return;
         }
 
@@ -104,7 +104,7 @@ public:
         int64_t start_time = points.begin()->first;
         int64_t time_used = points.rbegin()->first - start_time;
 
-        derror_f("TEST:id={},s={},e={},u={}", id, start_time, points.rbegin()->first, time_used);
+        // derror_f("TEST:id={},s={},e={},u={}", id, start_time, points.rbegin()->first, time_used);
 
         if (time_used < threshold) {
             return;
