@@ -188,7 +188,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                                                    /*out*/ uint32_t *pbytes /*= nullptr*/)
 {
     if (aio_tsk != nullptr && aio_tsk->ltracer != nullptr)
-        aio_tsk->ltracer->add_point("native_linux_aio_provider::aio_internal_submit");
+        aio_tsk->ltracer->add_point("provider::aio_internal_submit");
     struct iocb *cbs[1];
     linux_disk_aio_context *aio;
     int ret;
@@ -270,7 +270,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     }
 
     if (aio_tsk != nullptr && aio_tsk->ltracer != nullptr)
-        aio_tsk->ltracer->add_point("native_linux_aio_provider::submit_complete");
+        aio_tsk->ltracer->add_point("provider::submit_complete");
 
     if (ret != 1) {
         if (ret < 0)
@@ -291,8 +291,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         } else {
             aio->evt->wait();
             if (aio_tsk != nullptr && aio_tsk->ltracer != nullptr)
-                aio_tsk->ltracer->add_point(
-                    "native_linux_aio_provider::submit_aio->evt->wait()_complete");
+                aio_tsk->ltracer->add_point("provider::submit_wait_complete");
             delete aio->evt;
             aio->evt = nullptr;
             if (pbytes != nullptr) {
