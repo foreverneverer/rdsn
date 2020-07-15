@@ -336,6 +336,7 @@ void replica::execute_mutation(mutation_ptr &mu)
             }
             request->ltracer->add_point("write_rocksdb");
             request->ltracer->dump_trace_points(100000000);
+            derror_f("TRACE:next");
         }
     } else if (partition_status::PS_SECONDARY == status()) {
         mu->ltracer->dump_trace_points(100000000);

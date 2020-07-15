@@ -119,7 +119,7 @@ public:
         std::string trace;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<40}, from_previous={:<13}, from_start={:<13}, "
+                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<40}, from_previous={:<20}, from_start={:<20}, "
                 "ts={:<13}",
                 trace,
                 type,
@@ -134,7 +134,7 @@ public:
         derror_f("TRACE:time_used={}\n{}", time_used, trace);
 
         for (auto const &tracer : link_tracers) {
-            derror_f("link------->id[{}]", tracer->id);
+            derror_f("TRACE:link------->id[{}]", tracer->id);
             tracer->dump_trace_points(1);
         }
     }
