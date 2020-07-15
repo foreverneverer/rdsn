@@ -156,6 +156,7 @@ namespace file {
     }
 
     cb->ltracer->id = 2;
+    cb->ltracer->add_point("write_vector");
 
     disk_engine::instance().write(cb);
     return cb;
