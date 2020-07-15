@@ -188,7 +188,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                                                    /*out*/ uint32_t *pbytes /*= nullptr*/)
 {
     if (aio_tsk != nullptr && aio_tsk->ltracer != nullptr)
-        aio_tsk->ltracer->add_point("provider::aio_internal_submit");
+        aio_tsk->ltracer->add_point("provider::aio_internal");
     struct iocb *cbs[1];
     linux_disk_aio_context *aio;
     int ret;
@@ -236,6 +236,8 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         aio->bytes = 0;
     }
 
+    if (aio_tsk != nullptr && aio_tsk->ltracer != nullptr)
+        aio_tsk->ltracer->add_point("provider::aio_submit");
     cbs[0] = &aio->cb;
     int aio_context_id = aio_tsk->_io_context_id;
     uint64_t start_time = dsn_now_ns();
