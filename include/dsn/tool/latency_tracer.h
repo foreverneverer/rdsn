@@ -47,8 +47,7 @@ struct latency_tracer
 {
 
 public:
-    dsn::zrwlock_nr point_lock;
-    dsn::zrwlock_nr link_tracer_lock;
+    dsn::zrwlock_nr lock;
 
     uint64_t id;
     std::string type;
@@ -77,7 +76,7 @@ public:
         }
 
         int64_t ts = dsn_now_ns();
-        dsn::zauto_write_lock write(point_lock);
+        dsn::zauto_write_lock write(lock);
         points[ts] = name;
     }
 
@@ -89,8 +88,7 @@ public:
             return;
         }
 
-        dsn::zauto_write_lock write(link_tracer_lock);
-
+        dsn::zauto_write_lock write(lock);
         link_tracers.emplace_back(link_tracer);
     }
 
@@ -104,7 +102,7 @@ public:
             return false;
         }
 
-        dsn::zauto_read_lock read(point_lock);
+        dsn::zauto_read_lock read(lock);
 
         int64_t start_time = points.begin()->first;
         int64_t time_used = points.rbegin()->first - start_time;

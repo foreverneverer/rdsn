@@ -340,7 +340,6 @@ void replica::execute_mutation(mutation_ptr &mu)
             }
         }
     } else if (partition_status::PS_SECONDARY == status()) {
-        mu->ltracer->dump_trace_points(100000000);
         if (mu->ltracer->dump_trace_points(100000000)) {
             derror_f("TRACE:**************next*************");
         }
