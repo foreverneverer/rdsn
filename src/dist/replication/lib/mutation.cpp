@@ -53,8 +53,7 @@ mutation::mutation()
     _create_ts_ns = dsn_now_ns();
     _tid = ++s_tid;
 
-    ltracer =
-        std::make_shared<dsn::tool::latency_tracer>(_tid, "message_ex::message_ex", "request");
+    ltracer = std::make_shared<dsn::tool::latency_tracer>(_tid, "mutation::mutation", "mutation");
     ltracer->open_trace(true);
 }
 
