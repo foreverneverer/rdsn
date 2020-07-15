@@ -154,8 +154,6 @@ namespace file {
             cb->get_aio_context()->buffer_size += buffers[i].size;
         }
     }
-
-    cb->ltracer->id = 2;
     cb->ltracer->add_point("write_vector");
 
     disk_engine::instance().write(cb);

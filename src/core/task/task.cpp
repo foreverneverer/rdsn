@@ -147,8 +147,6 @@ task::~task()
         delete (utils::notify_event *)_wait_event.load();
         _wait_event.store(nullptr);
     }
-
-    ltracer->dump_trace_points(20000000);
 }
 
 bool task::set_retry(bool enqueue_immediately /*= true*/)

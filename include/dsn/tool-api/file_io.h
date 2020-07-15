@@ -57,6 +57,9 @@ create_aio_task(task_code code, task_tracker *tracker, aio_handler &&callback, i
     aio_task_ptr t(new aio_task(code, std::move(callback), hash));
     t->set_tracker((task_tracker *)tracker);
     t->spec().on_task_create.execute(task::get_current_task(), t);
+
+    t->ltracer->open_trace(true);
+    t->ltracer->add_point("create_aio_task");
     return t;
 }
 
@@ -66,6 +69,9 @@ inline aio_task_ptr create_aio_task(
     aio_task_ptr t(new aio_task(code, io_context_id, std::move(callback), hash));
     t->set_tracker((task_tracker *)tracker);
     t->spec().on_task_create.execute(task::get_current_task(), t);
+
+    t->ltracer->open_trace(true);
+    t->ltracer->add_point("create_aio_task");
     return t;
 }
 

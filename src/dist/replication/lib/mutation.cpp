@@ -52,6 +52,10 @@ mutation::mutation()
     _appro_data_bytes = sizeof(mutation_header);
     _create_ts_ns = dsn_now_ns();
     _tid = ++s_tid;
+
+    ltracer =
+        std::make_shared<dsn::tool::latency_tracer>(_tid, "message_ex::message_ex", "request");
+    ltracer->open_trace(true);
 }
 
 mutation_ptr mutation::copy_no_reply(const mutation_ptr &old_mu)
@@ -135,6 +139,9 @@ void mutation::copy_from(mutation_ptr &old)
 
 void mutation::add_client_request(task_code code, dsn::message_ex *request)
 {
+    if (request->ltracer != nullptr) {
+        request->ltracer->add_point("add_client_requst->[mu]init_prepare");
+    }
     data.updates.push_back(mutation_update());
     mutation_update &update = data.updates.back();
     _appro_data_bytes += 32; // approximate code size
@@ -339,6 +346,10 @@ mutation_queue::mutation_queue(gpid gpid,
 mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, replica *r)
 {
     task_spec *spec = task_spec::get(code);
+
+    if (request->ltracer != nullptr) {
+        request->ltracer->add_point("add_work");
+    }
 
     // if not allow write batch, switch work queue
     if (_pending_mutation && !spec->rpc_request_is_write_allow_batch) {

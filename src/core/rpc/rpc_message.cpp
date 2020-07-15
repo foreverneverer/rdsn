@@ -60,6 +60,7 @@ message_ex::message_ex()
       _rw_committed(true),
       _is_read(false)
 {
+    ltracer = std::make_shared<dsn::tool::latency_tracer>(_id, "message_ex::message_ex", "request");
 }
 
 message_ex::~message_ex()

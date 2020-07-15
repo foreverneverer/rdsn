@@ -224,6 +224,8 @@ void replica::execute_mutation(mutation_ptr &mu)
           mu->name(),
           static_cast<int>(mu->client_requests.size()));
 
+    mu->ltracer->add_point("commit_mu(execute_mutation)");
+
     error_code err = ERR_OK;
     decree d = mu->data.header.decree;
 
@@ -322,6 +324,21 @@ void replica::execute_mutation(mutation_ptr &mu)
                 _counters_table_level_latency[update.code]->set(now_ns - update.start_time_ns);
             }
         }
+    }
+
+    mu->ltracer->add_point("write_rocksdb");
+
+    //
+    if (partition_status::PS_PRIMARY == status()) {
+        for (auto request : mu->client_requests) {
+            if (request == nullptr || request->ltracer == nullptr) {
+                return;
+            }
+            request->ltracer->add_opoint("write_rocksdb");
+            request->ltracer->dump_trace_points(100000000);
+        }
+    } else if (partition_status::PS_SECONDARY == status()) {
+        mu->ltracer->dump_trace_points(100000000);
     }
 }
 

@@ -54,13 +54,15 @@ public:
     std::string type;
     std::map<int64_t, std::string> points;
 
+    bool is_open = false;
+
     std::vector<std::shared_ptr<latency_tracer>> link_tracers;
 
 public:
     latency_tracer(int id, const std::string &start_name, const std::string &type)
         : id(id), type(type)
     {
-        add_point(start_name);
+        points[dsn_now_ns()] = start_name;
     };
 
     // this method is called for any other method which will be recorded methed name and ts
@@ -70,7 +72,7 @@ public:
     // -ts: current timestamp
     void add_point(std::string name)
     {
-        if (id == 0) {
+        if (!is_open) {
             return;
         }
 
@@ -79,9 +81,11 @@ public:
         points[ts] = name;
     }
 
+    void open_trace(bool open) { is_open = open; }
+
     void add_link_tracer(std::shared_ptr<latency_tracer> link_tracer)
     {
-        if (id == 0) {
+        if (!is_open) {
             return;
         }
 
@@ -92,12 +96,11 @@ public:
 
     void dump_trace_points(int threshold)
     {
-        if (threshold <= 0 || id == 0) {
+        if (threshold <= 0 || !is_open) {
             return;
         }
 
         if (points.empty()) {
-            // derror_f("TEST:id={},empty", id);
             return;
         }
 
@@ -116,8 +119,8 @@ public:
         std::string trace;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<30}, from_previous={:<20}, from_start={:<20}, "
-                "ts={:<20}",
+                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<30}, from_previous={:<13}, from_start={:<13}, "
+                "ts={:<13}",
                 trace,
                 type,
                 id,
@@ -131,7 +134,7 @@ public:
         derror_f("TRACE:time_used={}\n{}", time_used, trace);
 
         for (auto const &tracer : link_tracers) {
-            derror_f("link_id={}--------------------------------", tracer->id);
+            derror_f("link------->id[{}]", tracer->id);
             tracer->dump_trace_points(1);
         }
     }

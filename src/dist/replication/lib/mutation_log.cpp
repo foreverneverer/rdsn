@@ -53,8 +53,8 @@ dsn::perf_counter_wrapper _slog_aio_latency;
                  : nullptr;
 
     if (cb != nullptr) {
-        cb->ltracer->id = 1;
-        cb->ltracer->add_point("append");
+        mu->ltracer->add_point("append->[aio]create_aio_task");
+        mu->ltracer->add_link_tracer(cb->ltracer);
     }
 
     _slock.lock();

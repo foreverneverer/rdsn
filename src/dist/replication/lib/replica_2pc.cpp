@@ -38,6 +38,10 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
 {
     _checker.only_one_thread_access();
 
+    if (request->ltracer != nullptr) {
+        request->ltracer->add_point("on_client_write");
+    }
+
     if (_deny_client_write) {
         // Do not relay any message to the peer client to let it timeout, it's OK coz some users
         // may retry immediately when they got a not success code which will make the server side
@@ -111,6 +115,11 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
 
     dinfo("%s: got write request from %s", name(), request->header->from_address.to_string());
     auto mu = _primary_states.write_queue.add_work(request->rpc_code(), request, this);
+
+    if (request->ltracer != nullptr) {
+        request->ltracer->add_link_tracer(mu->ltracer);
+    }
+
     if (mu) {
         init_prepare(mu, false);
     }
@@ -122,6 +131,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
             "invalid partition_status, status = %s",
             enum_to_string(status()));
 
+    mu->ltracer->add_point("init_prepare");
     error_code err = ERR_OK;
     uint8_t count = 0;
     const auto request_count = mu->client_requests.size();
@@ -283,6 +293,8 @@ void replica::send_prepare_message(::dsn::rpc_address addr,
         mu->write_to(writer, msg);
     }
 
+    mu->ltracer->add_point(fmt::format("send_prepare[{}]", addr.to_string()));
+
     mu->remote_tasks()[addr] =
         rpc::call(addr,
                   msg,
@@ -309,6 +321,8 @@ void replica::do_possible_commit_on_primary(mutation_ptr &mu)
             "invalid partition_status, status = %s",
             enum_to_string(status()));
 
+    mu->ltracer->add_point("do_commit_on_primary");
+
     if (mu->is_ready_for_commit()) {
         _prepare_list->commit(mu->data.header.decree, COMMIT_ALL_READY);
     }
@@ -326,6 +340,8 @@ void replica::on_prepare(dsn::message_ex *request)
         unmarshall(reader, rconfig, DSF_THRIFT_BINARY);
         mu = mutation::read_from(reader, request);
     }
+
+    mu->ltracer->add_point("on_prepare");
 
     decree decree = mu->data.header.decree;
 
@@ -474,6 +490,8 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 {
     _checker.only_one_thread_access();
 
+    mu->ltracer->add_point("on_append_log_completed");
+
     int time_used = dsn_now_ns() - mu->start_time;
     _stub->_slog_append_complete_aio_latency->set(time_used);
     if (time_used > 20000000) {
@@ -554,6 +572,8 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
 
     ::dsn::rpc_address node = request->to_address;
     partition_status::type st = _primary_states.get_node_status(node);
+
+    mu->ltracer->add_point(fmt::format("on_prepare_reply[{}]", node.to_string()));
 
     // handle reply
     prepare_ack resp;
@@ -696,6 +716,7 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
 
 void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
 {
+    mu->ltracer->add_point("ack_prepare_message");
     prepare_ack resp;
     resp.pid = get_gpid();
     resp.err = err;
