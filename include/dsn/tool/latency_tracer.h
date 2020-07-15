@@ -116,15 +116,15 @@ public:
         int64_t previous_time = points.begin()->first;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<30}, from_previous={:<13}, from_start={:<13}, "
-                "ts={:<13}",
+                "{}\n\tTRACER[{:<10}]:name={:<40}, from_previous={:<13}, from_start={:<13}, "
+                "ts={:<13}, id={}",
                 trace,
                 type,
-                id,
                 point.second,
                 point.first - previous_time,
                 point.first - start_time,
-                point.first);
+                point.first,
+                id);
             previous_time = point.first;
         }
 
