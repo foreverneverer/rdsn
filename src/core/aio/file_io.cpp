@@ -27,6 +27,7 @@
 #include "disk_engine.h"
 
 #include <dsn/tool-api/file_io.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace file {
@@ -154,7 +155,7 @@ namespace file {
             cb->get_aio_context()->buffer_size += buffers[i].size;
         }
     }
-    cb->ltracer->add_point("write_vector");
+    cb->ltracer->add_point(fmt::format("write_vector[{}]", id));
 
     disk_engine::instance().write(cb);
     return cb;

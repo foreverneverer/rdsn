@@ -138,7 +138,10 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
 void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
+
+    slog_id++;
     for (auto &c : pending->callbacks()) {
+        c->ltracer->id = slog_id;
         c->ltracer->add_point("commit_pending_mutations");
     }
 

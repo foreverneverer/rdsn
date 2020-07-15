@@ -409,6 +409,8 @@ public:
     virtual void flush() override;
     virtual void flush_once() override;
 
+    static std::atomic<uint64_t> slog_id;
+
 private:
     // async write pending mutations into log file
     // Preconditions:
