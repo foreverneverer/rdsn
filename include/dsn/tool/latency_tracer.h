@@ -116,8 +116,8 @@ public:
         int64_t previous_time = points.begin()->first;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}]:name={:<40}, from_previous={:<13}, from_start={:<13}, "
-                "ts={:<13}, id={}",
+                "{}\n\tTRACER[{:<20}]:name={:<40}, from_previous={:<20}, from_start={:<20}, "
+                "ts={:<20}, id={}",
                 trace,
                 type,
                 point.second,
