@@ -129,7 +129,7 @@ public:
         }
 
         if (link_tracers.empty()) {
-            derror_f("TRACE:the trace as fallow\n{}", time_used, trace);
+            derror_f("TRACE:the trace as fallow\n{}", trace);
         }
 
         for (auto const &tracer : link_tracers) {
