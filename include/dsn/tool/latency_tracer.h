@@ -129,7 +129,7 @@ public:
         derror_f("TRACE:time_used={}\n{}", time_used, trace);
 
         for (auto const &tracer : link_tracers) {
-            derror_f("--------------------------------");
+            derror_f("link_id={}--------------------------------", tracer->id);
             tracer->dump_trace_points(1);
         }
     }
