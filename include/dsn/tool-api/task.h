@@ -38,6 +38,7 @@
 
 #include <functional>
 #include <tuple>
+#include <dsn/tool/latency_tracer.h>
 #include <dsn/utility/ports.h>
 #include <dsn/utility/extensible_object.h>
 #include <dsn/utility/callocator.h>
@@ -50,7 +51,6 @@
 #include <dsn/tool-api/auto_codes.h>
 #include <dsn/c/api_task.h>
 #include <dsn/c/api_layer1.h>
-#include <dsn/tool/latency_tracer.h>
 
 namespace dsn {
 

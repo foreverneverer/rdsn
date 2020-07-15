@@ -46,11 +46,14 @@
 #include <dsn/tool-api/auto_codes.h>
 #include <dsn/tool-api/rpc_address.h>
 #include <dsn/tool-api/global_config.h>
-#include <dsn/tool/latency_tracer.h>
 
 namespace dsn {
 class rpc_session;
 typedef dsn::ref_ptr<rpc_session> rpc_session_ptr;
+namespace tool {
+class latency_tracer;
+typedef std::shared_ptr<latency_tracer> tracer_ptr;
+}
 
 struct fast_code
 {
@@ -150,7 +153,8 @@ public:
     dlink dl;
 
     //
-    std::shared_ptr<dsn::tool::latency_tracer> ltracer;
+    tool::tracer_ptr ltracer;
+    // std::shared_ptr<latency_tracer> ltracer;
 
 public:
     // message_ex(blob bb, bool parse_hdr = true); // read
