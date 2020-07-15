@@ -119,7 +119,7 @@ public:
         std::string trace;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<30}, from_previous={:<13}, from_start={:<13}, "
+                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<40}, from_previous={:<13}, from_start={:<13}, "
                 "ts={:<13}",
                 trace,
                 type,
