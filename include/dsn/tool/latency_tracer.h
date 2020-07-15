@@ -82,7 +82,7 @@ public:
 
     void open_trace(bool open) { is_open = open; }
 
-    void add_link_tracer(std::shared_ptr<latency_tracer> link_tracer)
+    void add_link_tracer(std::shared_ptr<latency_tracer> &link_tracer)
     {
         if (!is_open) {
             return;
@@ -92,14 +92,14 @@ public:
         link_tracers.emplace_back(link_tracer);
     }
 
-    bool dump_trace_points(int threshold)
+    void dump_trace_points(int threshold, std::string trace = std::string())
     {
         if (threshold <= 0 || !is_open) {
-            return false;
+            return;
         }
 
         if (points.empty()) {
-            return false;
+            return;
         }
 
         dsn::zauto_read_lock read(lock);
@@ -110,17 +110,17 @@ public:
         // derror_f("TEST:id={},s={},e={},u={}", id, start_time, points.rbegin()->first, time_used);
 
         if (time_used < threshold) {
-            return false;
+            return;
         }
 
         int64_t previous_time = points.begin()->first;
-        std::string trace;
         for (const auto &point : points) {
             trace = fmt::format(
-                "{}\n\tTRACER[{:<10}]:name={:<40}, from_previous={:<13}, from_start={:<13}, "
+                "{}\n\tTRACER[{:<10}|{:<10}]:name={:<30}, from_previous={:<13}, from_start={:<13}, "
                 "ts={:<13}",
                 trace,
                 type,
+                id,
                 point.second,
                 point.first - previous_time,
                 point.first - start_time,
@@ -128,13 +128,15 @@ public:
             previous_time = point.first;
         }
 
-        derror_f("TRACE:id={}, time_used={}\n{}", id, time_used, trace);
+        if (link_tracers.empty()) {
+            derror_f("time_used={}", trace);
+        }
 
         for (auto const &tracer : link_tracers) {
-            derror_f("TRACE:link------->id[{}]", tracer->id);
-            tracer->dump_trace_points(1);
+            trace = fmt::format("{}\n\tlink--->{}", trace, tracer->id);
+            tracer->dump_trace_points(1, trace);
         }
-        return true;
+        return;
     }
 };
 } // namespace tool
