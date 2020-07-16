@@ -92,7 +92,8 @@ native_linux_aio_provider::~native_linux_aio_provider()
     _is_running = false;
 
     auto ret = io_destroy(_ctx[0]);
-    auto ret1 = io_destroy(_ctx[1]) dassert(ret == 0, "io_destroy error, ret = %d", ret);
+    auto ret1 = io_destroy(_ctx[1]);
+    dassert(ret == 0, "io_destroy error, ret = %d", ret);
 
     _worker[0].join();
     _worker[1].join();
