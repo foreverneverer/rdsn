@@ -101,7 +101,7 @@ public:
     // -name: generally, it is the name of that call this method. but you can define the more
     // significant name to show the events of one moment
     // -ts: current timestamp
-    void add_point(std::string name, int _io_context_id = 100, uint64_t ts = 1)
+    void add_point(std::string name, int _io_context_id = 100, uint64_t time = 1)
     {
         if (!is_open) {
             return;
@@ -110,11 +110,11 @@ public:
         int64_t ts = dsn_now_ns();
 
         if (_io_context_id == 0) {
-            _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - ts);
+            _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - time);
         } else if (_io_context_id == 1) {
-            _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() - ts);
+            _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() - time);
         } else if (_io_context_id == 2) {
-            _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() - ts);
+            _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() - time);
         }
 
         dsn::zauto_write_lock write(lock);
