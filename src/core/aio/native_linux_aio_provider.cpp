@@ -246,7 +246,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     cbs[0] = &aio->cb;
     int aio_context_id = aio_tsk->_io_context_id;
     uint64_t start_time = dsn_now_ns();
-    ret = io_submit(_ctx, 1, cbs);
+    ret = io_submit(_ctx[aio_context_id], 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
 
     if (aio_context_id == 0) { // 0 means plog
