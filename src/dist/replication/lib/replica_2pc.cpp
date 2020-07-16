@@ -492,7 +492,7 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 
     mu->ltracer->add_point("on_append_log_completed");
 
-    int time_used = dsn_now_ns() - mu->start_time;
+    uint64_t time_used = dsn_now_ns() - mu->start_time;
     _stub->_slog_append_complete_aio_latency->set(time_used);
     if (time_used > 20000000) {
         derror_f("AIOSC:slog append complete:{}", time_used);

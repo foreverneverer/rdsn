@@ -143,7 +143,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
 {
 
     slog_id++;
-    int64_t aio_start_time = dsn_now_ns();
+    uint64_t aio_start_time = dsn_now_ns();
 
     for (auto &c : pending->callbacks()) {
         c->ltracer->id = slog_id;

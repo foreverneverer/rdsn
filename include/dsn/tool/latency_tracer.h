@@ -104,8 +104,8 @@ public:
 
         dsn::zauto_read_lock read(lock);
 
-        int64_t start_time = points.begin()->first;
-        int64_t time_used = points.rbegin()->first - start_time;
+        uint64_t start_time = points.begin()->first;
+        uint64_t time_used = points.rbegin()->first - start_time;
 
         // derror_f("TEST:id={},s={},e={},u={}", id, start_time, points.rbegin()->first, time_used);
 
@@ -113,7 +113,7 @@ public:
             return;
         }
 
-        int64_t previous_time = points.begin()->first;
+        uint64_t previous_time = points.begin()->first;
         for (const auto &point : points) {
             trace = fmt::format(
                 "{}\n\tTRACER[{:<10}]:name={:<40}, from_previous={:<20}, from_start={:<20}, "

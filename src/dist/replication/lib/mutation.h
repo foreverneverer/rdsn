@@ -143,10 +143,10 @@ public:
     mutation *next;
 
     //
-    int start_time;
+    uint64_t start_time;
 
     //
-    int append_into_log_time;
+    uint64_t append_into_log_time;
 
     //
     std::shared_ptr<dsn::tool::latency_tracer> ltracer;
