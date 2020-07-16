@@ -7,6 +7,7 @@
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/tool-api/zlocks.h>
 #include <dsn/tool-api/task.h>
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 
 namespace dsn {
 namespace tool {
