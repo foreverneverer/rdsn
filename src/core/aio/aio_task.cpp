@@ -36,6 +36,24 @@ aio_task::aio_task(
     dsn::task_code code, int io_context_id, aio_handler &&cb, int hash, service_node *node)
     : task(code, hash, node), _cb(std::move(cb))
 {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _native_aio_plog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_aio_complete2callback_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_aio_complete2callback_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+    });
+
     _is_null = (_cb == nullptr);
 
     _io_context_id = io_context_id;

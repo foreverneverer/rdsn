@@ -157,6 +157,8 @@ namespace file {
     }
     cb->ltracer->add_point(fmt::format("write_vector[{}]", id));
 
+    cb->create_time = dsn_now_ns();
+
     disk_engine::instance().write(cb);
     return cb;
 }

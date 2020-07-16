@@ -28,6 +28,7 @@
 
 #include <dsn/tool-api/task.h>
 #include <vector>
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 
 namespace dsn {
 
@@ -108,7 +109,15 @@ public:
     void collapse();
 
     //
+    uint64_t create_time;
+    //
     uint64_t submit_time;
+
+    //
+    uint64_t complete_time;
+
+    dsn::perf_counter_wrapper _native_aio_slog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_plog_aio_complete2callback_latency;
 
     // invoked on aio completed
     virtual void exec() override
@@ -116,6 +125,11 @@ public:
         if (nullptr != _cb) {
             if (ltracer != nullptr) {
                 ltracer->add_point("aiotsk_cb::exec");
+            }
+            if (_io_context_id == 0) {
+                _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
+            } else {
+                _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
             }
             _cb(_error, _transferred_size);
         }
