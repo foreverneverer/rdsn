@@ -116,7 +116,6 @@ public:
             if (ltracer != nullptr) {
                 ltracer->add_point("aiotsk_cb::exec");
             }
-            _cb(_error, _transferred_size);
 
             if (_io_context_id == 0 && init_counter) {
                 _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
@@ -125,6 +124,9 @@ public:
             } else if (_io_context_id == 2 && init_counter) {
                 _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() - create_time);
             }
+            
+            _cb(_error, _transferred_size);
+
         }
     }
 
