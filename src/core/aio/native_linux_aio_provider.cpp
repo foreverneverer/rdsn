@@ -196,7 +196,7 @@ void native_linux_aio_provider::complete_aio(struct iocb *io, int bytes, int err
         aio_task *aio_ptr(aio->tsk);
         if (aio_ptr != nullptr && aio_ptr->ltracer != nullptr)
             aio_ptr->ltracer->add_point("event>complete_aio>io");
-        if (aio_ptr->_io_context_id = 0) {
+        if (aio_ptr->_io_context_id == 0) {
             _native_aio_plog_aio_run_time_latency->set(dsn_now_ns() - aio_ptr->submit_time);
         } else {
             _native_aio_slog_aio_run_time_latency->set(dsn_now_ns() - aio_ptr->submit_time);
