@@ -51,6 +51,7 @@
 #include <dsn/tool-api/auto_codes.h>
 #include <dsn/c/api_task.h>
 #include <dsn/c/api_layer1.h>
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 
 namespace dsn {
 
