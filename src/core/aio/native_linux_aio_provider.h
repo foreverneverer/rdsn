@@ -71,12 +71,12 @@ public:
 protected:
     error_code aio_internal(aio_task *aio, bool async, /*out*/ uint32_t *pbytes = nullptr);
     void complete_aio(struct iocb *io, int bytes, int err);
-    void get_event();
+    void get_event(int i);
 
 private:
-    io_context_t _ctx;
+    io_context_t _ctx[2];
     std::atomic<bool> _is_running{false};
-    std::thread _worker;
+    std::thread _worker[2];
     int _io_context_id;
 };
 
