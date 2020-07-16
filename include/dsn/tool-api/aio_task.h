@@ -107,6 +107,9 @@ public:
     // and store it in _merged_write_buffer_holder.
     void collapse();
 
+    //
+    uint64_t submit_time;
+
     // invoked on aio completed
     virtual void exec() override
     {

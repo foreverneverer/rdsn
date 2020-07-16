@@ -35,6 +35,8 @@ namespace dsn {
 
 dsn::perf_counter_wrapper _native_aio_plog_submit_latency;
 dsn::perf_counter_wrapper _native_aio_slog_submit_latency;
+dsn::perf_counter_wrapper _native_aio_slog_aio_run_time_latency;
+dsn::perf_counter_wrapper _native_aio_plog_aio_run_time_latency;
 dsn::perf_counter_wrapper _native_aio_plog_size;
 dsn::perf_counter_wrapper _native_aio_slog_size;
 
@@ -57,6 +59,20 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
             "replica",
             "app.pegasus",
             "native_aio_plog_submit_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_aio_run_time_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_aio_run_time_latency",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_plog_aio_run_time_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_aio_run_time_latency",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
 
@@ -180,6 +196,11 @@ void native_linux_aio_provider::complete_aio(struct iocb *io, int bytes, int err
         aio_task *aio_ptr(aio->tsk);
         if (aio_ptr != nullptr && aio_ptr->ltracer != nullptr)
             aio_ptr->ltracer->add_point("event>complete_aio>io");
+        if (aio_ptr->_io_context_id = 0) {
+            _native_aio_plog_aio_run_time_latency->set(dsn_now_ns() - aio_ptr->submit_time);
+        } else {
+            _native_aio_slog_aio_run_time_latency->set(dsn_now_ns() - aio_ptr->submit_time);
+        }
         aio->this_->complete_io(aio_ptr, ec, bytes);
     } else {
         aio->err = ec;
@@ -246,6 +267,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
     cbs[0] = &aio->cb;
     int aio_context_id = aio_tsk->_io_context_id;
     uint64_t start_time = dsn_now_ns();
+    aio_tsk->submit_time = start_time;
     ret = io_submit(_ctx[aio_context_id], 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
 
