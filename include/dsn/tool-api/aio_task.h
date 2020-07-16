@@ -115,24 +115,34 @@ public:
         if (nullptr != _cb) {
             if (ltracer != nullptr) {
                 ltracer->add_point("aiotsk_cb::exec");
-                if (_io_context_id == 0) {
-                    _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() -
-                                                                        complete_time);
-                } else if (_io_context_id == 1) {
-                    _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() -
-                                                                        complete_time);
-                } else if (_io_context_id == 2) {
-                    _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() -
-                                                                         create_time);
-                }
             }
             _cb(_error, _transferred_size);
+
+            if (_io_context_id == 0 && init_counter) {
+                _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
+            } else if (_io_context_id == 1 && init_counter) {
+                _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
+            } else if (_io_context_id == 2 && init_counter) {
+                _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() - create_time);
+            }
         }
     }
 
     std::vector<dsn_file_buffer_t> _unmerged_write_buffers;
     blob _merged_write_buffer_holder;
     int _io_context_id = 2;
+
+    bool init_counter = false;
+
+    dsn::perf_counter_wrapper _native_aio_slog_aio_run_time_latency;
+    dsn::perf_counter_wrapper _native_aio_plog_aio_run_time_latency;
+
+    //
+    uint64_t create_time;
+    //
+    uint64_t submit_time;
+    //
+    uint64_t complete_time;
 
 protected:
     void clear_non_trivial_on_task_end() override { _cb = nullptr; }

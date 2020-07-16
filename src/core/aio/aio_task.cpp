@@ -38,7 +38,7 @@ aio_task::aio_task(
     dsn::task_code code, int io_context_id, aio_handler &&cb, int hash, service_node *node)
     : task(code, hash, node), _cb(std::move(cb))
 {
-
+    create_time = dsn_now_ns();
     _is_null = (_cb == nullptr);
 
     _io_context_id = io_context_id;
@@ -49,6 +49,32 @@ aio_task::aio_task(
     set_error_code(ERR_IO_PENDING);
 
     _aio_ctx = file::prepare_aio_context(this);
+
+    static std::once_flag aflag;
+    std::call_once(aflag, [&]() {
+        init_counter = true;
+        _native_aio_plog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_aio_complete2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_aio_complete2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_mu_aio_create2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_mu_aio_create2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+    });
 }
 
 void aio_task::collapse()
