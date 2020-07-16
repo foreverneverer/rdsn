@@ -330,11 +330,11 @@ public:
     int _io_context_id = 2;
 
     //
-    uint64_t create_time;
+    uint64_t create_time = 0;
     //
-    uint64_t submit_time;
+    uint64_t submit_time = 0;
     //
-    uint64_t complete_time;
+    uint64_t complete_time = 0;
 };
 typedef dsn::ref_ptr<dsn::task> task_ptr;
 

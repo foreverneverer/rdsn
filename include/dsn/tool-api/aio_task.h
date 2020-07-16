@@ -114,16 +114,10 @@ public:
     {
         if (nullptr != _cb) {
             if (ltracer != nullptr) {
-                ltracer->add_point("aiotsk_cb::exec");
-                if (_io_context_id == 0) {
-                    ltracer->_native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() -
-                                                                                 complete_time);
-                } else if (_io_context_id == 1) {
-                    ltracer->_native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() -
-                                                                                 complete_time);
-                } else if (_io_context_id == 2) {
-                    ltracer->_native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() -
-                                                                                  create_time);
+                if (complete_time != 0) {
+                    ltracer->add_point("aiotsk_cb::exec", _io_context_id, complete_time);
+                } else {
+                    ltracer->add_point("aiotsk_cb::exec", _io_context_id, create_time);
                 }
             }
 
