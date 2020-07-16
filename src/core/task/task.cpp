@@ -46,6 +46,7 @@
 #include "task_engine.h"
 #include "core/core/service_engine.h"
 #include "core/rpc/rpc_engine.h"
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 __thread struct __tls_dsn__ tls_dsn;
@@ -125,6 +126,8 @@ task::task(dsn::task_code code, int hash, service_node *node)
     create_time = dsn_now_ns();
     static std::once_flag aflag;
     std::call_once(aflag, [&]() {
+
+        derror_f("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
         _native_aio_plog_aio_complete2callback_latency.init_global_counter(
             "replica",
             "app.pegasus",
