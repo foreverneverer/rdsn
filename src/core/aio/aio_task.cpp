@@ -51,8 +51,8 @@ aio_task::aio_task(
     _aio_ctx = file::prepare_aio_context(this);
 
     static std::once_flag aflag;
+    init_counter = true;
     std::call_once(aflag, [&]() {
-        init_counter = true;
         _native_aio_plog_aio_complete2callback_latency.init_global_counter(
             "replica",
             "app.pegasus",

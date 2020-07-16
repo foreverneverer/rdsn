@@ -134,8 +134,9 @@ public:
 
     bool init_counter = false;
 
-    dsn::perf_counter_wrapper _native_aio_slog_aio_run_time_latency;
-    dsn::perf_counter_wrapper _native_aio_plog_aio_run_time_latency;
+    dsn::perf_counter_wrapper _native_aio_plog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_slog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_slog_mu_aio_create2callback_latency;
 
     //
     uint64_t create_time;
