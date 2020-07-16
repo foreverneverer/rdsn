@@ -500,7 +500,7 @@ mutation_log::mutation_log(const std::string &dir, int32_t max_log_file_mb, gpid
         _mu_append_to_commit_latency.init_global_counter(
             "replica",
             "app.pegasus",
-            "mu_append_to_commit_latency_ns",
+            "mu_append_to_commit_log_latency_ns",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
     });
