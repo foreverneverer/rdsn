@@ -151,7 +151,6 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
     }
 
     for (auto &mu : pending->mutations()) {
-        derror_f("append={}, commit={}", mu->append_into_log_time, aio_start_time);
         _mu_append_to_commit_latency->set(aio_start_time - mu->append_into_log_time);
     }
 
