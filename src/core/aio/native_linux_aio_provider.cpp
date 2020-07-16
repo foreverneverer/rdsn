@@ -57,6 +57,20 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
 
     static std::once_flag flag;
     std::call_once(flag, [&]() {
+        _native_aio_plog_aio_create2submit_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "_native_aio_plog_aio_create2submit_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_aio_create2submit_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "_native_aio_slog_aio_create2submit_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
         _native_aio_plog_submit_latency.init_global_counter(
             "replica",
             "app.pegasus",
