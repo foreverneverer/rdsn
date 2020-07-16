@@ -146,6 +146,9 @@ public:
     int start_time;
 
     //
+    int append_into_log_time;
+
+    //
     std::shared_ptr<dsn::tool::latency_tracer> ltracer;
 
     void set_is_sync_to_child(bool sync_to_child) { _is_sync_to_child = sync_to_child; }

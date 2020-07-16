@@ -38,6 +38,7 @@ namespace dsn {
 namespace replication {
 
 dsn::perf_counter_wrapper _slog_aio_latency;
+dsn::perf_counter_wrapper _mu_append_to_commit_latency;
 
 ::dsn::task_ptr mutation_log_shared::append(mutation_ptr &mu,
                                             dsn::task_code callback_code,
@@ -64,6 +65,7 @@ dsn::perf_counter_wrapper _slog_aio_latency;
         _pending_write = std::make_shared<log_appender>(mark_new_offset(0, true).second);
     }
     _pending_write->append_mutation(mu, cb);
+    mu->append_into_log_time = dsn_now_ns();
 
     if (cb != nullptr) {
         cb->ltracer->add_point("append_mutation");
@@ -135,17 +137,23 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
     commit_pending_mutations(pr.first, pending);
 }
 
+std::atomic<uint64_t> mutation_log_shared::slog_id(0);
 void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
 
     slog_id++;
+    int64_t aio_start_time = dsn_now_ns();
+
     for (auto &c : pending->callbacks()) {
         c->ltracer->id = slog_id;
         c->ltracer->add_point("commit_pending_mutations");
     }
 
-    int64_t aio_start_time = dsn_now_ns();
+    for (auto &mu : pending->mutations()) {
+        _mu_append_to_commit_latency->set(aio_start_time - mu->append_into_log_time);
+    }
+
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
@@ -486,6 +494,13 @@ mutation_log::mutation_log(const std::string &dir, int32_t max_log_file_mb, gpid
             "replica",
             "app.pegasus",
             "slog_aio_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _mu_append_to_commit_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "mu_append_to_commit_latency_ns",
             COUNTER_TYPE_NUMBER_PERCENTILES,
             "statistic the through bytes of rocksdb write rate limiter");
     });
