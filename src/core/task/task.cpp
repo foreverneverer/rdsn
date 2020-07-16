@@ -123,9 +123,9 @@ task::task(dsn::task_code code, int hash, service_node *node)
     ltracer = std::make_shared<dsn::tool::latency_tracer>(task_id++, "task::task", "task");
 
     static std::once_flag flag;
-
     create_time = dsn_now_ns();
     std::call_once(flag, [&]() {
+
         _native_aio_plog_aio_complete2callback_latency.init_global_counter(
             "replica",
             "app.pegasus",

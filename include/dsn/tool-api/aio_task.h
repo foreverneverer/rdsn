@@ -29,6 +29,7 @@
 #include <dsn/tool-api/task.h>
 #include <vector>
 #include <dsn/perf_counter/perf_counter_wrapper.h>
+#include <dsn/c/api_utilities.h>
 
 namespace dsn {
 
@@ -114,13 +115,16 @@ public:
         if (nullptr != _cb) {
             if (ltracer != nullptr) {
                 ltracer->add_point("aiotsk_cb::exec");
-            }
-            if (_io_context_id == 0) {
-                _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
-            } else if (_io_context_id == 1) {
-                _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
-            } else if (_io_context_id == 2) {
-                _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() - create_time);
+                if (_io_context_id == 0) {
+                    _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() -
+                                                                        complete_time);
+                } else if (_io_context_id == 1) {
+                    _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() -
+                                                                        complete_time);
+                } else if (_io_context_id == 2) {
+                    _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() -
+                                                                         create_time);
+                }
             }
             _cb(_error, _transferred_size);
         }
