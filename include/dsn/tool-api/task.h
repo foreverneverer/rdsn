@@ -325,6 +325,15 @@ public:
 
     //
     std::shared_ptr<dsn::tool::latency_tracer> ltracer;
+
+    int _io_context_id = 3333;
+
+    //
+    uint64_t create_time = 0;
+    //
+    uint64_t submit_time = 0;
+    //
+    uint64_t complete_time = 0;
 };
 typedef dsn::ref_ptr<dsn::task> task_ptr;
 

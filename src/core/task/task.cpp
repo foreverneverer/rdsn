@@ -51,6 +51,10 @@ namespace dsn {
 __thread struct __tls_dsn__ tls_dsn;
 __thread uint16_t tls_dsn_lower32_task_id_mask = 0;
 
+dsn::perf_counter_wrapper _native_aio_plog_aio_complete2callback_latency;
+dsn::perf_counter_wrapper _native_aio_slog_aio_complete2callback_latency;
+dsn::perf_counter_wrapper _native_aio_slog_mu_aio_create2callback_latency;
+
 /*static*/ void task::set_tls_dsn_context(service_node *node, // cannot be null
                                           task_worker *worker)
 {
@@ -122,6 +126,33 @@ task::task(dsn::task_code code, int hash, service_node *node)
 
     ltracer = std::make_shared<dsn::tool::latency_tracer>(task_id++, "task::task", "task");
 
+    create_time = dsn_now_ns();
+
+    static std::once_flag aflag;
+    std::call_once(aflag, [&]() {
+        _native_aio_plog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_aio_complete2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_aio_complete2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_mu_aio_create2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_mu_aio_create2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+    });
+
     if (node != nullptr) {
         _node = node;
     } else {
@@ -181,6 +212,16 @@ void task::exec_internal()
         _spec->on_task_begin.execute(this);
 
         exec();
+
+        if (_io_context_id == 0) {
+            dassert(complete_time != 0, "000000");
+            _native_aio_plog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
+        } else if (_io_context_id == 1) {
+            dassert(complete_time != 0, "000000");
+            _native_aio_slog_aio_complete2callback_latency->set(dsn_now_ns() - complete_time);
+        } else if (_io_context_id == 2) {
+            _native_aio_slog_mu_aio_create2callback_latency->set(dsn_now_ns() - create_time);
+        }
 
         // after exec(), one shot tasks are still in "running".
         // other tasks may call "set_retry" to reset tasks to "ready",

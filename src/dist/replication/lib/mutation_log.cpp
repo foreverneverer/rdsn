@@ -50,7 +50,7 @@ dsn::perf_counter_wrapper _mu_append_to_commit_latency;
     auto d = mu->data.header.decree;
     ::dsn::aio_task_ptr cb =
         callback ? file::create_aio_task(
-                       callback_code, 3, tracker, std::forward<aio_handler>(callback), hash)
+                       callback_code, 2, tracker, std::forward<aio_handler>(callback), hash)
                  : nullptr;
 
     if (cb != nullptr) {
