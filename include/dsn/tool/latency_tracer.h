@@ -57,11 +57,42 @@ public:
 
     std::vector<std::shared_ptr<latency_tracer>> link_tracers;
 
+    dsn::perf_counter_wrapper _native_aio_plog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_slog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_slog_mu_aio_create2callback_latency;
+
 public:
     latency_tracer(int id, const std::string &start_name, const std::string &type)
         : id(id), type(type)
     {
         points[dsn_now_ns()] = start_name;
+
+        static std::once_flag aflag;
+        std::call_once(aflag, [&]() {
+
+            derror_f("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            _native_aio_plog_aio_complete2callback_latency.init_global_counter(
+                "replica",
+                "app.pegasus",
+                "native_aio_plog_aio_complete2callback_latency_ns",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+
+            _native_aio_slog_aio_complete2callback_latency.init_global_counter(
+                "replica",
+                "app.pegasus",
+                "native_aio_slog_aio_complete2callback_latency_ns",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+
+            _native_aio_slog_mu_aio_create2callback_latency.init_global_counter(
+                "replica",
+                "app.pegasus",
+                "native_aio_slog_mu_aio_create2callback_latency_ns",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+
+        });
     };
 
     // this method is called for any other method which will be recorded methed name and ts

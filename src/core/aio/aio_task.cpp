@@ -38,7 +38,7 @@ aio_task::aio_task(
     dsn::task_code code, int io_context_id, aio_handler &&cb, int hash, service_node *node)
     : task(code, hash, node), _cb(std::move(cb))
 {
-    
+
     _is_null = (_cb == nullptr);
 
     _io_context_id = io_context_id;
