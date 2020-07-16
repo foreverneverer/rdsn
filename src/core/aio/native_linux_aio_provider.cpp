@@ -175,6 +175,8 @@ void native_linux_aio_provider::complete_aio(struct iocb *io, int bytes, int err
 
     if (!aio->evt) {
         aio_task *aio_ptr(aio->tsk);
+        if (aio_ptr != nullptr && aio_ptr->ltracer != nullptr)
+            aio_ptr->ltracer->add_point("event>complete_aio>io");
         aio->this_->complete_io(aio_ptr, ec, bytes);
     } else {
         aio->err = ec;
@@ -281,6 +283,8 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
             derror("could not sumbit IOs, ret = %d", ret);
 
         if (async) {
+            if (aio_tsk != nullptr && aio_tsk->ltracer != nullptr)
+                aio_tsk->ltracer->add_point("submit>complete_io");
             complete_io(aio_tsk, ERR_FILE_OPERATION_FAILED, 0);
         } else {
             delete aio->evt;

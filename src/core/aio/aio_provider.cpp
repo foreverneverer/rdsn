@@ -38,6 +38,7 @@ void aio_provider::complete_io(aio_task *aio,
                                uint32_t bytes,
                                int delay_milliseconds)
 {
+    aio->ltracer->add_point("aio_provider::complete_io>io");
     _engine->complete_io(aio, err, bytes, delay_milliseconds);
 }
 

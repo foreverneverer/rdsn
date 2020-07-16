@@ -77,7 +77,7 @@ public:
 
         int64_t ts = dsn_now_ns();
         dsn::zauto_write_lock write(lock);
-        points[ts] = name;
+        points[ts] = fmt::format("{}|{}", name, dsn::task::get_current_task_id());
     }
 
     void open_trace(bool open) { is_open = open; }
