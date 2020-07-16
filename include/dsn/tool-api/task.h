@@ -184,6 +184,8 @@ class task : public ref_counter, public extensible_object<task, 4>, public trans
 public:
     task(task_code code, int hash = 0, service_node *node = nullptr);
 
+    static std::atomic<uint64_t> task_id;
+
     virtual ~task();
     virtual void enqueue();
 

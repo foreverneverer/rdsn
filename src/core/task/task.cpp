@@ -109,6 +109,7 @@ __thread uint16_t tls_dsn_lower32_task_id_mask = 0;
     }
 }
 
+std::atomic<uint64_t> task::task_id(0);
 task::task(dsn::task_code code, int hash, service_node *node)
     : _state(TASK_STATE_READY), _wait_event(nullptr)
 {
@@ -119,7 +120,7 @@ task::task(dsn::task_code code, int hash, service_node *node)
     _is_null = false;
     next = nullptr;
 
-    ltracer = std::make_shared<dsn::tool::latency_tracer>(0, "task::task", "task");
+    ltracer = std::make_shared<dsn::tool::latency_tracer>(task_id++, "task::task", "task");
 
     if (node != nullptr) {
         _node = node;
