@@ -122,6 +122,32 @@ task::task(dsn::task_code code, int hash, service_node *node)
 
     ltracer = std::make_shared<dsn::tool::latency_tracer>(task_id++, "task::task", "task");
 
+    create_time = dsn_now_ns();
+    static std::once_flag aflag;
+    std::call_once(aflag, [&]() {
+        _native_aio_plog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_plog_aio_complete2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_aio_complete2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_aio_complete2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+        _native_aio_slog_mu_aio_create2callback_latency.init_global_counter(
+            "replica",
+            "app.pegasus",
+            "native_aio_slog_mu_aio_create2callback_latency_ns",
+            COUNTER_TYPE_NUMBER_PERCENTILES,
+            "statistic the through bytes of rocksdb write rate limiter");
+
+    });
+
     if (node != nullptr) {
         _node = node;
     } else {

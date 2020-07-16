@@ -325,6 +325,20 @@ public:
 
     //
     std::shared_ptr<dsn::tool::latency_tracer> ltracer;
+
+    //
+     int _io_context_id = 2;
+
+    dsn::perf_counter_wrapper _native_aio_plog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_slog_aio_complete2callback_latency;
+    dsn::perf_counter_wrapper _native_aio_slog_mu_aio_create2callback_latency;
+
+    //
+    uint64_t create_time;
+    //
+    uint64_t submit_time;
+    //
+    uint64_t complete_time;
 };
 typedef dsn::ref_ptr<dsn::task> task_ptr;
 
