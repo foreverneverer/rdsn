@@ -44,7 +44,7 @@ dsn::perf_counter_wrapper _native_aio_slog_size;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk)
 {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 1; i++) {
         memset(&_ctx[i], 0, sizeof(_ctx[i]));
         auto ret = io_setup(128, &_ctx[i]);
         dassert(ret == 0, "io_setup error, ret = %d", ret);
@@ -138,11 +138,11 @@ native_linux_aio_provider::~native_linux_aio_provider()
     _is_running = false;
 
     auto ret = io_destroy(_ctx[0]);
-    auto ret1 = io_destroy(_ctx[1]);
+   // auto ret1 = io_destroy(_ctx[1]);
     dassert(ret == 0, "io_destroy error, ret = %d", ret);
 
     _worker[0].join();
-    _worker[1].join();
+  //  _worker[1].join();
 }
 
 dsn_handle_t native_linux_aio_provider::open(const char *file_name, int flag, int pmode)
@@ -306,7 +306,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
 
     uint64_t start_time = dsn_now_ns();
     aio_tsk->submit_time = start_time;
-    ret = io_submit(_ctx[aio_context_id], 1, cbs);
+    ret = io_submit(_ctx[0], 1, cbs);
     uint64_t time_used = dsn_now_ns() - start_time;
 
     if (aio_context_id == 0) { // 0 means plog
