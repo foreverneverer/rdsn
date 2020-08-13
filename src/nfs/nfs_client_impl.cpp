@@ -459,6 +459,7 @@ void nfs_client_impl::continue_write()
     } else {
         zauto_lock l(reqc->lock);
         if (reqc->is_valid) {
+             _copy_token_bucket->consumeWithBorrowAndWait(reqc->response.size);
             reqc->local_write_task = file::write(fc->file_holder->file_handle,
                                                  reqc->response.file_content.data(),
                                                  reqc->response.size,
