@@ -139,7 +139,11 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
             dassert(_is_writing.load(std::memory_order_relaxed), "");
 
             for (auto &mu : pending->mutations()) {
+<<<<<<< Updated upstream
                 ADD_CUSTOM_POINT(mu->tracer,"commit_pending_completed");
+=======
+                ADD_POINT(mu->tracer, "commit_pending_completed");
+>>>>>>> Stashed changes
             }
 
             for (auto &block : pending->all_blocks()) {

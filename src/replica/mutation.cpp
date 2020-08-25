@@ -145,7 +145,11 @@ void mutation::copy_from(mutation_ptr &old)
 void mutation::add_client_request(task_code code, dsn::message_ex *request)
 {
     if (request != nullptr) {
+<<<<<<< Updated upstream
         ADD_POINT(tracer);
+=======
+        ADD_POINT(tracer, request->header->id);
+>>>>>>> Stashed changes
     }
     data.updates.push_back(mutation_update());
     mutation_update &update = data.updates.back();
