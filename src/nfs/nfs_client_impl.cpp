@@ -268,8 +268,6 @@ void nfs_client_impl::continue_copy()
             zauto_lock l(req->lock);
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
-                _copy_token_bucket->consumeWithBorrowAndWait(req->size);
-
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
                 copy_req.file_name = req->file_ctx->file_name;
@@ -299,6 +297,10 @@ void nfs_client_impl::continue_copy()
                 --ureq->concurrent_copy_count;
                 --_concurrent_copy_request_count;
             }
+        }
+
+        if (req->is_valid && !_copy_token_bucket->consume(req->size)) {
+            break;
         }
 
         if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
