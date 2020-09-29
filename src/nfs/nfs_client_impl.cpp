@@ -231,9 +231,9 @@ void nfs_client_impl::continue_copy()
         return;
     }
 
-    derror_f("jiashuo:Now token available {}", _copy_token_bucket->available());
+    // derror_f("jiashuo:Now token available {}", _copy_token_bucket->available());
 
-    if (_copy_token_bucket->available() < 1.0) {
+    if (_copy_token_bucket->available() < 1000000.0) {
         derror_f("jiashuo:Not have enough token bucket!");
         return;
     }
