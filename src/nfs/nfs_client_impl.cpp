@@ -32,6 +32,7 @@
  *     xxxx-xx-xx, author, first version
  *     xxxx-xx-xx, author, fix bug about xxx
  */
+#include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/filesystem.h>
 #include <queue>
 #include <dsn/tool-api/command_manager.h>
@@ -230,6 +231,11 @@ void nfs_client_impl::continue_copy()
         return;
     }
 
+    if (_copy_token_bucket->available() <= 0) {
+        derror_f("Not have enough token bucket!");
+        return;
+    }
+
     copy_request_ex_ptr req = nullptr;
     while (true) {
         {
@@ -268,8 +274,6 @@ void nfs_client_impl::continue_copy()
             zauto_lock l(req->lock);
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
-                _copy_token_bucket->consumeWithBorrowAndWait(req->size);
-
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
                 copy_req.file_name = req->file_ctx->file_name;
@@ -299,6 +303,11 @@ void nfs_client_impl::continue_copy()
                 --ureq->concurrent_copy_count;
                 --_concurrent_copy_request_count;
             }
+        }
+
+        if (!_copy_token_bucket->consume(req->size)) {
+            derror_f("Token has consume completed!");
+            break;
         }
 
         if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
