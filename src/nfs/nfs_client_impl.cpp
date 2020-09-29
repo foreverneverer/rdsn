@@ -231,8 +231,10 @@ void nfs_client_impl::continue_copy()
         return;
     }
 
+    derror_f("jiashuo:Now token available {}", _copy_token_bucket->available());
+
     if (_copy_token_bucket->available() < 1.0) {
-        derror_f("Not have enough token bucket!");
+        derror_f("jiashuo:Not have enough token bucket!");
         return;
     }
 
@@ -313,7 +315,7 @@ void nfs_client_impl::continue_copy()
         }
 
         if (req->is_valid && !_copy_token_bucket->consume(req->size)) {
-            derror_f("Token has consume completed!");
+            derror_f("jiashuo:Token has consume completed!");
             break;
         }
     }
