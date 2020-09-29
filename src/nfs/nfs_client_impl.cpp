@@ -305,15 +305,15 @@ void nfs_client_impl::continue_copy()
             }
         }
 
-        if (!_copy_token_bucket->consume(req->size)) {
-            derror_f("Token has consume completed!");
-            break;
-        }
-
         if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
             // exceed max_concurrent_remote_copy_requests limit, pause.
             // the copy task will be triggered by continue_copy() invoked in end_copy().
             --_concurrent_copy_request_count;
+            break;
+        }
+
+        if (!_copy_token_bucket->consume(req->size)) {
+            derror_f("Token has consume completed!");
             break;
         }
     }
