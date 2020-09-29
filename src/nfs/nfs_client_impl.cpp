@@ -234,6 +234,7 @@ void nfs_client_impl::continue_copy()
     // derror_f("jiashuo:Now token available {}", _copy_token_bucket->available());
 
     if (_copy_token_bucket->available() < 1.0 * 1024 * 1024) {
+        _copy_token_bucket->consumeOrDrain(1024 * 1024);
         derror_f("jiashuo:Not have enough token bucket!");
         return;
     }
