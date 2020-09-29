@@ -231,13 +231,7 @@ void nfs_client_impl::continue_copy()
         return;
     }
 
-    // derror_f("jiashuo:Now token available {}", _copy_token_bucket->available());
-
-    if (_copy_token_bucket->available() < 1.0 * 1024 * 1024) {
-        _copy_token_bucket->consumeOrDrain(1024 * 1024);
-        derror_f("jiashuo:Not have enough token bucket!");
-        return;
-    }
+    derror_f("jiashuoContune:Now token available {}", _copy_token_bucket->available());
 
     copy_request_ex_ptr req = nullptr;
     while (true) {
@@ -249,6 +243,11 @@ void nfs_client_impl::continue_copy()
                 req = _copy_requests_high.front();
                 if (_copy_token_bucket->consume(req->size)) {
                     derror_f("jiashuoH1:Token has consume completed!");
+                    _concurrent_copy_request_count--;
+                    if (_concurrent_copy_request_count == 0) {
+                        derror_f("jiashuoH1:No copy task, need force trigger");
+                        continue_copy();
+                    }
                     break;
                 }
                 _copy_requests_high.pop_front();
@@ -259,6 +258,11 @@ void nfs_client_impl::continue_copy()
                 if (_copy_token_bucket->consume(req->size)) {
                     _copy_requests_low.push_retry(req);
                     derror_f("jiashuoL:Token has consume completed!");
+                    _concurrent_copy_request_count--;
+                    if (_concurrent_copy_request_count == 0) {
+                        derror_f("jiashuoL:No copy task, need force trigger");
+                        continue_copy();
+                    }
                     break;
                 }
 
@@ -273,6 +277,11 @@ void nfs_client_impl::continue_copy()
                 req = _copy_requests_high.front();
                 if (_copy_token_bucket->consume(req->size)) {
                     derror_f("jiashuoH2:Token has consume completed!");
+                    _concurrent_copy_request_count--;
+                    if (_concurrent_copy_request_count == 0) {
+                        derror_f("jiashuoH2:No copy task, need force trigger");
+                        continue_copy();
+                    }
                     break;
                 }
                 _copy_requests_high.pop_front();
