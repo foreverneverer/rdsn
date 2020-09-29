@@ -247,11 +247,21 @@ void nfs_client_impl::continue_copy()
             if (_high_priority_remaining_time > 0 && !_copy_requests_high.empty()) {
                 // pop from high queue
                 req = _copy_requests_high.front();
+                if (_copy_token_bucket->consume(req->size)) {
+                    derror_f("jiashuoH1:Token has consume completed!");
+                    break;
+                }
                 _copy_requests_high.pop_front();
                 --_high_priority_remaining_time;
             } else {
                 // try to pop from low queue
                 req = _copy_requests_low.pop();
+                if (_copy_token_bucket->consume(req->size)) {
+                    _copy_requests_low.push_retry(req);
+                    derror_f("jiashuoL:Token has consume completed!");
+                    break;
+                }
+
                 if (req) {
                     _high_priority_remaining_time = FLAGS_high_priority_speed_rate;
                 }
@@ -261,6 +271,10 @@ void nfs_client_impl::continue_copy()
                 // pop from low queue failed, then pop from high priority,
                 // but not change the _high_priority_remaining_time
                 req = _copy_requests_high.front();
+                if (_copy_token_bucket->consume(req->size)) {
+                    derror_f("jiashuoH2:Token has consume completed!");
+                    break;
+                }
                 _copy_requests_high.pop_front();
             }
 
@@ -312,11 +326,6 @@ void nfs_client_impl::continue_copy()
             // exceed max_concurrent_remote_copy_requests limit, pause.
             // the copy task will be triggered by continue_copy() invoked in end_copy().
             --_concurrent_copy_request_count;
-            break;
-        }
-
-        if (req->is_valid && !_copy_token_bucket->consume(req->size)) {
-            derror_f("jiashuo:Token has consume completed!");
             break;
         }
     }
