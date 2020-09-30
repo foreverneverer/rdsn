@@ -318,6 +318,11 @@ void nfs_client_impl::continue_copy()
             }
         }
 
+        if (_copy_token_bucket->available() <= 1.0 * FLAGS_nfs_copy_block_bytes) {
+            derror_f("jiashuoEnd:token completed");
+            break;
+        }
+
         if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
             // exceed max_concurrent_remote_copy_requests limit, pause.
             // the copy task will be triggered by continue_copy() invoked in end_copy().
