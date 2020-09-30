@@ -35,6 +35,7 @@
 #include <dsn/utility/filesystem.h>
 #include <queue>
 #include <dsn/tool-api/command_manager.h>
+#include <dsn/dist/fmt_logging.h>
 #include "nfs_client_impl.h"
 
 namespace dsn {
@@ -121,6 +122,7 @@ nfs_client_impl::~nfs_client_impl() { _tracker.cancel_outstanding_tasks(); }
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
                                         aio_task *nfs_task)
 {
+    derror_f("begin_remote_copy");
     user_request_ptr req(new user_request());
     req->high_priority = rci->high_priority;
     req->file_size_req.source = rci->source;
@@ -212,11 +214,13 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
             _copy_requests_low.push(std::move(copy_requests));
     }
 
+    derror_f("end_get_file_size");
     continue_copy();
 }
 
 void nfs_client_impl::continue_copy()
 {
+    derror_f("continue_copy");
     if (_buffered_local_write_count >= FLAGS_max_buffered_local_writes) {
         // exceed max_buffered_local_writes limit, pause.
         // the copy task will be triggered by continue_copy() invoked in local_write_callback().
@@ -389,6 +393,7 @@ void nfs_client_impl::end_copy(::dsn::error_code err,
         }
     }
 
+    derror_f("end_copy");
     continue_copy();
     continue_write();
 }
@@ -521,6 +526,7 @@ void nfs_client_impl::end_write(error_code err, size_t sz, const copy_request_ex
         handle_completion(fc->user_req, err);
     }
 
+    derror_f("end_write");
     continue_write();
     continue_copy();
 }

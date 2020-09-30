@@ -1,6 +1,7 @@
 #include <dsn/utility/smart_pointers.h>
 #include <dsn/tool-api/async_calls.h>
 #include <dsn/dist/nfs_node.h>
+#include <dsn/dist/fmt_logging.h>
 
 #include "nfs_node_simple.h"
 
@@ -44,6 +45,7 @@ aio_task_ptr nfs_node::copy_remote_files(rpc_address remote,
                                          aio_handler &&callback,
                                          int hash)
 {
+    derror_f("copy_remote_files");
     auto cb = dsn::file::create_aio_task(callback_code, tracker, std::move(callback), hash);
 
     std::shared_ptr<remote_copy_request> rci = std::make_shared<remote_copy_request>();

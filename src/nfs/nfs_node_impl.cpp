@@ -37,6 +37,8 @@
 #include "nfs_client_impl.h"
 #include "nfs_server_impl.h"
 
+#include <dsn/dist/fmt_logging.h>
+
 namespace dsn {
 namespace service {
 
@@ -50,6 +52,7 @@ nfs_node_simple::~nfs_node_simple() { stop(); }
 
 void nfs_node_simple::call(std::shared_ptr<remote_copy_request> rci, aio_task *callback)
 {
+    derror_f("call");
     _client->begin_remote_copy(rci, callback); // copy file request entry
 }
 
