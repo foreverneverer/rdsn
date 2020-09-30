@@ -285,6 +285,7 @@ void nfs_client_impl::continue_copy()
                 ++req->file_ctx->user_req->concurrent_copy_count;
             } else {
                 // no copy request
+                derror_f("jiashuoLoop:No request");
                 --_concurrent_copy_request_count;
                 break;
             }
