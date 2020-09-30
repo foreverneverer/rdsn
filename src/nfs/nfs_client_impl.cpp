@@ -222,18 +222,22 @@ void nfs_client_impl::continue_copy()
     derror_f("jiashuoStart:token {}, runnint count {}",
              _copy_token_bucket->available(),
              _concurrent_copy_request_count);
-    if (_concurrent_copy_request_count > 0 && _copy_token_bucket->available() <= 1.0) {
+    if (_concurrent_copy_request_count > 0 &&
+        _copy_token_bucket->available() <= 1.0 * FLAGS_nfs_copy_block_bytes) {
         derror_f("jiashuo:token completed and now have requst running");
         return;
     }
 
     if (_buffered_local_write_count >= FLAGS_max_buffered_local_writes) {
+        derror_f("jiashuoStart: buffer_local_write = {}", _buffered_local_write_count);
         // exceed max_buffered_local_writes limit, pause.
         // the copy task will be triggered by continue_copy() invoked in local_write_callback().
         return;
     }
 
     if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
+        derror_f("jiashuoStart: concurrent_copy_request_count = {}",
+                 _concurrent_copy_request_count);
         // exceed max_concurrent_remote_copy_requests limit, pause.
         // the copy task will be triggered by continue_copy() invoked in end_copy().
         --_concurrent_copy_request_count;
@@ -270,6 +274,8 @@ void nfs_client_impl::continue_copy()
             } else {
                 // no copy request
                 --_concurrent_copy_request_count;
+                derror_f("jiashuoStart: no_copy_request_count = {}",
+                         _concurrent_copy_request_count);
                 break;
             }
         }
@@ -279,6 +285,7 @@ void nfs_client_impl::continue_copy()
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
                 _copy_token_bucket->consumeOrDrain(req->size);
+                derror_f("jiashuoEnd:token {}", _copy_token_bucket->available());
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
                 copy_req.file_name = req->file_ctx->file_name;
@@ -307,19 +314,15 @@ void nfs_client_impl::continue_copy()
             } else {
                 --ureq->concurrent_copy_count;
                 --_concurrent_copy_request_count;
+                derror_f("jiashuo: in valid = {}", _concurrent_copy_request_count);
             }
-        }
-
-        derror_f("jiashuoEnd:token {}", _copy_token_bucket->available());
-        if (_copy_token_bucket->available() <= 1.0) {
-            derror_f("jiashuo:token completed");
-            return;
         }
 
         if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
             // exceed max_concurrent_remote_copy_requests limit, pause.
             // the copy task will be triggered by continue_copy() invoked in end_copy().
             --_concurrent_copy_request_count;
+            derror_f("jiashuo: concurrent_copy_request_count = {}", _concurrent_copy_request_count);
             break;
         }
     }
