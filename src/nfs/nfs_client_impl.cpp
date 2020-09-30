@@ -219,10 +219,11 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
 
 void nfs_client_impl::continue_copy()
 {
-    derror_f("jiashuoStart:token {}", _copy_token_bucket->available());
-    if (_copy_token_bucket->available() <= 1.0) {
-        derror_f("jiashuo:token completed");
-        continue_copy();
+    derror_f("jiashuoStart:token {}, runnint count {}",
+             _copy_token_bucket->available(),
+             _concurrent_copy_request_count);
+    if (_concurrent_copy_request_count > 0 && _copy_token_bucket->available() <= 1.0) {
+        derror_f("jiashuo:token completed and now have requst running");
         return;
     }
 
