@@ -245,8 +245,7 @@ void nfs_client_impl::continue_copy()
                 if (req && !_copy_token_bucket->consume(req->size)) {
                     derror_f("jiashuoH1:Token has consume completed!");
                     _concurrent_copy_request_count--;
-                    continue_copy();
-                    break;
+                    continue;
                 }
                 _copy_requests_high.pop_front();
                 --_high_priority_remaining_time;
@@ -258,8 +257,7 @@ void nfs_client_impl::continue_copy()
                     derror_f("jiashuoL:Token has consume completed!");
                     _concurrent_copy_request_count--;
                     derror_f("jiashuoL:No copy task, need force trigger");
-                    continue_copy();
-                    break;
+                    continue;
                 }
 
                 if (req) {
@@ -274,9 +272,7 @@ void nfs_client_impl::continue_copy()
                 if (req && !_copy_token_bucket->consume(req->size)) {
                     derror_f("jiashuoH2:Token has consume completed!");
                     _concurrent_copy_request_count--;
-                    derror_f("jiashuoH2:No copy task, need force trigger");
-                    continue_copy();
-                    break;
+                    continue;
                 }
                 _copy_requests_high.pop_front();
             }
