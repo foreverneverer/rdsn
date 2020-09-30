@@ -37,6 +37,8 @@
 #include <dsn/tool-api/command_manager.h>
 #include "nfs_client_impl.h"
 
+#include <dsn/dist/fmt_logging.h>
+
 namespace dsn {
 namespace service {
 static uint32_t current_max_copy_rate_megabytes = 0;
@@ -217,6 +219,13 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
 
 void nfs_client_impl::continue_copy()
 {
+    derror_f("jiashuoStart:token {}", _copy_token_bucket->available());
+    if (_copy_token_bucket->available() <= 1.0) {
+        derror_f("jiashuo:token completed");
+        continue_copy();
+        return;
+    }
+
     if (_buffered_local_write_count >= FLAGS_max_buffered_local_writes) {
         // exceed max_buffered_local_writes limit, pause.
         // the copy task will be triggered by continue_copy() invoked in local_write_callback().
@@ -268,8 +277,7 @@ void nfs_client_impl::continue_copy()
             zauto_lock l(req->lock);
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
-                _copy_token_bucket->consumeWithBorrowAndWait(req->size);
-
+                _copy_token_bucket->consumeOrDrain(req->size);
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
                 copy_req.file_name = req->file_ctx->file_name;
@@ -299,6 +307,12 @@ void nfs_client_impl::continue_copy()
                 --ureq->concurrent_copy_count;
                 --_concurrent_copy_request_count;
             }
+        }
+
+        derror_f("jiashuoEnd:token {}", _copy_token_bucket->available());
+        if (_copy_token_bucket->available() <= 1.0) {
+            derror_f("jiashuo:token completed");
+            return;
         }
 
         if (++_concurrent_copy_request_count > FLAGS_max_concurrent_remote_copy_requests) {
