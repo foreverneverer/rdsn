@@ -236,6 +236,7 @@ void nfs_client_impl::continue_copy()
     copy_request_ex_ptr req = nullptr;
     while (true) {
         {
+            derror_f("jiashuoWhile:Now start while loop");
             zauto_lock l(_copy_requests_lock);
 
             if (_high_priority_remaining_time > 0 && !_copy_requests_high.empty()) {
@@ -244,10 +245,7 @@ void nfs_client_impl::continue_copy()
                 if (!_copy_token_bucket->consume(req->size)) {
                     derror_f("jiashuoH1:Token has consume completed!");
                     _concurrent_copy_request_count--;
-                    if (_concurrent_copy_request_count == 0) {
-                        derror_f("jiashuoH1:No copy task, need force trigger");
-                        continue_copy();
-                    }
+                    continue_copy();
                     break;
                 }
                 _copy_requests_high.pop_front();
@@ -259,10 +257,8 @@ void nfs_client_impl::continue_copy()
                     _copy_requests_low.push_retry(req);
                     derror_f("jiashuoL:Token has consume completed!");
                     _concurrent_copy_request_count--;
-                    if (_concurrent_copy_request_count == 0) {
-                        derror_f("jiashuoL:No copy task, need force trigger");
-                        continue_copy();
-                    }
+                    derror_f("jiashuoL:No copy task, need force trigger");
+                    continue_copy();
                     break;
                 }
 
@@ -278,10 +274,8 @@ void nfs_client_impl::continue_copy()
                 if (!_copy_token_bucket->consume(req->size)) {
                     derror_f("jiashuoH2:Token has consume completed!");
                     _concurrent_copy_request_count--;
-                    if (_concurrent_copy_request_count == 0) {
-                        derror_f("jiashuoH2:No copy task, need force trigger");
-                        continue_copy();
-                    }
+                    derror_f("jiashuoH2:No copy task, need force trigger");
+                    continue_copy();
                     break;
                 }
                 _copy_requests_high.pop_front();
@@ -298,6 +292,7 @@ void nfs_client_impl::continue_copy()
 
         {
             zauto_lock l(req->lock);
+            derror_f("jiashuoSend:start send copy task");
             const user_request_ptr &ureq = req->file_ctx->user_req;
             if (req->is_valid) {
                 copy_request copy_req;
