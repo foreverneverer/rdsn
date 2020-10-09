@@ -131,23 +131,23 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
     req->nfs_task = nfs_task;
     req->is_finished = false;
 
-    dsn::threadpool_code code = task_spec::get(RPC_NFS_GET_FILE_SIZE)->pool_code;
-    dsn::threadpool_code code_ack = task_spec::get(RPC_NFS_GET_FILE_SIZE_ACK)->pool_code;
+    dsn::threadpool_code code = task_spec::get(RPC_NFS_GET_FILE_SIZE.code())->pool_code;
+    dsn::threadpool_code code_ack = task_spec::get(RPC_NFS_GET_FILE_SIZE_ACK.code())->pool_code;
     if (code == THREAD_POOL_DEFAULT) {
-        derror_f("jiashuo:default");
+        derror_f("jiashuolog:default");
     } else {
-        derror_f("jiashuo:replica");
+        derror_f("jiashuolog:replica");
     }
 
     if (code_ack == THREAD_POOL_DEFAULT) {
-        derror_f("jiashuo:ack default");
+        derror_f("jiashuolog:ack default");
     } else {
-        derror_f("jiashuo:ack replica");
+        derror_f("jiashuolog:ack replica");
     }
 
     get_file_size(req->file_size_req,
                   [=](error_code err, get_file_size_response &&resp) {
-                      derror_f("jiashuo:get_file_size_callback");
+                      derror_f("jiashuolog:get_file_size_callback");
                       end_get_file_size(err, std::move(resp), req);
                   },
                   std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
@@ -161,7 +161,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                                         const ::dsn::service::get_file_size_response &resp,
                                         const user_request_ptr &ureq)
 {
-    derror_f("jiashuo:end_get_file_size");
+    derror_f("jiashuolog:end_get_file_size");
     if (err != ::dsn::ERR_OK) {
         derror("{nfs_service} remote get file size failed, source = %s, dir = %s, err = %s",
                ureq->file_size_req.source.to_string(),
@@ -228,13 +228,13 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
             _copy_requests_low.push(std::move(copy_requests));
     }
 
-    derror_f("jiashuo:end_get_file_size");
+    derror_f("jiashuolog:end_get_file_size");
     continue_copy();
 }
 
 void nfs_client_impl::continue_copy()
 {
-    derror_f("jiashuo:continue_copy");
+    derror_f("jiashuolog:continue_copy");
     if (_buffered_local_write_count >= FLAGS_max_buffered_local_writes) {
         // exceed max_buffered_local_writes limit, pause.
         // the copy task will be triggered by continue_copy() invoked in local_write_callback().
@@ -407,7 +407,7 @@ void nfs_client_impl::end_copy(::dsn::error_code err,
         }
     }
 
-    derror_f("jiashuo:end_copy");
+    derror_f("jiashuolog:end_copy");
     continue_copy();
     continue_write();
 }
@@ -541,7 +541,7 @@ void nfs_client_impl::end_write(error_code err, size_t sz, const copy_request_ex
     }
 
     continue_write();
-    derror_f("jiashuo:end_write");
+    derror_f("jiashuolog:end_write");
     continue_copy();
 }
 
