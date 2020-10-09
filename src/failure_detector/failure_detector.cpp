@@ -43,9 +43,9 @@ namespace fd {
 
 failure_detector::failure_detector()
 {
-    dsn::threadpool_code pool = task_spec::get(LPC_BEACON_CHECK.code())->pool_code;
-    task_spec::get(RPC_FD_FAILURE_DETECTOR_PING.code())->pool_code = pool;
-    task_spec::get(RPC_FD_FAILURE_DETECTOR_PING_ACK.code())->pool_code = pool;
+    //dsn::threadpool_code pool = task_spec::get(LPC_BEACON_CHECK.code())->pool_code;
+    //task_spec::get(RPC_FD_FAILURE_DETECTOR_PING.code())->pool_code = pool;
+    //task_spec::get(RPC_FD_FAILURE_DETECTOR_PING_ACK.code())->pool_code = pool;
 
     _recent_beacon_fail_count.init_app_counter(
         "eon.failure_detector",
