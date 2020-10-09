@@ -73,7 +73,7 @@ public:
                          dsn::optional<::dsn::rpc_address> server_addr = dsn::none)
     {
         return ::dsn::rpc::call(server_addr.unwrap_or(_server),
-                                dsn::fd::LPC_BEACON_SEND,
+                                RPC_NFS_COPY,
                                 request,
                                 nullptr,
                                 std::forward<TCallback>(callback),
@@ -114,7 +114,7 @@ public:
                                   dsn::optional<::dsn::rpc_address> server_addr = dsn::none)
     {
         return ::dsn::rpc::call(server_addr.unwrap_or(_server),
-                                dsn::fd::LPC_BEACON_SEND,
+                                RPC_NFS_GET_FILE_SIZE,
                                 request,
                                 nullptr,
                                 std::forward<TCallback>(callback),
