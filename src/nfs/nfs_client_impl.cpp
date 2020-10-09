@@ -314,11 +314,11 @@ void nfs_client_impl::continue_copy()
             } else {
                 --ureq->concurrent_copy_count;
                 --_concurrent_copy_request_count;
-                derror_f("jiashuo: in valid = {}", _concurrent_copy_request_count);
+                derror_f("jiashuo: invalid = {}", _concurrent_copy_request_count);
             }
         }
 
-        if (_copy_token_bucket->available() <= 1.0 * FLAGS_nfs_copy_block_bytes) {
+        if (req->is_valid && _copy_token_bucket->available() <= 1.0 * FLAGS_nfs_copy_block_bytes) {
             derror_f("jiashuoEnd:token completed");
             break;
         }
