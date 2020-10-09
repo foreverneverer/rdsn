@@ -132,10 +132,17 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
     req->is_finished = false;
 
     dsn::threadpool_code code = task_spec::get(RPC_NFS_GET_FILE_SIZE)->pool_code;
+    dsn::threadpool_code code_ack = task_spec::get(RPC_NFS_GET_FILE_SIZE_ACK)->pool_code;
     if (code == THREAD_POOL_DEFAULT) {
         derror_f("jiashuo:default");
     } else {
         derror_f("jiashuo:replica");
+    }
+
+    if (code_ack == THREAD_POOL_DEFAULT) {
+        derror_f("jiashuo:ack default");
+    } else {
+        derror_f("jiashuo:ack replica");
     }
 
     get_file_size(req->file_size_req,
