@@ -28,6 +28,7 @@
 #include <iostream>
 #include <dsn/utility/optional.h>
 #include <dsn/tool-api/async_calls.h>
+#include <dsn/dist/failure_detector.h>
 
 #include "nfs_types.h"
 #include "nfs_code_definition.h"
@@ -72,7 +73,7 @@ public:
                          dsn::optional<::dsn::rpc_address> server_addr = dsn::none)
     {
         return ::dsn::rpc::call(server_addr.unwrap_or(_server),
-                                RPC_NFS_COPY,
+                                dsn::fd::LPC_BEACON_SEND,
                                 request,
                                 nullptr,
                                 std::forward<TCallback>(callback),
@@ -113,7 +114,7 @@ public:
                                   dsn::optional<::dsn::rpc_address> server_addr = dsn::none)
     {
         return ::dsn::rpc::call(server_addr.unwrap_or(_server),
-                                RPC_NFS_GET_FILE_SIZE,
+                                dsn::fd::LPC_BEACON_SEND,
                                 request,
                                 nullptr,
                                 std::forward<TCallback>(callback),
