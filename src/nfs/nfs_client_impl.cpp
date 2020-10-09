@@ -140,6 +140,7 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
 
     get_file_size(req->file_size_req,
                   [=](error_code err, get_file_size_response &&resp) {
+                      derror_f("jiashuo:get_file_size_callback");
                       end_get_file_size(err, std::move(resp), req);
                   },
                   std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
