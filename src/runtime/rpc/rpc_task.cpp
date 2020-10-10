@@ -88,12 +88,12 @@ rpc_response_task::rpc_response_task(message_ex *request,
 
     _caller_pool = get_current_worker() ? get_current_worker()->pool() : nullptr;
 
-    dsn::threadpool_code pool = task_spec::get(code())->pool_code;
+    // dsn::threadpool_code pool = task_spec::get(code())->pool_code;
 
-    derror_f("jiashuolog:caller_pool={}, expect_ack_pool={}, expect_ack_code={}",
+    /*derror_f("jiashuolog:caller_pool={}, expect_ack_pool={}, expect_ack_code={}",
              _caller_pool->spec().pool_code.to_string(),
              pool.to_string(),
-             code().to_string());
+             code().to_string());*/
 
     _request->add_ref(); // released in dctor
 }
@@ -132,8 +132,8 @@ bool rpc_response_task::enqueue(error_code err, message_ex *reply)
 void rpc_response_task::enqueue()
 {
 
-    auto pool_code = node()->computation()->get_pool(spec().pool_code)->spec().pool_code;
-    derror_f("jiashuolog: current_ack_pool={}", pool_code.to_string());
+    // auto pool_code = node()->computation()->get_pool(spec().pool_code)->spec().pool_code;
+    // derror_f("jiashuolog: current_ack_pool={}", pool_code.to_string());
 
     if (_caller_pool)
         task::enqueue(_caller_pool);

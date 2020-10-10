@@ -232,7 +232,8 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
     }
 
     derror_f("jiashuolog:end_get_file_size");
-    continue_copy();
+
+    tasking::enqueue(LPC_NFS_COPY_FILE, nullptr, [=]() { continue_copy(); }, 0);
 }
 
 void nfs_client_impl::continue_copy()
