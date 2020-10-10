@@ -27,6 +27,8 @@
 #include "runtime/task/task_engine.h"
 #include <dsn/tool-api/task.h>
 
+#include <dsn/dist/fmt_logging.h>
+
 namespace dsn {
 
 rpc_request_task::rpc_request_task(message_ex *request, rpc_request_handler &&h, service_node *node)
@@ -85,6 +87,10 @@ rpc_response_task::rpc_response_task(message_ex *request,
     _response = nullptr;
 
     _caller_pool = get_current_worker() ? get_current_worker()->pool() : nullptr;
+
+    derror_f("jiashuolog:pool={}, code={}",
+             _caller_pool->spec().pool_code.to_string(),
+             code().to_string());
 
     _request->add_ref(); // released in dctor
 }
