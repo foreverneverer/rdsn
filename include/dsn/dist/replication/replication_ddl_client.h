@@ -217,18 +217,17 @@ private:
         return task;
     }
 
-    /// Send request to meta server synchronously.
+    /// Send request to one node server synchronously, default is meta_server
     template <typename TRpcHolder, typename TResponse = typename TRpcHolder::response_type>
-    error_with<TResponse> call_rpc_sync(TRpcHolder rpc, int reply_thread_hash = 0)
+    error_with<TResponse>
+    call_rpc_sync(dsn::rpc_address target = _meta_server, TRpcHolder rpc, int reply_thread_hash = 0)
     {
         // Retry at maximum `MAX_RETRY` times when error occurred.
         static constexpr int MAX_RETRY = 2;
         error_code err = ERR_UNKNOWN;
         for (int retry = 0; retry < MAX_RETRY; retry++) {
-            task_ptr task = rpc.call(_meta_server,
-                                     &_tracker,
-                                     [&err](error_code code) { err = code; },
-                                     reply_thread_hash);
+            task_ptr task = rpc.call(
+                target, &_tracker, [&err](error_code code) { err = code; }, reply_thread_hash);
             task->wait();
             if (err == ERR_OK) {
                 break;
@@ -240,7 +239,7 @@ private:
         return error_with<TResponse>(std::move(rpc.response()));
     }
 
-    /// Send request to multi replica server synchronously.
+    /// Send request to multi node server synchronously.
     template <typename TRpcHolder, typename TResponse = typename TRpcHolder::response_type>
     void call_rpcs_async(std::map<dsn::rpc_address, TRpcHolder> &rpcs,
                          std::map<dsn::rpc_address, error_with<TResponse>> &resps,
