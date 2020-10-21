@@ -332,18 +332,64 @@ void mutation_log_private::flush_internal(int max_count)
 {
     int count = 0;
     while (max_count <= 0 || count < max_count) {
+        if (max_count <= 0) {
+            derror_f("JIASHUOLOG: close plog flush_internal 1start {}.{}",
+                     _private_gpid.to_string(),
+                     _is_writing);
+        }
         if (_is_writing.load(std::memory_order_acquire)) {
+            if (max_count <= 0) {
+                derror_f("JIASHUOLOG: close plog flush_internal 2is_writing {}.{}",
+                         _private_gpid.to_string(),
+                         _is_writing);
+            }
             _tracker.wait_outstanding_tasks();
+
+            if (max_count <= 0) {
+                derror_f("JIASHUOLOG: close plog flush_internal 2is_writing wait ok {}.{}",
+                         _private_gpid.to_string(),
+                         _is_writing);
+            }
         } else {
+            if (max_count <= 0) {
+                derror_f("JIASHUOLOG: close plog flush_internal 3plock {}.{}",
+                         _private_gpid.to_string(),
+                         _is_writing);
+            }
             _plock.lock();
+            if (max_count <= 0) {
+                derror_f("JIASHUOLOG: close plog flush_internal 4plock ok {}.{}",
+                         _private_gpid.to_string(),
+                         _is_writing);
+            }
             if (_is_writing.load(std::memory_order_acquire)) {
+                if (max_count <= 0) {
+                    derror_f("JIASHUOLOG: close plog flush_internal 5unplock {}.{}",
+                             _private_gpid.to_string(),
+                             _is_writing);
+                }
                 _plock.unlock();
+                if (max_count <= 0) {
+                    derror_f("JIASHUOLOG: close plog flush_internal 6unplock ok{}.{}",
+                             _private_gpid.to_string(),
+                             _is_writing);
+                }
                 continue;
             }
             if (!_pending_write) {
+                if (max_count <= 0) {
+                    derror_f("JIASHUOLOG: close plog flush_internal 7_pending_write{}.{}",
+                             _private_gpid.to_string(),
+                             _is_writing);
+                }
                 // !_is_writing && !_pending_write, means flush done
                 _plock.unlock();
                 break;
+            }
+            if (max_count <= 0) {
+                derror_f("JIASHUOLOG: close plog flush_internal 8_pending_write{}.{}",
+                         _private_gpid.to_string(),
+                         _is_writing);
             }
             // !_is_writing && _pending_write, start next write
             write_pending_mutations(true);
