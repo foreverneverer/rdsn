@@ -73,12 +73,14 @@ error_code replica::initialize_on_new()
                                   bool restore_if_necessary,
                                   const std::string &parent_dir)
 {
+    derror_f("JIASHUOLOG:open newr start {}", gpid.to_string());
     std::string dir;
     if (parent_dir.empty()) {
         dir = stub->get_replica_dir(app.app_type.c_str(), gpid);
     } else {
         dir = stub->get_child_dir(app.app_type.c_str(), gpid, parent_dir);
     }
+    derror_f("JIASHUOLOG:open newr constructor {}", gpid.to_string());
     replica *rep = new replica(stub, gpid, app, dir.c_str(), restore_if_necessary);
     error_code err;
     if (restore_if_necessary && (err = rep->restore_checkpoint()) != dsn::ERR_OK) {
@@ -93,12 +95,14 @@ error_code replica::initialize_on_new()
         return nullptr;
     }
 
+    derror_f("JIASHUOLOG:open newr init {}", gpid.to_string());
     err = rep->initialize_on_new();
     if (err == ERR_OK) {
         dinfo("%s: new replica succeed", rep->name());
         return rep;
     } else {
         derror("%s: new replica failed, err = %s", rep->name(), err.to_string());
+        derror_f("JIASHUOLOG:open newr close {}", gpid.to_string());
         rep->close();
         delete rep;
         rep = nullptr;
@@ -108,6 +112,7 @@ error_code replica::initialize_on_new()
         stub->_fs_manager.remove_replica(gpid);
         return nullptr;
     }
+    derror_f("JIASHUOLOG:open newr ok {}", gpid.to_string());
 }
 
 error_code replica::initialize_on_load()

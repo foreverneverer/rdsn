@@ -1910,6 +1910,7 @@ void replica_stub::open_replica(const app_info &app,
                                 std::shared_ptr<group_check_request> req,
                                 std::shared_ptr<configuration_update_request> req2)
 {
+    derror_f("JIASHUOLOG:open start {}", id.to_string());
     std::string dir = get_replica_dir(app.app_type.c_str(), id, false);
     replica_ptr rep = nullptr;
     if (!dir.empty()) {
@@ -1921,6 +1922,7 @@ void replica_stub::open_replica(const app_info &app,
                _primary_address_str,
                req ? "with" : "without",
                dir.c_str());
+        derror_f("JIASHUOLOG:open load{}", id.to_string());
         rep = replica::load(this, dir.c_str());
     }
 
@@ -1944,6 +1946,7 @@ void replica_stub::open_replica(const app_info &app,
                 return;
             }
         }
+        derror_f("JIASHUOLOG:open newr {}", id.to_string());
         rep = replica::newr(this, id, app, restore_if_necessary);
     }
 
@@ -1979,6 +1982,7 @@ void replica_stub::open_replica(const app_info &app,
         rpc::call_one_way_typed(
             _primary_address, RPC_CONFIG_PROPOSAL, *req2, req2->config.pid.thread_hash());
     }
+    derror_f("JIASHUOLOG:open finish {}", id.to_string());
 }
 
 ::dsn::task_ptr replica_stub::begin_close_replica(replica_ptr r)
@@ -2022,12 +2026,15 @@ void replica_stub::open_replica(const app_info &app,
 
 void replica_stub::close_replica(replica_ptr r)
 {
+    derror_f("JIASHUOLOG:start close {}", r->name());
     ddebug("%s: start to close replica", r->name());
 
     gpid id = r->get_gpid();
     std::string name = r->name();
 
     r->close();
+
+    derror_f("JIASHUOLOG:start close ok {}", r->name());
 
     {
         zauto_write_lock l(_replicas_lock);

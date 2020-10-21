@@ -363,6 +363,7 @@ bool replica::verbose_commit_log() const { return _stub->_verbose_commit_log; }
 
 void replica::close()
 {
+    derror_f("JIASHUOLOG:start close ok {}", name());
     dassert(status() == partition_status::PS_ERROR || status() == partition_status::PS_INACTIVE,
             "%s: invalid state %s when calling replica::close",
             name(),
@@ -381,6 +382,7 @@ void replica::close()
 
     _tracker.cancel_outstanding_tasks();
 
+    derror_f("JIASHUOLOG: close cleanup_preparing_mutations {}", name());
     cleanup_preparing_mutations(true);
     dassert(_primary_states.is_cleaned(), "primary context is not cleared");
 
@@ -424,6 +426,8 @@ void replica::close()
     _bulk_loader.reset();
 
     _split_mgr.reset();
+
+    derror_f("JIASHUOLOG: close okk {}", name());
 
     ddebug("%s: replica closed, time_used = %" PRIu64 "ms", name(), dsn_now_ms() - start_time);
 }
