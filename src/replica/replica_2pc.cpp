@@ -740,20 +740,24 @@ void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
 
 void replica::cleanup_preparing_mutations(bool wait)
 {
+    derror_f("JIASHUOLOG: close cleanup_preparing_mutations start {}", name());
     decree start = last_committed_decree() + 1;
     decree end = _prepare_list->max_decree();
 
     for (decree decree = start; decree <= end; decree++) {
         mutation_ptr mu = _prepare_list->get_mutation_by_decree(decree);
         if (mu != nullptr) {
+            derror_f("JIASHUOLOG: close cleanup_preparing_mutations doing {}", name());
             mu->clear_prepare_or_commit_tasks();
 
             //
             // make sure the buffers from mutations are valid for underlying aio
             //
             if (wait) {
+                derror_f("JIASHUOLOG: close cleanup_preparing_mutations flush {}", name());
                 _stub->_log->flush();
                 mu->wait_log_task();
+                derror_f("JIASHUOLOG: close cleanup_preparing_mutations ok {}", name());
             }
         }
     }

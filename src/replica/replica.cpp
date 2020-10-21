@@ -403,12 +403,14 @@ void replica::close()
     }
 
     if (_private_log != nullptr) {
+        derror_f("JIASHUOLOG: close plog close {}", name());
         _private_log->close();
         _private_log = nullptr;
     }
 
     if (_app != nullptr) {
         std::unique_ptr<replication_app_base> tmp_app = std::move(_app);
+        derror_f("JIASHUOLOG: close temp close {}", name());
         error_code err = tmp_app->close(false);
         if (err != dsn::ERR_OK) {
             dwarn("%s: close app failed, err = %s", name(), err.to_string());
