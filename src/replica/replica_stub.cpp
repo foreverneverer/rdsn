@@ -1892,6 +1892,8 @@ void replica_stub::on_disk_stat()
         return nullptr;
     }
 
+    
+    derror_f("JIASHUOLOG:open start enqueu {}", id.to_string());
     task_ptr task =
         tasking::enqueue(LPC_OPEN_REPLICA,
                          &_tracker,
