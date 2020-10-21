@@ -681,6 +681,7 @@ error_code mutation_log::open(replay_callback read_callback,
 
 void mutation_log::close()
 {
+    derror_f("JIASHUOLOG: close plog 1start {}", name());
     {
         zauto_lock l(_lock);
         if (!_is_opened) {
@@ -692,20 +693,26 @@ void mutation_log::close()
     dinfo("close mutation log %s", dir().c_str());
 
     // make all data is on disk
+    derror_f("JIASHUOLOG: close plog 2flush {}", name());
     flush();
+    derror_f("JIASHUOLOG: close plog 3flush ok {}", name());
 
     {
         zauto_lock l(_lock);
 
         // close current log file
         if (nullptr != _current_log_file) {
+            derror_f("JIASHUOLOG: close plog 4current log close {}", name());
             _current_log_file->close();
+            derror_f("JIASHUOLOG: close plog 5current log close ok {}", name());
             _current_log_file = nullptr;
         }
     }
 
     // reset all states
+    derror_f("JIASHUOLOG: close plog 6reset states {}", name());
     init_states();
+    derror_f("JIASHUOLOG: close plog 7reset states ok{}", name());
 }
 
 error_code mutation_log::create_new_log_file()
