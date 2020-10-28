@@ -148,7 +148,7 @@ void replica::migrate_app_info(const migrate_replica_request &req,
     replica_app_info info((app_info *)&_app_info);
     std::string path =
         utils::filesystem::path_combine(_disk_replica_migration_target_dir, ".app-info");
-    auto err = info.store(path.c_str());
+    info.store(path.c_str());
 
     // TODO(jiashuo1) .init_info seem no need copy
 }
