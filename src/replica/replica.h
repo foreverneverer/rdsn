@@ -385,6 +385,9 @@ private:
 
     void on_detect_hotkey(const detect_hotkey_request &req, /*out*/ detect_hotkey_response &resp);
 
+    void on_migrate_replica(const migrate_replica_request &req,
+                            /*out*/ migrate_replica_response &resp);
+
 private:
     friend class ::dsn::replication::test::test_checker;
     friend class ::dsn::replication::mutation_queue;
@@ -399,6 +402,19 @@ private:
     friend class replica_backup_manager;
     friend class replica_bulk_loader;
     friend class replica_split_manager;
+
+    //
+    disk_replica_migration_status::type _disk_replica_migration_status{
+        disk_replica_migration_status::IDLE};
+
+    void check_replica_on_disk(const migrate_replica_request &req,
+                               /*out*/ migrate_replica_response &resp);
+    void migrate_checkpoint(const migrate_replica_request &req,
+                            /*out*/ migrate_replica_response &resp);
+    void migrate_app_info(const migrate_replica_request &req,
+                          /*out*/ migrate_replica_response &resp);
+    void update_migration_replica(const migrate_replica_request &req,
+                                  /*out*/ migrate_replica_response &resp);
 
     // replica configuration, updated by update_local_configuration ONLY
     replica_configuration _config;

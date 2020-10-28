@@ -51,6 +51,7 @@ typedef rpc_holder<group_check_request, group_check_response> group_check_rpc;
 typedef rpc_holder<query_replica_decree_request, query_replica_decree_response>
     query_replica_decree_rpc;
 typedef rpc_holder<query_replica_info_request, query_replica_info_response> query_replica_info_rpc;
+typedef rpc_holder<migrate_replica_request, migrate_replica_response> migrate_replica_rpc;
 typedef rpc_holder<replica_configuration, learn_response> copy_checkpoint_rpc;
 typedef rpc_holder<query_disk_info_request, query_disk_info_response> query_disk_info_rpc;
 typedef rpc_holder<query_app_info_request, query_app_info_response> query_app_info_rpc;
@@ -107,7 +108,6 @@ public:
     void on_config_proposal(const configuration_update_request &proposal);
     void on_query_decree(query_replica_decree_rpc rpc);
     void on_query_replica_info(query_replica_info_rpc rpc);
-    void on_query_disk_info(query_disk_info_rpc rpc);
     void on_query_app_info(query_app_info_rpc rpc);
     void on_bulk_load(bulk_load_rpc rpc);
 
@@ -209,6 +209,10 @@ public:
 
     // TODO: (Tangyanzhao) add some comments
     void on_detect_hotkey(detect_hotkey_rpc rpc);
+
+    // disk rebalaner
+    void on_query_disk_info(query_disk_info_rpc rpc);
+    void on_migrate_replica(migrate_replica_rpc rpc);
 
 private:
     enum replica_node_state
