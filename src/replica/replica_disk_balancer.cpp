@@ -55,7 +55,7 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
 
         if (dir_node->tag == req.origin_disk) {
             valid_origin_disk = true;
-            std::set<gpid> disk_holding_replicas = dir_node->holding_replicas[req.pid.get_app_id];
+            std::set<gpid> disk_holding_replicas = dir_node->holding_replicas[req.pid.get_app_id()];
             if (disk_holding_replicas.find(req.pid) == disk_holding_replicas.end()) {
                 dwarn_replica("received disk replica migration request(gpid={}, origin={}, "
                               "target={}) but not exist on origin disk, partition_status = {}",
@@ -70,7 +70,7 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
 
         if (dir_node->tag == req.target_disk) {
             valid_target_disk = true;
-            std::set<gpid> disk_holding_replicas = dir_node->holding_replicas[req.pid.get_app_id];
+            std::set<gpid> disk_holding_replicas = dir_node->holding_replicas[req.pid.get_app_id()];
             if (disk_holding_replicas.find(req.pid) != disk_holding_replicas.end()) {
                 dwarn_replica("received disk replica migration request(gpid={}, origin={}, "
                               "target={}) but replica has existed on target disk, partition_status "
