@@ -30,7 +30,7 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
                       req.pid.to_string(),
                       req.origin_disk,
                       req.target_disk,
-                      enum_to_string(_disk_replica_migration_status) enum_to_string(status()));
+                      enum_to_string(_disk_replica_migration_status),enum_to_string(status()));
         resp.err = ERR_BUSY;
         return;
     }
