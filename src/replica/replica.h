@@ -403,9 +403,14 @@ private:
     friend class replica_bulk_loader;
     friend class replica_split_manager;
 
-    //
+    // TODO(jiashuo1) remenber register enum to string
+    // TODO(jiashuo1) whether to add context to store the variable
     disk_replica_migration_status::type _disk_replica_migration_status{
         disk_replica_migration_status::IDLE};
+    // decree _disk_replica_migration_checkpoint_decree;
+    // decree _disk_replica_migration_checkpoint_durable_decree;
+    std::string _disk_replica_migration_target_dir;
+    std::string _disk_replica_migration_target_data_dir;
 
     void check_replica_on_disk(const migrate_replica_request &req,
                                /*out*/ migrate_replica_response &resp);

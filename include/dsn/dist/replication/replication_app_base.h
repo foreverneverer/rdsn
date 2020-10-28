@@ -257,6 +257,7 @@ public:
     const std::string &learn_dir() const { return _dir_learn; }
     const std::string &backup_dir() const { return _dir_backup; }
     const std::string &bulk_load_dir() const { return _dir_bulk_load; }
+    const std::string &disk_replica_migration_dir() const { return _dir_disk_replica_migration; }
     ::dsn::replication::decree last_committed_decree() const
     {
         return _last_committed_decree.load();
@@ -280,10 +281,11 @@ private:
     ::dsn::error_code update_init_info_ballot_and_decree(replica *r);
 
 protected:
-    std::string _dir_data;      // ${replica_dir}/data
-    std::string _dir_learn;     // ${replica_dir}/learn
-    std::string _dir_backup;    // ${replica_dir}/backup
-    std::string _dir_bulk_load; // ${replica_dir}/bulk_load
+    std::string _dir_data;                   // ${replica_dir}/data
+    std::string _dir_learn;                  // ${replica_dir}/learn
+    std::string _dir_backup;                 // ${replica_dir}/backup
+    std::string _dir_bulk_load;              // ${replica_dir}/bulk_load
+    std::string _dir_disk_replica_migration; // ${replica_dir}/migration
     replica *_replica;
     std::atomic<int64_t> _last_committed_decree;
     replica_init_info _info;
