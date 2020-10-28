@@ -1549,6 +1549,25 @@ void replication_ddl_client::query_disk_info(
     call_rpcs_sync(query_disk_info_rpcs, resps);
 }
 
+void replication_ddl_client::disk_rebalance(
+    const std::vector<dsn::rpc_address> &targets,
+    const dsn::gpid gpid,
+    const std::string from,
+    const std::string to,
+    /*out*/ std::map<dsn::rpc_address, error_with<migrate_replica_response>> &resps)
+{
+    std::map<dsn::rpc_address, migrate_replica_rpc> migrate_replica_rpcs;
+    for (const auto &target : targets) {
+        auto request = make_unique<migrate_replica_request>();
+        request->node = target;
+        request->pid = gpid;
+        request->origin_disk = from;
+        request->target_disk = to;
+        migrate_replica_rpcs.emplace(target,migrate_replica_rpc(std::move(request), RPC_MIGRATE_REPLICA));
+    }
+    call_rpcs_sync(migrate_replica_rpcs, resps);
+}
+
 error_with<start_bulk_load_response>
 replication_ddl_client::start_bulk_load(const std::string &app_name,
                                         const std::string &cluster_name,

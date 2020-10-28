@@ -178,6 +178,13 @@ public:
         const std::string &app_name,
         /*out*/ std::map<dsn::rpc_address, error_with<query_disk_info_response>> &resps);
 
+           void disk_rebalance(
+        const std::vector<dsn::rpc_address> &targets,
+         const dsn::gpid gpid,
+    const std::string from,
+    const std::string to,
+        /*out*/ std::map<dsn::rpc_address, error_with<migrate_replica_response>> &resps);
+
     error_with<start_bulk_load_response> start_bulk_load(const std::string &app_name,
                                                          const std::string &cluster_name,
                                                          const std::string &file_provider_type);
@@ -288,6 +295,7 @@ private:
 
     typedef rpc_holder<detect_hotkey_request, detect_hotkey_response> detect_hotkey_rpc;
     typedef rpc_holder<query_disk_info_request, query_disk_info_response> query_disk_info_rpc;
+    typedef rpc_holder<migrate_replica_request, migrate_replica_response> migrate_replica_rpc;
 };
 } // namespace replication
 } // namespace dsn
