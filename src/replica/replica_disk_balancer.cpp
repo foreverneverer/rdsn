@@ -18,7 +18,6 @@ void replica::on_migrate_replica(const migrate_replica_request &req,
         return;
     }
     migrate_checkpoint(req, resp);
-    migrate_app_info(req, resp);
     update_migration_replica(req, resp);
 }
 
@@ -37,6 +36,11 @@ bool replica::check_replica_on_disk(const migrate_replica_request &req,
         resp.err = ERR_BUSY;
         return false;
     }
+
+    // TODO(jiashuo1) check if in bulkload,restore,coldbackup,split, if true, return;
+    // TODO(jiashuo1) whether add `checkpointing/checkpointed` status to replcace `moved` status
+    // TODO(jiashuo1) need automic to makesure thread safe
+    _disk_replica_migration_status = disk_replica_migration_status::MOVING;
 
     // TODO(jiashuo1) auto downgrade to secondary if primary
     if (status() != partition_status::type::PS_SECONDARY) {
@@ -99,10 +103,6 @@ bool replica::check_replica_on_disk(const migrate_replica_request &req,
         return false;
     }
 
-    // TODO(jiashuo1) check if in bulkload,restore,coldbackup,split, if true, return;
-    // TODO(jiashuo1) whether add `checkpointing/checkpointed` status to replcace `moved` status
-    // TODO(jiashuo1) need automic to makesure thread safe
-    _disk_replica_migration_status = disk_replica_migration_status::MOVING;
     ddebug_replica("received disk replica migration request(gpid={}, origin={}, target={}) "
                    "partition_status = {}",
                    req.pid.to_string(),
@@ -126,7 +126,19 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
                       enum_to_string(status()));
     }
 
-    _app->sync_checkpoint();
+    error_code sync_checkpoint_err = _app->sync_checkpoint();
+    if (sync_checkpoint_err != ERR_OK) {
+        dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
+                      "sync_checkpoint failed, error = {}"
+                      "partition_status = {}",
+                      req.pid.to_string(),
+                      req.origin_disk,
+                      req.target_disk,
+                      enum_to_string(sync_checkpoint_err),
+                      enum_to_string(status()));
+        resp.err = sync_checkpoint_err;
+        return;
+    }
 
     // TODO(jiashuo1) need copy but reference
     std::string replica_target_dir = _dir;
@@ -136,31 +148,47 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
         utils::filesystem::path_combine(replica_target_dir, "/data/rdb/");
 
     if (!utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir)) {
-        derror_f("create migration target data dir {} failed coz exist dir",
-                 _disk_replica_migration_target_data_dir);
+        derror_replica("create migration target data dir {} failed coz exist dir",
+                       _disk_replica_migration_target_data_dir);
         // TODO(jiashuo1) remember reset/clear status and data
         return;
     }
 
-    _app->copy_checkpoint_to_dir(_disk_replica_migration_target_data_dir.c_str(),
-                                 0 /*last_decree*/);
-}
+    error_code copy_checkpoint_err = _app->copy_checkpoint_to_dir(
+        _disk_replica_migration_target_data_dir.c_str(), 0 /*last_decree*/);
+    if (copy_checkpoint_err != ERR_OK) {
+        dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
+                      "copy_checkpoint_to_dir failed, error = {}"
+                      "partition_status = {}",
+                      req.pid.to_string(),
+                      req.origin_disk,
+                      req.target_disk,
+                      enum_to_string(sync_checkpoint_err),
+                      enum_to_string(status()));
+        resp.err = copy_checkpoint_err;
+        return;
+    }
 
-void replica::migrate_app_info(const migrate_replica_request &req,
-                               /*out*/ migrate_replica_response &resp)
-{
+    // TODO(jiashuo1) .init_info seem no need copy
     replica_app_info info((app_info *)&_app_info);
     std::string path =
         utils::filesystem::path_combine(_disk_replica_migration_target_dir, ".app-info");
     info.store(path.c_str());
+    error_code store_info_err = info.store(path.c_str());
+    if (store_info_err != ERR_OK) {
+        dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
+                      "store info failed, error = {}"
+                      "partition_status = {}",
+                      req.pid.to_string(),
+                      req.origin_disk,
+                      req.target_disk,
+                      enum_to_string(store_info_err),
+                      enum_to_string(status()));
+        resp.err = store_info_err;
+        return;
+    }
 
-    // TODO(jiashuo1) .init_info seem no need copy
-}
-
-// set moved
-void replica::update_migration_replica(const migrate_replica_request &req,
-                                       /*out*/ migrate_replica_response &resp)
-{
+    _disk_replica_migration_status = disk_replica_migration_status::MOVED;
 }
 }
 }
