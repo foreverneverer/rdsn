@@ -416,10 +416,6 @@ private:
                                /*out*/ migrate_replica_response &resp);
     void migrate_checkpoint(const migrate_replica_request &req,
                             /*out*/ migrate_replica_response &resp);
-    void migrate_app_info(const migrate_replica_request &req,
-                          /*out*/ migrate_replica_response &resp);
-    void update_migration_replica(const migrate_replica_request &req,
-                                  /*out*/ migrate_replica_response &resp);
 
     // replica configuration, updated by update_local_configuration ONLY
     replica_configuration _config;
