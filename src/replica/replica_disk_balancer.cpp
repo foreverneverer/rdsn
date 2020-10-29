@@ -146,8 +146,8 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
     _disk_replica_migration_target_data_dir =
         utils::filesystem::path_combine(replica_target_dir, "/data/rdb/");
 
-    if (!utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir)) {
-        derror_replica("create migration target data dir {} failed coz exist dir",
+    if (utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir)) {
+        derror_replica("migration target data dir {} has existed",
                        _disk_replica_migration_target_data_dir);
         // TODO(jiashuo1) remember reset/clear status and data
         return;
