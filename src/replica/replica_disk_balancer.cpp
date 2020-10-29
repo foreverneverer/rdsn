@@ -211,7 +211,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
 
     // TODO(jiashuo1) before here, have same replica dir, it may cause crash
     // TODO(jiashuo1) check rename success
-    dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, ".balance.temp"));
+    dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, "balance.temp"));
     _disk_replica_migration_status = disk_replica_migration_status::MOVED;
 }
 }
