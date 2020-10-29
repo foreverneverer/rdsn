@@ -168,7 +168,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
         resp.err = copy_checkpoint_err;
         return;
     }
-
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // TODO(jiashuo1) .init_info seem no need copy
     replica_app_info info((app_info *)&_app_info);
     std::string path =
@@ -188,6 +188,13 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
         return;
     }
 
+    ////////////////////////////////////////////////////////////////////////
+    // TODO(jiashuo1) need call primary and let primary update replica config
+    update_local_configuration_with_no_ballot_change(partition_status::PS_ERROR);
+    _stub->begin_close_replica(this);
+
+    // TODO(jiashuo1) before here, have same replica dir, it may cause crash
+    dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, ".balance.temp"));
     _disk_replica_migration_status = disk_replica_migration_status::MOVED;
 }
 }

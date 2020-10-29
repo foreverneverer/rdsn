@@ -900,6 +900,7 @@ void replica_stub::on_config_proposal(const configuration_update_request &propos
         if (proposal.type == config_type::CT_ASSIGN_PRIMARY) {
             std::shared_ptr<configuration_update_request> req2(new configuration_update_request);
             *req2 = proposal;
+            // TODO(jiashuo1) notice
             begin_open_replica(proposal.info, proposal.config.pid, nullptr, req2);
         } else if (proposal.type == config_type::CT_UPGRADE_TO_PRIMARY) {
             remove_replica_on_meta_server(proposal.info, proposal.config);
@@ -1110,6 +1111,7 @@ void replica_stub::on_group_check(group_check_rpc rpc)
             std::shared_ptr<group_check_request> req(new group_check_request);
             *req = request;
 
+            // TODO(jiashuo1) notice
             begin_open_replica(request.app, request.config.pid, req, nullptr);
             response.err = ERR_OK;
             response.learner_signature = invalid_signature;
@@ -1186,6 +1188,7 @@ void replica_stub::on_add_learner(const group_check_request &request)
     } else {
         std::shared_ptr<group_check_request> req(new group_check_request);
         *req = request;
+
         begin_open_replica(request.app, request.config.pid, req, nullptr);
     }
 }
