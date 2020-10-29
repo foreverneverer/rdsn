@@ -133,11 +133,10 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
     boost::replace_first(replica_target_dir, req.origin_disk, req.target_disk);
     _disk_replica_migration_target_dir = replica_target_dir;
     _disk_replica_migration_target_data_dir =
-        utils::filesystem::path_combine(replica_target_dir, "/data/");
+        utils::filesystem::path_combine(replica_target_dir, "/data/rdb/");
 
-    if (!utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir) &&
-        !utils::filesystem::create_directory(_disk_replica_migration_target_data_dir)) {
-        derror_f("%s: create migration target data dir {} failed",
+    if (!utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir)) {
+        derror_f("create migration target data dir {} failed coz exist dir",
                  _disk_replica_migration_target_data_dir);
         // TODO(jiashuo1) remember reset/clear status and data
         return;
