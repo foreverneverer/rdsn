@@ -134,7 +134,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
                       req.pid.to_string(),
                       req.origin_disk,
                       req.target_disk,
-                      enum_to_string(sync_checkpoint_err),
+                      sync_checkpoint_err.to_string(),
                       enum_to_string(status()));
         resp.err = sync_checkpoint_err;
         return;
@@ -163,7 +163,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
                       req.pid.to_string(),
                       req.origin_disk,
                       req.target_disk,
-                      enum_to_string(sync_checkpoint_err),
+                      sync_checkpoint_err.to_string(),
                       enum_to_string(status()));
         resp.err = copy_checkpoint_err;
         return;
@@ -182,8 +182,8 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
                       req.pid.to_string(),
                       req.origin_disk,
                       req.target_disk,
-                      enum_to_string(store_info_err),
-                      enum_to_string(status()));
+                      store_info_err.to_string(),
+                      enum_to_string(status());
         resp.err = store_info_err;
         return;
     }
