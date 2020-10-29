@@ -109,6 +109,7 @@ bool replica::check_replica_on_disk(const migrate_replica_request &req,
                    req.origin_disk,
                    req.target_disk,
                    enum_to_string(status()));
+    return true;
 }
 
 void replica::migrate_checkpoint(const migrate_replica_request &req,
