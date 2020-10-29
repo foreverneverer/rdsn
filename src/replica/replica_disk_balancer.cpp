@@ -116,7 +116,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
 {
     if (_disk_replica_migration_status != disk_replica_migration_status::MOVING) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "invalid migration status = {}"
+                      "invalid migration status = {} "
                       "partition_status = {}",
                       req.pid.to_string(),
                       req.origin_disk,
@@ -128,7 +128,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
     error_code sync_checkpoint_err = _app->sync_checkpoint();
     if (sync_checkpoint_err != ERR_OK) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "sync_checkpoint failed, error = {}"
+                      "sync_checkpoint failed, error = {} "
                       "partition_status = {}",
                       req.pid.to_string(),
                       req.origin_disk,
@@ -174,10 +174,11 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
     std::string path =
         utils::filesystem::path_combine(_disk_replica_migration_target_dir, ".app-info");
     info.store(path.c_str());
+
     error_code store_info_err = info.store(path.c_str());
     if (store_info_err != ERR_OK) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "store info failed, error = {}"
+                      "store info failed, error = {} "
                       "partition_status = {}",
                       req.pid.to_string(),
                       req.origin_disk,
@@ -185,6 +186,21 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
                       store_info_err.to_string(),
                       enum_to_string(status()));
         resp.err = store_info_err;
+        return;
+    }
+
+    replica_init_info init_info = _app->init_info();
+    error_code store_init_info_err = init_info.store(_disk_replica_migration_target_dir);
+    if (store_init_info_err != ERR_OK) {
+        dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
+                      "store init info failed, error = {} "
+                      "partition_status = {}",
+                      req.pid.to_string(),
+                      req.origin_disk,
+                      req.target_disk,
+                      store_init_info_err.to_string(),
+                      enum_to_string(status()));
+        resp.err = store_init_info_err;
         return;
     }
 
