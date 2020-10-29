@@ -12,15 +12,17 @@ namespace replication {
 void replica::on_migrate_replica(const migrate_replica_request &req,
                                  /*out*/ migrate_replica_response &resp)
 {
-    _checker.only_one_thread_access();
+    //_checker.only_one_thread_access();
 
-    check_replica_on_disk(req, resp);
+    if (!check_replica_on_disk(req, resp)) {
+        return;
+    }
     migrate_checkpoint(req, resp);
     migrate_app_info(req, resp);
     update_migration_replica(req, resp);
 }
 
-void replica::check_replica_on_disk(const migrate_replica_request &req,
+bool replica::check_replica_on_disk(const migrate_replica_request &req,
                                     /*out*/ migrate_replica_response &resp)
 {
     // TODO(jiashuo1) need manager control migattion flow
@@ -30,9 +32,10 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
                       req.pid.to_string(),
                       req.origin_disk,
                       req.target_disk,
-                      enum_to_string(_disk_replica_migration_status),enum_to_string(status()));
+                      enum_to_string(_disk_replica_migration_status),
+                      enum_to_string(status()));
         resp.err = ERR_BUSY;
-        return;
+        return false;
     }
 
     // TODO(jiashuo1) auto downgrade to secondary if primary
@@ -44,7 +47,7 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
                       req.target_disk,
                       enum_to_string(status()));
         resp.err = ERR_INVALID_STATE;
-        return;
+        return false;
     }
 
     _stub->update_disk_holding_replicas();
@@ -64,7 +67,7 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
                               req.target_disk,
                               enum_to_string(status()));
                 resp.err = ERR_OBJECT_NOT_FOUND;
-                return;
+                return false;
             }
         }
 
@@ -80,7 +83,7 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
                               req.target_disk,
                               enum_to_string(status()));
                 resp.err = ERR_OBJECT_NOT_FOUND;
-                return;
+                return false;
             }
         }
     }
@@ -93,11 +96,12 @@ void replica::check_replica_on_disk(const migrate_replica_request &req,
                       req.target_disk,
                       enum_to_string(status()));
         resp.err = ERR_OBJECT_NOT_FOUND;
-        return;
+        return false;
     }
 
     // TODO(jiashuo1) check if in bulkload,restore,coldbackup,split, if true, return;
     // TODO(jiashuo1) whether add `checkpointing/checkpointed` status to replcace `moved` status
+    // TODO(jiashuo1) need automic to makesure thread safe
     _disk_replica_migration_status = disk_replica_migration_status::MOVING;
     ddebug_replica("received disk replica migration request(gpid={}, origin={}, target={}) "
                    "partition_status = {}",
@@ -112,7 +116,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
 {
     if (_disk_replica_migration_status != disk_replica_migration_status::MOVING) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "invalid migration status"
+                      "invalid migration status = {}"
                       "partition_status = {}",
                       req.pid.to_string(),
                       req.origin_disk,

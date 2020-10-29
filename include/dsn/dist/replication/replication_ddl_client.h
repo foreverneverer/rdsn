@@ -178,12 +178,12 @@ public:
         const std::string &app_name,
         /*out*/ std::map<dsn::rpc_address, error_with<query_disk_info_response>> &resps);
 
-           void disk_rebalance(
-        const std::vector<dsn::rpc_address> &targets,
-         const dsn::gpid gpid,
-    const std::string from,
-    const std::string to,
-        /*out*/ std::map<dsn::rpc_address, error_with<migrate_replica_response>> &resps);
+    void
+    disk_rebalance(const std::vector<dsn::rpc_address> &targets,
+                   const dsn::gpid gpid,
+                   const std::string from,
+                   const std::string to,
+                   /*out*/ std::map<dsn::rpc_address, error_with<migrate_replica_response>> &resps);
 
     error_with<start_bulk_load_response> start_bulk_load(const std::string &app_name,
                                                          const std::string &cluster_name,
