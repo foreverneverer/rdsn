@@ -1346,6 +1346,7 @@ void replica_stub::on_node_query_reply(error_code err,
             rs = _replicas;
         }
 
+        // TODO(jiashuo1) disk balance close replica may cause the error
         for (auto it = resp.partitions.begin(); it != resp.partitions.end(); ++it) {
             rs.erase(it->config.pid);
             tasking::enqueue(LPC_QUERY_NODE_CONFIGURATION_SCATTER,

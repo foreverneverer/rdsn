@@ -146,8 +146,9 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
     _disk_replica_migration_target_data_dir =
         utils::filesystem::path_combine(replica_target_dir, "/data/rdb/");
 
-    if (utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir)) {
-        derror_replica("migration target data dir {} has existed",
+    if (!utils::filesystem::directory_exists(_disk_replica_migration_target_data_dir) &&
+        !utils::filesystem::create_directory(_disk_replica_migration_target_data_dir)) {
+        derror_replica("create migration target data dir failed coz {} has existed",
                        _disk_replica_migration_target_data_dir);
         // TODO(jiashuo1) remember reset/clear status and data
         return;
@@ -157,12 +158,12 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
         _disk_replica_migration_target_data_dir.c_str(), 0 /*last_decree*/);
     if (copy_checkpoint_err != ERR_OK) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "copy_checkpoint_to_dir failed, error = {}"
+                      "copy_checkpoint_to_dir failed, error = {} "
                       "partition_status = {}",
                       req.pid.to_string(),
                       req.origin_disk,
                       req.target_disk,
-                      sync_checkpoint_err.to_string(),
+                      copy_checkpoint_err.to_string(),
                       enum_to_string(status()));
         resp.err = copy_checkpoint_err;
         return;
