@@ -183,7 +183,7 @@ void replica::migrate_checkpoint(const migrate_replica_request &req,
                       req.origin_disk,
                       req.target_disk,
                       store_info_err.to_string(),
-                      enum_to_string(status());
+                      enum_to_string(status()));
         resp.err = store_info_err;
         return;
     }
