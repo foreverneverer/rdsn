@@ -18,7 +18,6 @@ void replica::on_migrate_replica(const migrate_replica_request &req,
         return;
     }
     migrate_checkpoint(req, resp);
-    update_migration_replica(req, resp);
 }
 
 bool replica::check_replica_on_disk(const migrate_replica_request &req,
