@@ -151,6 +151,14 @@ void replica::on_group_check(const group_check_request &request,
                    request.last_committed_decree,
                    request.__isset.confirmed_decree ? request.confirmed_decree : invalid_decree);
 
+    if (_disk_replica_migration_status == disk_replica_migration_status::MOVED) {
+        dwarn_replica("this replica has moved to tmp dir({}), current replica({}) will be closed",
+                      _disk_replica_migration_target_temp_dir,
+                      _dir);
+        response.err = ERR_EXPIRED;
+        return;
+    }
+
     if (request.config.ballot < get_ballot()) {
         response.err = ERR_VERSION_OUTDATED;
         dwarn("%s: on_group_check reply %s", name(), response.err.to_string());
@@ -215,6 +223,11 @@ void replica::on_group_check_reply(error_code err,
     if (err != ERR_OK || resp->err != ERR_OK) {
         if (ERR_OK == err) {
             err = resp->err;
+            if (err == ERR_EXPIRED) {
+                dwarn_replica("remote node({}) replica has been moved, it will be reported to meta "
+                              "and closed",
+                              req->node.to_string());
+            }
         }
         handle_remote_failure(req->config.status, req->node, err, "group check");
         _stub->_counter_replicas_recent_group_check_fail_count->increment();

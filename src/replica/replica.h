@@ -388,6 +388,11 @@ private:
     void on_migrate_replica(const migrate_replica_request &req,
                             /*out*/ migrate_replica_response &resp);
 
+    void set_disk_replica_migration_status(disk_replica_migration_status::type status)
+    {
+        _disk_replica_migration_status = status;
+    };
+
 private:
     friend class ::dsn::replication::test::test_checker;
     friend class ::dsn::replication::mutation_queue;
@@ -410,12 +415,19 @@ private:
     // decree _disk_replica_migration_checkpoint_decree;
     // decree _disk_replica_migration_checkpoint_durable_decree;
     std::string _disk_replica_migration_target_dir;
-    std::string _disk_replica_migration_target_data_dir;
+    std::string _disk_replica_migration_target_temp_dir;
 
-    bool check_replica_on_disk(const migrate_replica_request &req,
-                               /*out*/ migrate_replica_response &resp);
-    void migrate_checkpoint(const migrate_replica_request &req,
-                            /*out*/ migrate_replica_response &resp);
+    bool check_migration_replica_on_disk(const migrate_replica_request &req,
+                                         /*out*/ migrate_replica_response &resp);
+    void copy_migration_replica_checkpoint(const migrate_replica_request &req,
+                                           /*out*/ migrate_replica_response &resp);
+
+    void update_migration_replica_dir();
+
+    void reset_replica_migration_status()
+    {
+        _disk_replica_migration_status = disk_replica_migration_status::IDLE;
+    }
 
     // replica configuration, updated by update_local_configuration ONLY
     replica_configuration _config;
