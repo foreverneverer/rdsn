@@ -425,6 +425,10 @@ void replica::close()
 
     _split_mgr.reset();
 
+    if (_disk_replica_migration_status == disk_replica_migration_status::MOVED) {
+        update_migration_replica_dir();
+    }
+
     ddebug("%s: replica closed, time_used = %" PRIu64 "ms", name(), dsn_now_ms() - start_time);
 }
 

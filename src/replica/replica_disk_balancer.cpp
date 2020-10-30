@@ -18,7 +18,7 @@ void replica::on_migrate_replica(const migrate_replica_request &req,
     if (!check_migration_replica_on_disk(req, resp)) {
         return;
     }
-    //
+    // need task queue and assign replica long pool
     copy_migration_replica_checkpoint(req, resp);
 }
 
@@ -274,14 +274,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                    req.target_disk,
                    ERR_EXPIRED.to_string(),
                    enum_to_string(status()));
-
-    ////////////////////////////////////////////////////////////////////////
-    // TODO(jiashuo1) need call primary and let primary update replica config
-    // TODO(jiashuo1) make sure close whether this is assign null
-    update_local_configuration_with_no_ballot_change(partition_status::PS_ERROR);
-    dsn::task_ptr close_task = _stub->begin_close_replica(this);
-    if (close_task->wait()) {
-    }
 }
 
 // TODO(jiashuo1) wait will increase the durable
@@ -299,33 +291,17 @@ void replica::update_migration_replica_dir()
         return;
     }
 
-    if (_stub->_closed_replicas.find(get_gpid()) == _stub->_closed_replicas.end()) {
-        dwarn_replica("disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "has completed copy checkpoint but has't been closed, partition_status = {}",
-                      req.pid.to_string(),
-                      req.origin_disk,
-                      req.target_disk,
-                      enum_to_string(status()));
-        tasking::enqueue(LPC_REPLICATION_LONG_COMMON,
-                         &_tracker,
-                         [this]() { update_migration_replica_dir(); },
-                         get_gpid().thread_hash(),
-                         std::chrono::seconds(5));
-        return;
-    }
-
     dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, "disk.balance.gar"));
     dsn::utils::filesystem::rename_path(_disk_replica_migration_target_temp_dir,
                                         _disk_replica_migration_target_dir);
 
-    ddebug_replica("disk replica migration request(gpid={}, origin={}, target={})"
-                   "has closed origin replica, partition_status = {}, wait reload new dir in learning",
-                   req.pid.to_string(),
-                   req.origin_disk,
-                   req.target_disk,
-                   enum_to_string(status()));
-
-    set_disk_replica_migration_status(disk_replica_migration_status::LEARNING);
+    ddebug_replica(
+        "disk replica migration request(gpid={}, origin={}, target={})"
+        "has closed origin replica, partition_status = {}, wait reload new dir in learning",
+        req.pid.to_string(),
+        req.origin_disk,
+        req.target_disk,
+        enum_to_string(status()));
 }
 }
 }
