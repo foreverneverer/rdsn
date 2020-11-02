@@ -281,27 +281,33 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
 void replica::update_migration_replica_dir()
 {
     if (status() != partition_status::type::PS_SECONDARY) {
-        dwarn_replica("disk replica migration request(gpid={}, origin={}, target={}) but "
-                      "has completed copy checkpoint but the partition_status = {}",
-                      req.pid.to_string(),
-                      req.origin_disk,
-                      req.target_disk,
+        dwarn_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
+                      "failed coz invalid partition_status({}) ",
+                      _dir,
+                      _disk_replica_migration_target_temp_dir,
                       enum_to_string(status()));
         reset_replica_migration_status();
         return;
     }
 
-    dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, "disk.balance.gar"));
-    dsn::utils::filesystem::rename_path(_disk_replica_migration_target_temp_dir,
-                                        _disk_replica_migration_target_dir);
+    bool update_origin_dir =
+        dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, "disk.balance.gar"));
+    bool upadte_new_dir = dsn::utils::filesystem::rename_path(
+        _disk_replica_migration_target_temp_dir, _disk_replica_migration_target_dir);
 
-    ddebug_replica(
-        "disk replica migration request(gpid={}, origin={}, target={})"
-        "has closed origin replica, partition_status = {}, wait reload new dir in learning",
-        req.pid.to_string(),
-        req.origin_disk,
-        req.target_disk,
-        enum_to_string(status()));
+    if (!update_origin_dir || !upadte_new_dir) {
+        dwarn_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
+                      "failed coz update dir error ",
+                      _dir,
+                      _disk_replica_migration_target_temp_dir);
+        reset_replica_migration_status();
+        return;
+    }
+
+    ddebug_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
+                   "success",
+                   _dir,
+                   _disk_replica_migration_target_temp_dir);
 }
 }
 }
