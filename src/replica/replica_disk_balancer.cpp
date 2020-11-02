@@ -173,9 +173,9 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
         utils::filesystem::path_combine(_disk_replica_migration_target_dir, "/data/rdb/");
 
     // using origin dir init new tmp dir
-    std::string replica_name = fmt::format("{}.{}", get_gpid(), _app_info.app_type);
-    std::string replica_tmp_name = fmt::format("{}.disk.balance", replica_name);
-    boost::replace_first(replica_dir, replica_name, replica_tmp_name);
+    std::string replica_folder_name = fmt::format("{}.{}", get_gpid(), _app_info.app_type);
+    std::string replica_folder_tmp_name = fmt::format("{}.disk.balance", replica_folder_name);
+    boost::replace_first(replica_dir, replica_folder_name, replica_folder_tmp_name);
     _disk_replica_migration_target_temp_dir = replica_dir;
     std::string tmp_data_dir =
         utils::filesystem::path_combine(_disk_replica_migration_target_temp_dir, "/data/rdb/");
