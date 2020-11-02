@@ -265,15 +265,15 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
 
     set_disk_replica_migration_status(disk_replica_migration_status::MOVED);
 
-    ddebug_replica("disk replica migration request(gpid={}, origin={}, target={})"
-                   "has completed copy checkpoint, it will response primary err = {} after next "
-                   "receive group check and be trigered to close"
-                   "partition_status = {}",
-                   req.pid.to_string(),
-                   req.origin_disk,
-                   req.target_disk,
-                   ERR_EXPIRED.to_string(),
-                   enum_to_string(status()));
+    ddebug_replica(
+        "disk replica migration request(gpid={}, origin={}, target={})"
+        "has completed copy checkpoint, it will response primary err = ERR_EXPIRED after next "
+        "receive group check and be trigered to close"
+        "partition_status = {}",
+        req.pid.to_string(),
+        req.origin_disk,
+        req.target_disk,
+        enum_to_string(status()));
 }
 
 // TODO(jiashuo1) wait will increase the durable
