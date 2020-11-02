@@ -363,8 +363,9 @@ bool replica::verbose_commit_log() const { return _stub->_verbose_commit_log; }
 
 void replica::close()
 {
-    dassert(status() == partition_status::PS_ERROR || status() == partition_status::PS_INACTIVE,
-            "%s: invalid state %s when calling replica::close",
+    dassert(status() == partition_status::PS_ERROR || status() == partition_status::PS_INACTIVE ||
+                _disk_replica_migration_status == disk_replica_migration_status::MOVED
+                    "%s: invalid state %s when calling replica::close",
             name(),
             enum_to_string(status()));
 
