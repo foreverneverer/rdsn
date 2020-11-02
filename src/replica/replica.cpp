@@ -427,6 +427,8 @@ void replica::close()
 
     if (_disk_replica_migration_status == disk_replica_migration_status::MOVED) {
         update_migration_replica_dir();
+        ddebug_replica("closed the replica and update latest dir coz it has been moved to {}",
+                       _disk_replica_migration_target_dir);
     }
 
     ddebug("%s: replica closed, time_used = %" PRIu64 "ms", name(), dsn_now_ms() - start_time);

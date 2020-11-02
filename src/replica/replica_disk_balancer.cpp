@@ -273,7 +273,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                       enum_to_string(status()));
         reset_replica_migration_status();
     } else {
-        update_local_configuration_with_no_ballot_change(partition_status::type::PS_ERROR);
         _stub->begin_close_replica(this);
     }
 }
