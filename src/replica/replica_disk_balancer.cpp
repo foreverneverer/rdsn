@@ -265,23 +265,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
 
     set_disk_replica_migration_status(disk_replica_migration_status::MOVED);
 
-    ddebug_replica(
-        "disk replica migration request(gpid={}, origin={}, target={})"
-        "has completed copy checkpoint, it will response primary err = ERR_EXPIRED after next "
-        "receive group check and be trigered to close "
-        "partition_status = {}",
-        req.pid.to_string(),
-        req.origin_disk,
-        req.target_disk,
-        enum_to_string(status()));
-
-    _stub->begin_close_replica(this);
-}
-
-// TODO(jiashuo1) wait will increase the durable
-// TODO(jiashuo1) need default
-void replica::update_migration_replica_dir()
-{
     if (status() != partition_status::type::PS_SECONDARY) {
         dwarn_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
                       "failed coz invalid partition_status({}) ",
@@ -289,9 +272,16 @@ void replica::update_migration_replica_dir()
                       _disk_replica_migration_target_temp_dir,
                       enum_to_string(status()));
         reset_replica_migration_status();
-        return;
+    } else {
+        update_local_configuration_with_no_ballot_change(partition_status::type::PS_ERROR);
+        _stub->begin_close_replica(this);
     }
+}
 
+// TODO(jiashuo1) wait will increase the durable
+// TODO(jiashuo1) need default
+void replica::update_migration_replica_dir()
+{
     bool update_origin_dir =
         dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, "disk.balance.gar"));
     bool upadte_new_dir = dsn::utils::filesystem::rename_path(
