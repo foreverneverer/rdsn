@@ -215,12 +215,10 @@ const std::map<int, const char *> _detect_action_VALUES_TO_NAMES(
 int _kdisk_replica_migration_statusValues[] = {disk_replica_migration_status::IDLE,
                                                disk_replica_migration_status::MOVING,
                                                disk_replica_migration_status::MOVED,
-                                               disk_replica_migration_status::LEARNING,
-                                               disk_replica_migration_status::COMPLETED};
-const char *_kdisk_replica_migration_statusNames[] = {
-    "IDLE", "MOVING", "MOVED", "LEARNING", "COMPLETED"};
+                                               disk_replica_migration_status::CLOSED};
+const char *_kdisk_replica_migration_statusNames[] = {"IDLE", "MOVING", "MOVED", "CLOSED"};
 const std::map<int, const char *> _disk_replica_migration_status_VALUES_TO_NAMES(
-    ::apache::thrift::TEnumIterator(5,
+    ::apache::thrift::TEnumIterator(4,
                                     _kdisk_replica_migration_statusValues,
                                     _kdisk_replica_migration_statusNames),
     ::apache::thrift::TEnumIterator(-1, NULL, NULL));

@@ -263,10 +263,8 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
         return;
     }
 
-    set_disk_replica_migration_status(disk_replica_migration_status::MOVED);
-
     if (status() != partition_status::type::PS_SECONDARY) {
-        dwarn_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
+        dwarn_replica("disk replica migration update replica origin dir({}) and temp dir({}) "
                       "failed coz invalid partition_status({}) ",
                       _dir,
                       _disk_replica_migration_target_temp_dir,
@@ -286,19 +284,13 @@ void replica::update_migration_replica_dir()
     bool upadte_new_dir = dsn::utils::filesystem::rename_path(
         _disk_replica_migration_target_temp_dir, _disk_replica_migration_target_dir);
 
-    if (!update_origin_dir || !upadte_new_dir) {
-        dwarn_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
-                      "failed coz update dir error ",
-                      _dir,
-                      _disk_replica_migration_target_temp_dir);
-        reset_replica_migration_status();
-        return;
+    if (update_origin_dir && upadte_new_dir) {
+        ddebug_replica("disk replica migration move data from origin dir({}) to new dir({}) "
+                       "success",
+                       _dir,
+                       _disk_replica_migration_target_dir);
+        set_disk_replica_migration_status(disk_replica_migration_status::CLOSED);
     }
-
-    ddebug_replica("disk replica migration update replica origin dir({}) and new temp dir({}) "
-                   "success",
-                   _dir,
-                   _disk_replica_migration_target_temp_dir);
 }
 }
 }

@@ -262,8 +262,7 @@ struct disk_replica_migration_status
         IDLE = 0,
         MOVING = 1,
         MOVED = 2,
-        LEARNING = 3,
-        COMPLETED = 4
+        CLOSED = 3
     };
 };
 

@@ -1130,8 +1130,7 @@ enum disk_replica_migration_status {
     IDLE,
     MOVING,
     MOVED,
-    LEARNING,
-    COMPLETED
+    CLOSED
 }
 
 /*
