@@ -19,7 +19,7 @@ void replica::on_migrate_replica(const migrate_replica_request &req,
     }
     // need task queue and assign replica long pool
     tasking::enqueue(
-        LPC_REPLICATION_LONG_COMMON, _tracker, [=]() { copy_migration_replica_checkpoint(req); });
+        LPC_REPLICATION_LONG_COMMON, tracker(), [=]() { copy_migration_replica_checkpoint(req); });
 }
 
 // TODO(jiashuo1) need assign replication pool to make sure single thread
