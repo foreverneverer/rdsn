@@ -14,18 +14,19 @@ namespace replication {
 void replica::on_migrate_replica(const migrate_replica_request &req,
                                  /*out*/ migrate_replica_response &resp)
 {
-    //_checker.only_one_thread_access();
     if (!check_migration_replica_on_disk(req, resp)) {
         return;
     }
     // need task queue and assign replica long pool
-    copy_migration_replica_checkpoint(req, resp);
+    tasking::enqueue(
+        LPC_REPLICATION_LONG_COMMON, _tracker, [=]() { copy_migration_replica_checkpoint(req); });
 }
 
 // TODO(jiashuo1) need assign replication pool to make sure single thread
 bool replica::check_migration_replica_on_disk(const migrate_replica_request &req,
                                               /*out*/ migrate_replica_response &resp)
 {
+    _checker.only_one_thread_access();
     // TODO(jiashuo1) need manager control migration flow
     if (_disk_replica_migration_status != disk_replica_migration_status::IDLE) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
@@ -52,7 +53,7 @@ bool replica::check_migration_replica_on_disk(const migrate_replica_request &req
     if (_bulk_loader->get_bulk_load_status() != bulk_load_status::BLS_INVALID ||
         is_running_cold_backup || (_restore_progress != 0 && _restore_progress != 1000)) {
         dwarn_replica(
-            "received disk replica migration request(gpid={}, origin={}, target={}) but "
+            "received disk replica migration request(gpid={}, origin={}, target={}) "
             "but has other task(bulkload={}, backup={}, restore_process={}), partition_status={}",
             req.pid.to_string(),
             req.origin_disk,
@@ -141,8 +142,7 @@ bool replica::check_migration_replica_on_disk(const migrate_replica_request &req
 }
 
 // need assign replica default
-void replica::copy_migration_replica_checkpoint(const migrate_replica_request &req,
-                                                /*out*/ migrate_replica_response &resp)
+void replica::copy_migration_replica_checkpoint(const migrate_replica_request &req)
 {
     if (_disk_replica_migration_status != disk_replica_migration_status::MOVING) {
         dwarn_replica("received disk replica migration request(gpid={}, origin={}, target={}) but "
@@ -154,7 +154,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                       enum_to_string(_disk_replica_migration_status),
                       enum_to_string(status()));
         reset_replica_migration_status();
-        resp.err = ERR_INVALID_STATE;
         return;
     }
 
@@ -204,7 +203,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                       sync_checkpoint_err.to_string(),
                       enum_to_string(status()));
         reset_replica_migration_status();
-        resp.err = sync_checkpoint_err;
         return;
     }
 
@@ -223,7 +221,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                       enum_to_string(status()));
         reset_replica_migration_status();
         utils::filesystem::remove_path(tmp_data_dir);
-        resp.err = copy_checkpoint_err;
         return;
     }
 
@@ -240,7 +237,6 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                       store_init_info_err.to_string(),
                       enum_to_string(status()));
         reset_replica_migration_status();
-        resp.err = store_init_info_err;
         return;
     }
 
@@ -259,9 +255,10 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
                       store_info_err.to_string(),
                       enum_to_string(status()));
         reset_replica_migration_status();
-        resp.err = store_info_err;
         return;
     }
+
+    set_disk_replica_migration_status(disk_replica_migration_status::MOVED);
 
     if (status() != partition_status::type::PS_SECONDARY) {
         dwarn_replica("disk replica migration update replica origin dir({}) and temp dir({}) "

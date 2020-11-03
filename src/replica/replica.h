@@ -419,8 +419,7 @@ private:
 
     bool check_migration_replica_on_disk(const migrate_replica_request &req,
                                          /*out*/ migrate_replica_response &resp);
-    void copy_migration_replica_checkpoint(const migrate_replica_request &req,
-                                           /*out*/ migrate_replica_response &resp);
+    void copy_migration_replica_checkpoint(const migrate_replica_request &req);
 
     void update_migration_replica_dir();
 
