@@ -173,7 +173,7 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
 
     // using origin dir init new tmp dir
     std::string replica_folder_name = fmt::format("{}.{}", get_gpid(), _app_info.app_type);
-    std::string replica_folder_tmp_name = fmt::format("{}.disk.balance", replica_folder_name);
+    std::string replica_folder_tmp_name = fmt::format("{}.disk.balance.tmp", replica_folder_name);
     boost::replace_first(replica_dir, replica_folder_name, replica_folder_tmp_name);
     _disk_replica_migration_target_temp_dir = replica_dir;
     std::string tmp_data_dir =
@@ -276,18 +276,29 @@ void replica::copy_migration_replica_checkpoint(const migrate_replica_request &r
 // TODO(jiashuo1) need default
 void replica::update_migration_replica_dir()
 {
-    bool update_origin_dir =
-        dsn::utils::filesystem::rename_path(_dir, fmt::format("{}.{}", _dir, "disk.balance.gar"));
-    bool upadte_new_dir = dsn::utils::filesystem::rename_path(
-        _disk_replica_migration_target_temp_dir, _disk_replica_migration_target_dir);
-
-    if (update_origin_dir && upadte_new_dir) {
-        ddebug_replica("disk replica migration move data from origin dir({}) to new dir({}) "
-                       "success",
-                       _dir,
-                       _disk_replica_migration_target_dir);
-        set_disk_replica_migration_status(disk_replica_migration_status::CLOSED);
+    std::string tmp_dir = fmt::format("{}.{}", _dir, "disk.balance.tmp");
+    if (!dsn::utils::filesystem::rename_path(_dir, tmp_dir)) {
+        reset_replica_migration_status();
+        utils::filesystem::remove_path(_disk_replica_migration_target_temp_dir);
+        return;
     }
+
+    if (!dsn::utils::filesystem::rename_path(_disk_replica_migration_target_temp_dir,
+                                             _disk_replica_migration_target_dir)) {
+        reset_replica_migration_status();
+        utils::filesystem::remove_path(_disk_replica_migration_target_temp_dir);
+        dsn::utils::filesystem::rename_path(tmp_dir, _dir);
+        return;
+    }
+
+    set_disk_replica_migration_status(disk_replica_migration_status::CLOSED);
+    _stub->_fs_manager.remove_replica(get_gpid());
+    _stub->_fs_manager.add_replica(get_gpid(), _disk_replica_migration_target_dir);
+    _stub->update_disk_holding_replicas();
+    ddebug_replica("disk replica migration move data from origin dir({}) to new dir({}) "
+                   "success",
+                   _dir,
+                   _disk_replica_migration_target_dir);
 }
 }
 }
