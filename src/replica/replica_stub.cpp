@@ -1866,7 +1866,7 @@ void replica_stub::on_disk_stat()
             } else {
                 ddebug("gc_disk: reserve directory '%s', wait_seconds = %" PRIu64,
                        fpath.c_str(),
-                       last_write_time + interval_seconds - current_time_ms / 1000);
+                       last_write_time + remove_interval_seconds - current_time_ms / 1000);
             }
         }
     }
