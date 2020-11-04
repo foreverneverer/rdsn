@@ -64,6 +64,15 @@ namespace replication {
 
 bool replica_stub::s_not_exit_on_log_failure = false;
 
+DSN_DEFINE_int32("replication",
+                 gc_disk_migration_tmp_replica_interval_seconds,
+                 86400 /*1day*/,
+                 "...");
+DSN_DEFINE_int32("replication",
+                 gc_disk_migration_origin_replica_interval_seconds,
+                 604800 /*7day*/,
+                 "...");
+
 replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
                            bool is_long_subscriber /* = true*/)
     : serverlet("replica_stub"),
@@ -493,9 +502,12 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     std::deque<task_ptr> load_tasks;
     uint64_t start_time = dsn_now_ms();
     for (auto &dir : dir_list) {
-        if (dir.length() >= 4 &&
-            (dir.substr(dir.length() - 4) == ".err" || dir.substr(dir.length() - 4) == ".gar" ||
-             dir.substr(dir.length() - 4) == ".bak")) {
+        if (dir.length() < 4) {
+            continue;
+        }
+        std::string folder_suffix = dir.substr(dir.length() - 4);
+        if (folder_suffix == ".err" || folder_suffix == ".gar" || folder_suffix == ".bak" ||
+            folder_suffix == ".tmp" || folder_suffix == ".ori") {
             ddebug("ignore dir %s", dir.c_str());
             continue;
         }
@@ -1805,10 +1817,15 @@ void replica_stub::on_disk_stat()
     int garbage_replica_dir_count = 0;
     for (auto &fpath : sub_list) {
         auto name = dsn::utils::filesystem::get_file_name(fpath);
+        if (name.length() < 4) {
+            continue;
+        }
+
+        std::string folder_suffix = name.substr(name.length() - 4);
         // don't delete ".bak" directory because it is backed by administrator.
-        if (name.length() >= 4 && (name.substr(name.length() - 4) == ".err" ||
-                                   name.substr(name.length() - 4) == ".gar")) {
-            if (name.substr(name.length() - 4) == ".err") {
+        if ((folder_suffix == ".err" || folder_suffix == ".gar" || folder_suffix == ".tmp" ||
+             folder_suffix == ".ori")) {
+            if (folder_suffix == ".err") {
                 error_replica_dir_count++;
             } else {
                 garbage_replica_dir_count++;
@@ -1822,10 +1839,19 @@ void replica_stub::on_disk_stat()
 
             uint64_t last_write_time = (uint64_t)mt;
             uint64_t current_time_ms = dsn_now_ms();
-            uint64_t interval_seconds = (name.substr(name.length() - 4) == ".err"
-                                             ? _gc_disk_error_replica_interval_seconds
-                                             : _gc_disk_garbage_replica_interval_seconds);
-            if (last_write_time + interval_seconds <= current_time_ms / 1000) {
+            uint64_t remove_interval_seconds = current_time_ms / 1000;
+
+            if (folder_suffix == ".err") {
+                remove_interval_seconds = _gc_disk_error_replica_interval_seconds;
+            } else if (folder_suffix == ".gar") {
+                remove_interval_seconds = _gc_disk_garbage_replica_interval_seconds;
+            } else if (folder_suffix == ".tmp") {
+                remove_interval_seconds = FLAGS_gc_disk_migration_tmp_replica_interval_seconds;
+            } else if (folder_suffix == ".ori") {
+                remove_interval_seconds = FLAGS_gc_disk_migration_origin_replica_interval_seconds;
+            }
+
+            if (last_write_time + remove_interval_seconds <= current_time_ms / 1000) {
                 if (!dsn::utils::filesystem::remove_path(fpath)) {
                     dwarn("gc_disk: failed to delete directory '%s', time_used_ms = %" PRIu64,
                           fpath.c_str(),
