@@ -1946,7 +1946,7 @@ void replica_stub::open_replica(const app_info &app,
                 fmt::format("{}.{}", app.app_type, "disk.balance.tmp").c_str(), id, false);
             if (!origin_dir.empty()) {
                 ddebug_f("start revert and load disk migration origin replica data({})",
-                         disk_tmp_dir);
+                         origin_dir);
                 dsn::utils::filesystem::rename_path(dir, fmt::format("{}.{}", dir, ".gar"));
                 boost::replace_first(origin_dir, ".disk.balance.tmp", "");
                 rep = replica::load(this, origin_dir.c_str());
