@@ -1564,10 +1564,11 @@ void replication_ddl_client::disk_rebalance(
         request->origin_disk = from;
         request->target_disk = to;
         migrate_replica_rpcs.emplace(target,
-                                     migrate_replica_rpc(std::move(request), RPC_MIGRATE_REPLICA),
-                                     /*never timeout*/ 0_ms,
-                                     /*partition_hash*/ 0,
-                                     gpid.thread_hash());
+                                     migrate_replica_rpc(std::move(request),
+                                                         RPC_MIGRATE_REPLICA,
+                                                         /*never timeout*/ 0_ms,
+                                                         /*partition_hash*/ 0,
+                                                         gpid.thread_hash()));
     }
     call_rpcs_sync(migrate_replica_rpcs, resps);
 }
