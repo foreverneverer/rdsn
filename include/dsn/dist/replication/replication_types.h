@@ -3300,7 +3300,8 @@ typedef struct _disk_info__isset
           disk_capacity_mb(false),
           disk_available_mb(false),
           holding_primary_replicas(false),
-          holding_secondary_replicas(false)
+          holding_secondary_replicas(false),
+          holding_replicas(false)
     {
     }
     bool tag : 1;
@@ -3309,6 +3310,7 @@ typedef struct _disk_info__isset
     bool disk_available_mb : 1;
     bool holding_primary_replicas : 1;
     bool holding_secondary_replicas : 1;
+    bool holding_replicas : 1;
 } _disk_info__isset;
 
 class disk_info
@@ -3327,6 +3329,7 @@ public:
     int64_t disk_available_mb;
     std::map<int32_t, std::set<::dsn::gpid>> holding_primary_replicas;
     std::map<int32_t, std::set<::dsn::gpid>> holding_secondary_replicas;
+    std::map<int32_t, std::set<::dsn::gpid>> holding_replicas;
 
     _disk_info__isset __isset;
 
@@ -3342,6 +3345,8 @@ public:
 
     void __set_holding_secondary_replicas(const std::map<int32_t, std::set<::dsn::gpid>> &val);
 
+    void __set_holding_replicas(const std::map<int32_t, std::set<::dsn::gpid>> &val);
+
     bool operator==(const disk_info &rhs) const
     {
         if (!(tag == rhs.tag))
@@ -3355,6 +3360,8 @@ public:
         if (!(holding_primary_replicas == rhs.holding_primary_replicas))
             return false;
         if (!(holding_secondary_replicas == rhs.holding_secondary_replicas))
+            return false;
+        if (!(holding_replicas == rhs.holding_replicas))
             return false;
         return true;
     }

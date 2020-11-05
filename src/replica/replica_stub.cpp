@@ -985,6 +985,7 @@ void replica_stub::on_query_disk_info(query_disk_info_rpc rpc)
         if (req.app_name.empty()) {
             info.holding_primary_replicas = dir_node->holding_primary_replicas;
             info.holding_secondary_replicas = dir_node->holding_secondary_replicas;
+            info.holding_replicas = dir_node->holding_replicas;
         } else {
             const auto &primary_iter = dir_node->holding_primary_replicas.find(app_id);
             if (primary_iter != dir_node->holding_primary_replicas.end()) {
@@ -994,6 +995,11 @@ void replica_stub::on_query_disk_info(query_disk_info_rpc rpc)
             const auto &secondary_iter = dir_node->holding_secondary_replicas.find(app_id);
             if (secondary_iter != dir_node->holding_secondary_replicas.end()) {
                 info.holding_secondary_replicas[app_id] = secondary_iter->second;
+            }
+
+            const auto &total_iter = dir_node->holding_replicas.find(app_id);
+            if (total_iter != dir_node->holding_replicas.end()) {
+                info.holding_replicas[app_id] = total_iter->second;
             }
         }
         info.tag = dir_node->tag;

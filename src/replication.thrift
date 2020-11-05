@@ -459,6 +459,7 @@ struct disk_info
     // app_id=>set<gpid>
     5:map<i32,set<dsn.gpid>> holding_primary_replicas;
     6:map<i32,set<dsn.gpid>> holding_secondary_replicas;
+    7:map<i32,set<dsn.gpid>> holding_replicas;
 }
 
 // This request is sent from client to replica_server.
