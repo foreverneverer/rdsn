@@ -294,7 +294,6 @@ void replica::update_migration_replica_dir()
     set_disk_replica_migration_status(disk_replica_migration_status::CLOSED);
     _stub->_fs_manager.remove_replica(get_gpid());
     _stub->_fs_manager.add_replica(get_gpid(), _disk_replica_migration_target_dir);
-    // TODO(jiashuo1) need fix, in closed it will not run
     _stub->update_disk_holding_replicas();
     ddebug_replica("disk replica migration move data from origin dir({}) to new dir({}) "
                    "success",
