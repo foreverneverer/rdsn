@@ -2781,8 +2781,10 @@ void replica_stub::update_disk_holding_replicas()
             for (const auto &pid : pids) {
                 replica_ptr replica = get_replica(pid);
                 if (replica == nullptr) {
+                    derror_f("migration null={}", pid.to_string());
                     continue;
                 }
+                 derror_f("migration nonull={}", pid.to_string());
                 if (replica->status() == partition_status::PS_PRIMARY) {
                     dir_node->holding_primary_replicas[holding_replicas.first].emplace(pid);
                 } else if (replica->status() == partition_status::PS_SECONDARY) {
