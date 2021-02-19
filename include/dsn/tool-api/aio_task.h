@@ -27,6 +27,7 @@
 #pragma once
 
 #include <dsn/tool-api/task.h>
+#include <dsn/dist/fmt_logging.h>
 #include <dsn/perf_counter/perf_counter_wrapper.h>
 #include <vector>
 
@@ -88,7 +89,7 @@ public:
     int64_t aioSubmitTime;
     int64_t aioExecTime;
     int64_t aioCompleteTime;
-    int64_t callbackSubmitTime;
+    int64_t callbackSubmitTime = 0;
     int64_t callbackExecTime;
     int64_t callbackCompleteTime;
 
@@ -115,12 +116,12 @@ public:
     {
         if (nullptr != _cb) {
             callbackExecTime = dsn_now_ns();
-            if (slog) {
+            if (slog && !callbackSubmitTime) {
                 callback_submit2exec_latency->set(callbackExecTime - callbackSubmitTime);
             }
             _cb(_error, _transferred_size);
             callbackCompleteTime = dsn_now_ns();
-            if (slog) {
+            if (slog && !callbackSubmitTime) {
                 callback_exec2complete_latency->set(callbackCompleteTime - callbackExecTime);
             }
         }
