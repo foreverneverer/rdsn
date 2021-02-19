@@ -118,7 +118,7 @@ public:
             callbackExecTime = dsn_now_ns();
             if (slog && callbackSubmitTime != 0) {
                 callback_submit2exec_latency->set(callbackExecTime - callbackSubmitTime);
-                dwarn_f("cb_sub->exec={}(sub={}, exec={})", callbackExecTime - callbackSubmitTime, callbackSubmitTime, callbackExecTime);
+               // dwarn_f("cb_sub->exec={}(sub={}, exec={})", callbackExecTime - callbackSubmitTime, callbackSubmitTime, callbackExecTime);
             }
             _cb(_error, _transferred_size);
             callbackCompleteTime = dsn_now_ns();
