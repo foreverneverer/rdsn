@@ -17,7 +17,7 @@ aio_task::aio_task(dsn::task_code code, aio_handler &&cb, int hash, service_node
     : task(code, hash, node), _cb(std::move(cb))
 {
     _is_null = (_cb == nullptr);
-
+    aioCreateTime = dsn_now_ns();
     dassert(TASK_TYPE_AIO == spec().type,
             "%s is not of AIO type, please use DEFINE_TASK_CODE_AIO to define the task code",
             spec().name.c_str());
