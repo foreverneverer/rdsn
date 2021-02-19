@@ -120,6 +120,9 @@ namespace file {
                                      int hash /*= 0*/)
 {
     auto cb = create_aio_task(callback_code, tracker, std::move(callback), hash);
+
+    cb->aioCreateTime = dsn_now_ns();
+
     cb->get_aio_context()->file = file;
     cb->get_aio_context()->file_offset = offset;
     cb->get_aio_context()->type = AIO_Write;

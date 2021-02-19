@@ -27,9 +27,13 @@
 #pragma once
 
 #include <dsn/tool-api/task.h>
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 #include <vector>
 
 namespace dsn {
+
+extern dsn::perf_counter_wrapper callback_submit2exec_latency;
+extern dsn::perf_counter_wrapper callback_exec2complete_latency;
 
 enum aio_type
 {
@@ -79,6 +83,16 @@ typedef dsn::ref_ptr<aio_context> aio_context_ptr;
 class aio_task : public task
 {
 public:
+    bool slog;
+    int64_t aioCreateTime;
+    int64_t aioSubmitTime;
+    int64_t aioExecTime;
+    int64_t aioCompleteTime;
+    int64_t callbackSubmitTime;
+    int64_t callbackExecTime;
+    int64_t callbackCompleteTime;
+
+public:
     aio_task(task_code code, const aio_handler &cb, int hash = 0, service_node *node = nullptr);
     aio_task(task_code code, aio_handler &&cb, int hash = 0, service_node *node = nullptr);
 
@@ -100,7 +114,15 @@ public:
     virtual void exec() override
     {
         if (nullptr != _cb) {
+            callbackExecTime = dsn_now_ns();
+            if (slog) {
+                callback_submit2exec_latency->set(callbackExecTime - callbackSubmitTime);
+            }
             _cb(_error, _transferred_size);
+            callbackCompleteTime = dsn_now_ns();
+            if (slog) {
+                callback_exec2complete_latency->set(callbackCompleteTime - callbackExecTime);
+            }
         }
     }
 
