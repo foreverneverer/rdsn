@@ -85,13 +85,13 @@ class aio_task : public task
 {
 public:
     bool slog;
-    int64_t aioCreateTime;
-    int64_t aioSubmitTime;
-    int64_t aioExecTime;
-    int64_t aioCompleteTime;
+    int64_t aioCreateTime = 0;
+    int64_t aioSubmitTime = 0;
+    int64_t aioExecTime = 0;
+    int64_t aioCompleteTime = 0;
     int64_t callbackSubmitTime = 0;
-    int64_t callbackExecTime;
-    int64_t callbackCompleteTime;
+    int64_t callbackExecTime = 0;
+    int64_t callbackCompleteTime = 0;
 
 public:
     aio_task(task_code code, const aio_handler &cb, int hash = 0, service_node *node = nullptr);
