@@ -26,6 +26,7 @@
 
 #include "disk_engine.h"
 #include <dsn/tool-api/file_io.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace file {
@@ -129,6 +130,11 @@ namespace file {
         }
     }
 
+    std::string log_format = fmt::format("{}, local_end={}, file_end={}",
+                                         file->log_format,
+                                         file->local_start + cb->get_aio_context()->buffer_size,
+                                         file->log_start +  file->local_start + cb->get_aio_context()->buffer_size);
+    cb->get_aio_context()->log_format = log_format;
     disk_engine::instance().write(cb);
     return cb;
 }

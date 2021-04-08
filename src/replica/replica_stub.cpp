@@ -1597,7 +1597,7 @@ void replica_stub::response_client(gpid id,
     }
 
     if (request != nullptr) {
-        derror_f("jiashuodebug:{}", error.to_string() );
+        derror_f("jiashuodebug:{}", error.to_string());
         dsn_rpc_reply(request->create_response(), error);
     }
 }

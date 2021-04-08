@@ -26,6 +26,7 @@
 
 #include "log_file.h"
 #include "log_file_stream.h"
+#include "aio/disk_engine.h"
 
 #include <dsn/utility/filesystem.h>
 #include <dsn/utility/crc.h>
@@ -270,8 +271,16 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
     size_t vec_size = pending.blob_count();
     std::vector<dsn_file_buffer_t> buffer_vector(vec_size);
     int buffer_idx = 0;
+    int block_idx = 0;
+    std::string log_format = fmt::format("start={}", start_offset());
     for (log_block &block : pending.all_blocks()) {
         int64_t local_offset = block.start_offset() - start_offset();
+        log_format = fmt::format("{}, block_idx[{}]({}-{})",
+                                 log_format,
+                                 block_idx,
+                                 local_offset,
+                                 local_offset + (block.size()));
+        block_idx++;
         auto hdr = reinterpret_cast<log_block_header *>(const_cast<char *>(block.front().data()));
 
         dassert(hdr->magic == 0xdeadbeef, "");
@@ -295,9 +304,13 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
         }
         _crc32 = hdr->body_crc;
     }
-
     aio_task_ptr tsk;
     int64_t local_offset = pending.start_offset() - start_offset();
+    _handle->log_start = start_offset();
+    _handle->local_start = local_offset;
+    _handle->log_format = log_format;
+    // derror_f("jiashuodebug: ready write start {}[{}]:{}\n", start_offset(), local_offset,
+    // log_format);
     if (callback) {
         tsk = file::write_vector(_handle,
                                  buffer_vector.data(),

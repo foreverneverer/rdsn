@@ -62,6 +62,10 @@ public:
     // TODO(wutao1): make it uint64_t
     dsn_handle_t native_handle() const { return _handle; }
 
+    std::string log_format;
+    uint64_t log_start;
+    uint64_t local_start;
+
 private:
     dsn_handle_t _handle;
     disk_write_queue _write_queue;

@@ -53,6 +53,7 @@ public:
     void *buffer;
     uint32_t buffer_size;
     uint64_t file_offset;
+    std::string log_format;
 
     // filled by frameworks
     aio_type type;
