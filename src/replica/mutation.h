@@ -61,7 +61,7 @@ public:
     mutation();
     virtual ~mutation();
 
-    std::string to_string() {
+    void to_string() {
         derror_f("dup_debug_jiashuo: tid:{}, last_commit_decree:{}, decree:{}, log_offset:{}", tid(), data.header.last_committed_decree, data.header.decree , data.header.log_offset);
     } 
 
