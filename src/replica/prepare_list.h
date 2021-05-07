@@ -29,6 +29,7 @@
 #include "mutation_cache.h"
 
 #include <dsn/dist/replication/replica_base.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace replication {
@@ -59,6 +60,10 @@ public:
     void reset(decree init_decree);
     void truncate(decree init_decree);
     void set_committer(mutation_committer committer) { _committer = committer; }
+
+    std::string to_string() {
+        derror_f("dup_debug_jiashuo: last_commit_decree:{}, min_decree:{}, max_offset:{}",_last_committed_decree, min_decree(),max_decree());
+    } 
 
     //
     // for two-phase commit

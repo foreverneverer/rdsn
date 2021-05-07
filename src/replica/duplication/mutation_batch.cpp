@@ -49,6 +49,8 @@ error_s mutation_batch::add(mutation_ptr mu)
         return error_s::ok();
     }
 
+  _mutation_buffer->to_string();
+  mu->to_string();
     error_code ec = _mutation_buffer->prepare(mu, partition_status::PS_INACTIVE);
     if (ec != ERR_OK) {
         return FMT_ERR(
@@ -88,8 +90,11 @@ mutation_batch::mutation_batch(replica_duplicator *r) : replica_base(r)
             add_mutation_if_valid(mu, _loaded_mutations, _start_decree);
         });
 
+        _mutation_buffer->to_string();
+
     // start duplication from confirmed_decree
     _mutation_buffer->reset(r->progress().confirmed_decree);
+     _mutation_buffer->to_string();
 }
 
 /*extern*/ void

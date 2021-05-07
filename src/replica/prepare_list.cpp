@@ -121,6 +121,7 @@ error_code prepare_list::prepare(mutation_ptr &mu,
             reset(mu->data.header.last_committed_decree);
         } else if (mu->data.header.last_committed_decree > _last_committed_decree) {
             // all mutations with lower decree must be ready
+            mu->to_string();
             commit(mu->data.header.last_committed_decree, COMMIT_TO_DECREE_HARD);
         }
         // pop committed mutations if buffer is full

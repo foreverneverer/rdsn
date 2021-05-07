@@ -40,6 +40,7 @@
 #include <atomic>
 #include <dsn/utility/link.h>
 #include <dsn/utils/latency_tracer.h>
+#include <dsn/dist/fmt_logging.h>
 
 #ifndef __linux__
 #pragma warning(disable : 4201)
@@ -59,6 +60,10 @@ class mutation : public ref_counter
 public:
     mutation();
     virtual ~mutation();
+
+    std::string to_string() {
+        derror_f("dup_debug_jiashuo: tid:{}, last_commit_decree:{}, decree:{}, log_offset:{}", tid(), data.header.last_committed_decree, data.header.decree , data.header.log_offset);
+    } 
 
     // copy mutation from an existing mutation, typically used in partition split
     // mutation should not reply to client, because parent has already replied
