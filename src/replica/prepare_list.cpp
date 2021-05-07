@@ -151,6 +151,8 @@ void prepare_list::commit(decree d, commit_type ct)
         for (decree d0 = last_committed_decree() + 1; d0 <= d; d0++) {
             mutation_ptr mu = get_mutation_by_decree(d0);
 
+             dassert_replica(
+                mu != nullptr, "mutation {} is missing in prepare list", d0);
             dassert_replica(
                 mu != nullptr && mu->is_logged(), "mutation {} is missing in prepare list", d0);
             dcheck_ge_replica(mu->data.header.ballot, last_bt);
