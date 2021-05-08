@@ -150,7 +150,7 @@ void prepare_list::commit(decree d, commit_type ct)
     ballot last_bt = 0;
     switch (ct) {
     case COMMIT_TO_DECREE_HARD: {
-        derror_f("prepare_list::commit=>mu={}, prepare_list={}", mu->to_string(),  to_string());
+        derror_f("prepare_list::commit=>mu={}, prepare_list={}", d,  to_string());
         for (decree d0 = last_committed_decree() + 1; d0 <= d; d0++) {
             mutation_ptr mu = get_mutation_by_decree(d0);
 
