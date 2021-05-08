@@ -65,7 +65,7 @@ void load_from_private_log::run()
         }
     }
 
-    derror_f("load_from_private_log::run={}", _mutation_batch->_mutation_buffer->to_string());
+    derror_f("load_from_private_log::run={}", _mutation_batch._mutation_buffer->to_string());
     replay_log_block();
 }
 
