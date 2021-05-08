@@ -40,6 +40,7 @@ prepare_list::prepare_list(replica_base *r,
 {
     _committer = std::move(committer);
     _last_committed_decree = init_decree;
+    prepare_id = dsn_now_ns();
 }
 
 prepare_list::prepare_list(replica_base *r, const prepare_list &parent_plist)
