@@ -61,8 +61,8 @@ public:
     void truncate(decree init_decree);
     void set_committer(mutation_committer committer) { _committer = committer; }
 
-    void to_string() {
-        derror_f("dup_debug_jiashuo: last_commit_decree:{}, min_decree:{}, max_offset:{}",_last_committed_decree, min_decree(),max_decree());
+    std::string to_string() {
+        return fmt::format("dup_debug_jiashuo: prepare_list: last_commit_decree:{}, min_decree:{}, max_decree:{}", _last_committed_decree, min_decree(),max_decree());
     } 
 
     //

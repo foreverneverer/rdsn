@@ -72,6 +72,7 @@ error_code prepare_list::prepare(mutation_ptr &mu,
                                  partition_status::type status,
                                  bool pop_all_committed_mutations)
 {
+    derror_f("prepare_list::prepare=>mu={}, prepare_list={}", mu->to_string(),  to_string());
     decree d = mu->data.header.decree;
     dcheck_gt_replica(d, last_committed_decree());
 
@@ -149,6 +150,7 @@ void prepare_list::commit(decree d, commit_type ct)
     ballot last_bt = 0;
     switch (ct) {
     case COMMIT_TO_DECREE_HARD: {
+        derror_f("prepare_list::commit=>mu={}, prepare_list={}", mu->to_string(),  to_string());
         for (decree d0 = last_committed_decree() + 1; d0 <= d; d0++) {
             mutation_ptr mu = get_mutation_by_decree(d0);
 
