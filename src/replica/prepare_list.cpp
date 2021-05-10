@@ -44,7 +44,6 @@ prepare_list::prepare_list(replica_base *r,
 
     derror_f("prepare_list::prepare_list={}", to_string());
 }
-}
 
 prepare_list::prepare_list(replica_base *r, const prepare_list &parent_plist)
     : mutation_cache(parent_plist), replica_base(r)
