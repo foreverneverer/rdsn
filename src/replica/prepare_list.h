@@ -61,9 +61,15 @@ public:
     void truncate(decree init_decree);
     void set_committer(mutation_committer committer) { _committer = committer; }
 
-    std::string to_string() {
-        return fmt::format("dup_debug_jiashuo: prepare_list[{}]: last_commit_decree:{}, min_decree:{}, max_decree:{}", prepare_id, _last_committed_decree, min_decree(),max_decree());
-    } 
+    std::string to_string()
+    {
+        return fmt::format("dup_debug_jiashuo: prepare_list[{}]: last_commit_decree:{}, "
+                           "min_decree:{}, max_decree:{}",
+                           prepare_id,
+                           _last_committed_decree,
+                           min_decree(),
+                           max_decree());
+    }
 
     //
     // for two-phase commit
@@ -76,7 +82,7 @@ public:
     void commit(decree decree, commit_type ct);                   // ordered commit
 
 private:
-     int64_t prepare_id;
+    int64_t prepare_id;
     decree _last_committed_decree;
     mutation_committer _committer;
 };

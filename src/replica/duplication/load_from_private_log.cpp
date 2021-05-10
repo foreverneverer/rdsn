@@ -220,7 +220,8 @@ void load_from_private_log::set_start_decree(decree start_decree)
     _start_decree = start_decree;
     _mutation_batch.set_start_decree(start_decree);
 
-     derror_f("load_from_private_log::set_start_decree={}", _mutation_batch._mutation_buffer->to_string());
+    derror_f("load_from_private_log::set_start_decree={}",
+             _mutation_batch._mutation_buffer->to_string());
 }
 
 void load_from_private_log::start_from_log_file(log_file_ptr f)

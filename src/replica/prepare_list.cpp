@@ -42,7 +42,7 @@ prepare_list::prepare_list(replica_base *r,
     _last_committed_decree = init_decree;
     prepare_id = dsn_now_ns();
 
-     derror_f("prepare_list::prepare_list={}", to_string());
+    derror_f("prepare_list::prepare_list={}", to_string());
 }
 }
 
@@ -56,7 +56,7 @@ prepare_list::prepare_list(replica_base *r, const prepare_list &parent_plist)
 
 void prepare_list::reset(decree init_decree)
 {
-     derror_f("prepare_list::reset::before={}", to_string());
+    derror_f("prepare_list::reset::before={}", to_string());
     _last_committed_decree = init_decree;
     mutation_cache::reset(init_decree, true);
     derror_f("prepare_list::reset::after={}", to_string());
@@ -81,7 +81,7 @@ error_code prepare_list::prepare(mutation_ptr &mu,
                                  partition_status::type status,
                                  bool pop_all_committed_mutations)
 {
-    derror_f("prepare_list::prepare::before=>mu={}, prepare_list={}", mu->to_string(),  to_string());
+    derror_f("prepare_list::prepare::before=>mu={}, prepare_list={}", mu->to_string(), to_string());
     decree d = mu->data.header.decree;
     dcheck_gt_replica(d, last_committed_decree());
 
@@ -140,14 +140,16 @@ error_code prepare_list::prepare(mutation_ptr &mu,
         }
         err = mutation_cache::put(mu);
         dassert_replica(err == ERR_OK, "mutation_cache::put failed, err = {}", err);
-        derror_f("prepare_list::prepare::partition_status::PS_INACTIVE=>mu={}, prepare_list={}", mu->to_string(),  to_string());
+        derror_f("prepare_list::prepare::partition_status::PS_INACTIVE=>mu={}, prepare_list={}",
+                 mu->to_string(),
+                 to_string());
         return err;
 
     default:
         dassert(false, "invalid partition_status, status = %s", enum_to_string(status));
         return dsn::ERR_OK;
     }
-    derror_f("prepare_list::prepare::after=>mu={}, prepare_list={}", mu->to_string(),  to_string());
+    derror_f("prepare_list::prepare::after=>mu={}, prepare_list={}", mu->to_string(), to_string());
 }
 
 //
@@ -158,16 +160,16 @@ void prepare_list::commit(decree d, commit_type ct)
     if (d <= last_committed_decree())
         return;
 
-    derror_f("prepare_list::commit::after=>mu={}, prepare_list={}", mu->to_string(),  to_string());
+    derror_f("prepare_list::commit::after=>mu={}, prepare_list={}", mu->to_string(), to_string());
     ballot last_bt = 0;
     switch (ct) {
     case COMMIT_TO_DECREE_HARD: {
-        derror_f("prepare_list::commit::COMMIT_TO_DECREE_HARD=>mu={}, prepare_list={}", d,  to_string());
+        derror_f(
+            "prepare_list::commit::COMMIT_TO_DECREE_HARD=>mu={}, prepare_list={}", d, to_string());
         for (decree d0 = last_committed_decree() + 1; d0 <= d; d0++) {
             mutation_ptr mu = get_mutation_by_decree(d0);
 
-             dassert_replica(
-                mu != nullptr, "mutation {} is missing in prepare list", d0);
+            dassert_replica(mu != nullptr, "mutation {} is missing in prepare list", d0);
             dassert_replica(
                 mu != nullptr && mu->is_logged(), "mutation {} is missing in prepare list", d0);
             dcheck_ge_replica(mu->data.header.ballot, last_bt);
@@ -213,7 +215,7 @@ void prepare_list::commit(decree d, commit_type ct)
         dassert(false, "invalid commit type %d", (int)ct);
     }
 
-      derror_f("prepare_list::commit::end=>mu={}, prepare_list={}", d,  to_string());
+    derror_f("prepare_list::commit::end=>mu={}, prepare_list={}", d, to_string());
     return;
 }
 } // namespace replication

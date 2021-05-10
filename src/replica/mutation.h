@@ -61,9 +61,15 @@ public:
     mutation();
     virtual ~mutation();
 
-    std::string to_string() {
-        return fmt::format("dup_debug_jiashuo: mutation: tid:{}, need_catch_up_last_commit_decree:{}, decree:{}, log_offset:{}", tid(), data.header.last_committed_decree, data.header.decree , data.header.log_offset);
-    } 
+    std::string to_string()
+    {
+        return fmt::format("dup_debug_jiashuo: mutation: tid:{}, "
+                           "need_catch_up_last_commit_decree:{}, decree:{}, log_offset:{}",
+                           tid(),
+                           data.header.last_committed_decree,
+                           data.header.decree,
+                           data.header.log_offset);
+    }
 
     // copy mutation from an existing mutation, typically used in partition split
     // mutation should not reply to client, because parent has already replied
