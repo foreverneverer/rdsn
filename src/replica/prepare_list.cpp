@@ -159,7 +159,7 @@ void prepare_list::commit(decree d, commit_type ct)
     if (d <= last_committed_decree())
         return;
 
-    derror_f("prepare_list::commit::after=>mu={}, prepare_list={}", mu->to_string(), to_string());
+    derror_f("prepare_list::commit::after=>mu={}, prepare_list={}", d, to_string());
     ballot last_bt = 0;
     switch (ct) {
     case COMMIT_TO_DECREE_HARD: {
