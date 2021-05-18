@@ -1540,13 +1540,13 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                        _app->last_committed_decree(),
                        _options->max_mutation_count_in_prepare_list,
                        [this, duplicating](mutation_ptr &mu) {
-                            derror_replica("jiashuo_debug: succeed to replay log: mu={}, app_last={}", mu->data.header.decree, _app->last_committed_decree());
                            if (mu->data.header.decree == _app->last_committed_decree() + 1) {
                                // TODO: assign the returned error_code to err and check it
                                _app->apply_mutation(mu);
 
                                // appends logs-in-cache into plog to ensure them can be duplicated.
                                if (duplicating) {
+                                    derror_replica("jiashuo_debug: succeed to replay log: mu={}, app_last={}", mu->data.header.decree, _app->last_committed_decree());
                                    _private_log->append(
                                        mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
                                }
