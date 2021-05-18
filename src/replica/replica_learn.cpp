@@ -1504,6 +1504,11 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
 
     if (duplicating && state.__isset.learn_start_decree &&
         state.learn_start_decree < _app->last_committed_decree() + 1) {
+        derror_replica("jiashuo_debug: learn need duplicate: dir={}, state.learn_start_decree={}, "
+                       "_app->last_committed_decree() + 1={}",
+                       _private_log->dir(),
+                       state.learn_start_decree,
+                       _app->last_committed_decree() + 1);
         // it means this round of learn must have been stepped back
         // to include all the unconfirmed.
 
@@ -1517,7 +1522,9 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
         if (err != ERR_OK) {
             derror_replica("failed to reset this private log with logs in learn/ dir: {}", err);
             return err;
-        }
+        } 
+
+         derror_replica("jiashuo_debug: succeed to reset this private log with logs in learn/ dir: {}", _private_log->dir());
 
         // only the uncommitted logs will be replayed and applied into storage.
         learn_state tmp_state;
@@ -1533,6 +1540,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                        _app->last_committed_decree(),
                        _options->max_mutation_count_in_prepare_list,
                        [this, duplicating](mutation_ptr &mu) {
+                            derror_replica("jiashuo_debug: succeed to replay log: mu={}, app_last={}", mu->data.header.decree, _app->last_committed_decree());
                            if (mu->data.header.decree == _app->last_committed_decree() + 1) {
                                // TODO: assign the returned error_code to err and check it
                                _app->apply_mutation(mu);
@@ -1542,6 +1550,8 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                                    _private_log->append(
                                        mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
                                }
+                           } else {
+                               derror_replica("jiashuo_debug: ignore to duplicate log: mu={}, app_last={}", mu->data.header.decree, _app->last_committed_decree());
                            }
                        });
 
