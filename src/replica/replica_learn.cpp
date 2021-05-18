@@ -1546,7 +1546,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
              derror_replica("jiashuo_debug: commiter replay log: mu={}, app_last={}",
                                    mu->data.header.decree,
                                    _app->last_committed_decree());
-                                   
+
             if (mu->data.header.decree == _app->last_committed_decree() + 1) {
                 // TODO: assign the returned error_code to err and check it
                 _app->apply_mutation(mu);
@@ -1583,7 +1583,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                 return false;
             }
 
-             derror_replica("jiashuo_debug: ignoreCCC: mu={}, app_last={}",
+             derror_replica("jiashuo_debug: selectCCC: mu={}, app_last={}",
                                d,
                                plist.last_committed_decree());
             plist.prepare(mu, partition_status::PS_SECONDARY);
