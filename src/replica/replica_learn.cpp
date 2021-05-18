@@ -1522,9 +1522,11 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
         if (err != ERR_OK) {
             derror_replica("failed to reset this private log with logs in learn/ dir: {}", err);
             return err;
-        } 
+        }
 
-         derror_replica("jiashuo_debug: succeed to reset this private log with logs in learn/ dir: {}", _private_log->dir());
+        derror_replica(
+            "jiashuo_debug: succeed to reset this private log with logs in learn/ dir: {}",
+            _private_log->dir());
 
         // only the uncommitted logs will be replayed and applied into storage.
         learn_state tmp_state;
@@ -1536,40 +1538,51 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
     error_code err;
 
     // temp prepare list for learning purpose
-    prepare_list plist(this,
-                       _app->last_committed_decree(),
-                       _options->max_mutation_count_in_prepare_list,
-                       [this, duplicating](mutation_ptr &mu) {
-                           if (mu->data.header.decree == _app->last_committed_decree() + 1) {
-                               // TODO: assign the returned error_code to err and check it
-                               _app->apply_mutation(mu);
+    prepare_list plist(
+        this,
+        _app->last_committed_decree(),
+        _options->max_mutation_count_in_prepare_list,
+        [this, duplicating](mutation_ptr &mu) {
+            if (mu->data.header.decree == _app->last_committed_decree() + 1) {
+                // TODO: assign the returned error_code to err and check it
+                _app->apply_mutation(mu);
 
-                               // appends logs-in-cache into plog to ensure them can be duplicated.
-                               if (duplicating) {
-                                    derror_replica("jiashuo_debug: succeed to replay log: mu={}, app_last={}", mu->data.header.decree, _app->last_committed_decree());
-                                   _private_log->append(
-                                       mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
-                               }
-                           } else {
-                               derror_replica("jiashuo_debug: ignore to duplicate log: mu={}, app_last={}", mu->data.header.decree, _app->last_committed_decree());
-                           }
-                       });
+                // appends logs-in-cache into plog to ensure them can be duplicated.
+                if (duplicating) {
+                    derror_replica("jiashuo_debug: succeed to replay log: mu={}, app_last={}",
+                                   mu->data.header.decree,
+                                   _app->last_committed_decree());
+                    _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+                }
+            } else {
+                derror_replica("jiashuo_debug: ignore to duplicate log: mu={}, app_last={}",
+                               mu->data.header.decree,
+                               _app->last_committed_decree());
+            }
+        });
 
-    err = mutation_log::replay(state.files,
-                               [&plist](int log_length, mutation_ptr &mu) {
-                                   auto d = mu->data.header.decree;
-                                   if (d <= plist.last_committed_decree())
-                                       return false;
+    err = mutation_log::replay(
+        state.files,
+        [&plist](int log_length, mutation_ptr &mu) {
+            auto d = mu->data.header.decree;
+            if (d <= plist.last_committed_decree()) {
+                derror_replica("jiashuo_debug: ignoreAAA: mu={}, app_last={}",
+                               d,
+                               plist.last_committed_decree());
+                return false;
+            }
+            auto old = plist.get_mutation_by_decree(d);
+            if (old != nullptr && old->data.header.ballot >= mu->data.header.ballot) {
+                derror_replica("jiashuo_debug: ignoreBBB: old_ballot={}, mu_ballot={}",
+                               old->data.header.ballot,
+                               mu->data.header.ballot);
+                return false;
+            }
 
-                                   auto old = plist.get_mutation_by_decree(d);
-                                   if (old != nullptr &&
-                                       old->data.header.ballot >= mu->data.header.ballot)
-                                       return false;
-
-                                   plist.prepare(mu, partition_status::PS_SECONDARY);
-                                   return true;
-                               },
-                               offset);
+            plist.prepare(mu, partition_status::PS_SECONDARY);
+            return true;
+        },
+        offset);
 
     // update first_learn_start_decree, the position where the first round of LT_LOG starts from.
     // we use this value to determine whether to learn back from min_confirmed_decree
