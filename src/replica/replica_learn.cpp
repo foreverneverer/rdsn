@@ -1544,8 +1544,9 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
         _options->max_mutation_count_in_prepare_list,
         [this, duplicating](mutation_ptr &mu) {
             derror_replica("jiashuo_debug: plog={}, commiter replay log: mu={}, app_last={}",
-                           _private_log->dir();
-                           mu->data.header.decree, _app->last_committed_decree());
+                           _private_log->dir(),
+                           mu->data.header.decree,
+                           _app->last_committed_decree());
 
             if (mu->data.header.decree == _app->last_committed_decree() + 1) {
                 // TODO: assign the returned error_code to err and check it
@@ -1555,15 +1556,17 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                 if (duplicating) {
                     derror_replica(
                         "jiashuo_debug: plog={}，succeed to replay log: mu={}, app_last={}",
-                        _private_log->dir();
-                        mu->data.header.decree, _app->last_committed_decree());
+                        _private_log->dir(),
+                        mu->data.header.decree,
+                        _app->last_committed_decree());
                     _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
                 }
             } else {
                 derror_replica(
                     "jiashuo_debug: plog={}， ignore to duplicate log: mu={}, app_last={}",
-                    _private_log->dir();
-                    mu->data.header.decree, _app->last_committed_decree());
+                    _private_log->dir(),
+                    mu->data.header.decree,
+                    _app->last_committed_decree());
             }
         });
 
@@ -1573,21 +1576,24 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
             auto d = mu->data.header.decree;
             if (d <= plist.last_committed_decree()) {
                 derror_replica("jiashuo_debug: plog={}，ignoreAAA: mu={}, app_last={}",
-                               _private_log->dir();
-                               d, plist.last_committed_decree());
+                               _private_log->dir(),
+                               d,
+                               plist.last_committed_decree());
                 return false;
             }
             auto old = plist.get_mutation_by_decree(d);
             if (old != nullptr && old->data.header.ballot >= mu->data.header.ballot) {
                 derror_replica("jiashuo_debug: plog={}, ignoreBBB: old_ballot={}, mu_ballot={}",
-                               _private_log->dir();
-                               old->data.header.ballot, mu->data.header.ballot);
+                               _private_log->dir(),
+                               old->data.header.ballot,
+                               mu->data.header.ballot);
                 return false;
             }
 
             derror_replica("jiashuo_debug: plog={}, selectCCC: mu={}, app_last={}",
-                           _private_log->dir();
-                           d, plist.last_committed_decree());
+                           _private_log->dir(),
+                           d,
+                           plist.last_committed_decree());
             plist.prepare(mu, partition_status::PS_SECONDARY);
             return true;
         },
