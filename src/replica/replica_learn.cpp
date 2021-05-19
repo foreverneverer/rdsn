@@ -862,9 +862,9 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 // set flag and write mutations to private log
                 mu->set_logged();
 
-                 derror_replica("jiashuo_debug: learn before append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree());
+                 derror_replica("jiashuo_debug: learn before append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree(get_gpid()));
                 _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
-                derror_replica("jiashuo_debug: learn before append {}[{}", _private_log->_current_log_file->path(), _private_log->max_decree());
+                derror_replica("jiashuo_debug: learn before append {}[{}", _private_log->_current_log_file->path(), _private_log->max_decree(get_gpid()));
 
 
                 // then we prepare, it is possible that a committed mutation exists in learner's
@@ -1564,7 +1564,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                     derror_replica(
                         "jiashuo_debug: duplicate plog=[{}][{}]，succeed to replay log: mu={}, app_last={}",
                         _private_log->_current_log_file->path(),
-                        _private_log->max_decree(),
+                        _private_log->max_decree(get_gpid()),
                         mu->data.header.decree,
                         _app->last_committed_decree());
                     _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);

@@ -399,9 +399,9 @@ bool replica::replay_mutation(mutation_ptr &mu, bool is_private)
 
     // fix private log completeness when it is from shared
     if (!is_private && d > _private_log->max_commit_on_disk()) {
-          derror_replica("jiashuo_debug: init before append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree());
+          derror_replica("jiashuo_debug: init before append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree(get_gpid()));
         _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
-          derror_replica("jiashuo_debug: init after append {}[{}]", _private_log->_current_log_file->path(),  _private_log->max_decree());
+          derror_replica("jiashuo_debug: init after append {}[{}]", _private_log->_current_log_file->path(),  _private_log->max_decree(get_gpid()));
     }
 
     if (d <= last_committed_decree()) {
