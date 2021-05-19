@@ -283,7 +283,7 @@ public:
 
     task_tracker *tracker() { return &_tracker; }
 
-     log_file_ptr _current_log_file;         // current log file
+    log_file_ptr _current_log_file; // current log file
 
 protected:
     // thread-safe
