@@ -1592,7 +1592,6 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
             auto old = plist.get_mutation_by_decree(d);
             if (old != nullptr && old->data.header.ballot >= mu->data.header.ballot) {
                 derror_replica("jiashuo_debug: plog=[{}], ignoreBBB: old_ballot={}, mu_ballot={}",
-                               ,
                                _private_log->total_size(),
                                old->data.header.ballot,
                                mu->data.header.ballot);
