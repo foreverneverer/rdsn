@@ -283,6 +283,8 @@ public:
 
     task_tracker *tracker() { return &_tracker; }
 
+     log_file_ptr _current_log_file;         // current log file
+
 protected:
     // thread-safe
     // 'size' is data size to write; the '_global_end_offset' will be updated by 'size'.
@@ -358,7 +360,6 @@ private:
     // logs
     int _last_file_index;                   // new log file index = _last_file_index + 1
     std::map<int, log_file_ptr> _log_files; // index -> log_file_ptr
-    log_file_ptr _current_log_file;         // current log file
     int64_t _global_start_offset;           // global start offset of all files.
                                             // invalid if _log_files.size() == 0.
     int64_t _global_end_offset;             // global end offset currently

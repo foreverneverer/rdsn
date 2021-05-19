@@ -602,6 +602,7 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
 void replica::on_learn_reply(error_code err, learn_request &&req, learn_response &&resp)
 {
     _checker.only_one_thread_access();
+    derror_replica("jiashuo_debug: current log size={}[{}][{}]", _private_log->total_size(), _private_log->dir(), _private_log->max_decree(get_gpid()));
 
     dassert(partition_status::PS_POTENTIAL_SECONDARY == status(),
             "invalid partition status, status = %s",
@@ -827,6 +828,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             _app->last_committed_decree());
 
         // switch private log to make learning easier
+        derror_replica("jiashuo_debug: before demand log size={}[{}][{}]", _private_log->total_size(), _private_log->dir(), _private_log->max_decree(get_gpid()));
         _private_log->demand_switch_file();
 
         // reset preparelist
@@ -859,7 +861,11 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 // because shared log are written without callback, need to manully
                 // set flag and write mutations to private log
                 mu->set_logged();
+
+                 derror_replica("jiashuo_debug: learn before append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree());
                 _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+                derror_replica("jiashuo_debug: learn before append {}[{}", _private_log->_current_log_file->path(), _private_log->max_decree());
+
 
                 // then we prepare, it is possible that a committed mutation exists in learner's
                 // prepare log,
@@ -1556,8 +1562,9 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                 // appends logs-in-cache into plog to ensure them can be duplicated.
                 if (duplicating) {
                     derror_replica(
-                        "jiashuo_debug: plog=[{}]，succeed to replay log: mu={}, app_last={}",
-                        _private_log->total_size(),
+                        "jiashuo_debug: duplicate plog=[{}][{}]，succeed to replay log: mu={}, app_last={}",
+                        _private_log->_current_log_file->path(),
+                        _private_log->max_decree(),
                         mu->data.header.decree,
                         _app->last_committed_decree());
                     _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);

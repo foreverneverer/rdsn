@@ -542,7 +542,9 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
 
     // write local private log if necessary
     if (err == ERR_OK && status() != partition_status::PS_ERROR) {
+        derror_replica("jiashuo_debug: 2pc before append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree());
         _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+        derror_replica("jiashuo_debug: 2pc after append {}[{}]", _private_log->_current_log_file->path(), _private_log->max_decree());
     }
 }
 
