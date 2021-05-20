@@ -1047,7 +1047,7 @@ void replica::on_config_sync(const app_info &info,
                              const partition_configuration &config,
                              split_status::type meta_split_status)
 {
-    dinfo_replica("configuration sync");
+    derror_replica("jiashuo_debug: configuration sync, is_duplicating={}",  info.duplicating);
     // no outdated update
     if (config.ballot < get_ballot())
         return;

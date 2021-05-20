@@ -173,7 +173,7 @@ error_code replica::initialize_on_load()
 
     err = rep->initialize_on_load();
     if (err == ERR_OK) {
-        ddebug("%s: load replica succeed", rep->name());
+        derror_f("jiashuo_debug: {}: load replica succeed, app_info: duplicating={}", rep->name(), info.duplicating);
         return rep;
     } else {
         derror("%s: load replica failed, err = %s", rep->name(), err.to_string());

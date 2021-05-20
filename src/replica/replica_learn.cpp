@@ -1550,7 +1550,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
                        _options->max_mutation_count_in_prepare_list,
                        [this, duplicating](mutation_ptr &mu) {
                            if (mu->data.header.decree == _app->last_committed_decree() + 1) {
-                               derror_replica("jiashuo_debug[{}]: commiter={}", duplicating, _private_log->max_decree(get_gpid()));
+                              // derror_replica("jiashuo_debug[{}]: commiter={}", duplicating, _private_log->max_decree(get_gpid()));
                                // TODO: assign the returned error_code to err and check it
                                _app->apply_mutation(mu);
 
