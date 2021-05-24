@@ -55,7 +55,7 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
     }
 
     if (dsn_unlikely(_stub->_max_allowed_write_size &&
-                     request->body_size() > _stub->_max_allowed_write_size)) {
+                     request->body_size() > _stub->max_allowed_write_size)) {
         std::string request_info = _app->dump_write_request(request);
         dwarn_replica("client from {} write request body size exceed threshold, request = [{}], "
                       "request_body_size "
@@ -63,7 +63,7 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
                       request->header->from_address.to_string(),
                       request_info,
                       request->body_size(),
-                      _stub->_max_allowed_write_size);
+                      _stub->max_allowed_write_size);
         _stub->_counter_recent_write_size_exceed_threshold_count->increment();
         response_client_write(request, ERR_INVALID_DATA);
         return;
