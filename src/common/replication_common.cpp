@@ -80,7 +80,6 @@ replication_options::replication_options()
     gc_memory_replica_interval_ms = 10 * 60 * 1000; // 10 minutes
 
     disk_stat_disabled = false;
-    disk_stat_interval_seconds = 600;
 
     fd_disabled = false;
     fd_check_interval_seconds = 2;
@@ -355,14 +354,6 @@ void replication_options::initialize()
         gc_memory_replica_interval_ms,
         "after closing a healthy replica (due to LB), the replica will remain in memory for this "
         "long (ms) for quick recover");
-
-    disk_stat_disabled = dsn_config_get_value_bool(
-        "replication", "disk_stat_disabled", disk_stat_disabled, "whether to disable disk stat");
-    disk_stat_interval_seconds =
-        (int)dsn_config_get_value_uint64("replication",
-                                         "disk_stat_interval_seconds",
-                                         disk_stat_interval_seconds,
-                                         "every what period (ms) we do disk stat");
 
     fd_disabled = dsn_config_get_value_bool(
         "replication", "fd_disabled", fd_disabled, "whether to disable failure detection");

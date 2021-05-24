@@ -390,7 +390,8 @@ private:
     std::unique_ptr<dsn::nfs_node> _nfs;
 
     // write body size exceed this threshold will be logged and reject, 0 means no check
-    uint64_t _max_allowed_write_size;
+    uint64_t max_allowed_write_size;
+    int32_t disk_stat_interval_seconds;
 
     // replica count exectuting bulk load downloading concurrently
     std::atomic_int _bulk_load_downloading_count;

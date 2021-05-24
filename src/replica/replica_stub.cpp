@@ -66,6 +66,20 @@ namespace replication {
 
 bool replica_stub::s_not_exit_on_log_failure = false;
 
+DSN_DEFINE_uint64("replication",
+                  max_allowed_write_size,
+                  1 << 20, /*1MB*/
+                  "write operation exceed this "
+                  "threshold will be logged and reject, "
+                  "default is 1MB, 0 means no check");
+DSN_TAG_VARIABLE(max_allowed_write_size, FT_MUTABLE);
+
+DSN_DEFINE_uint32("replication",
+                  disk_stat_interval_seconds,
+                  600 /*10min*/,
+                  "the period seconds of disk stats update");
+DSN_TAG_VARIABLE(disk_stat_interval_seconds, FT_MUTABLE);
+
 replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
                            bool is_long_subscriber /* = true*/)
     : serverlet("replica_stub"),
@@ -98,13 +112,6 @@ replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
     _log = nullptr;
     _primary_address_str[0] = '\0';
     install_perf_counters();
-
-    _max_allowed_write_size = dsn_config_get_value_uint64("replication",
-                                                          "max_allowed_write_size",
-                                                          1 << 20,
-                                                          "write operation exceed this "
-                                                          "threshold will be logged and reject, "
-                                                          "default is 1MB, 0 means no check");
 }
 
 replica_stub::~replica_stub(void) { close(); }
@@ -748,13 +755,13 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
 
     // disk stat
     if (false == _options.disk_stat_disabled) {
-        _disk_stat_timer_task = ::dsn::tasking::enqueue_timer(
-            LPC_DISK_STAT,
-            &_tracker,
-            [this]() { on_disk_stat(); },
-            std::chrono::seconds(_options.disk_stat_interval_seconds),
-            0,
-            std::chrono::seconds(_options.disk_stat_interval_seconds));
+        _disk_stat_timer_task =
+            ::dsn::tasking::enqueue_timer(LPC_DISK_STAT,
+                                          &_tracker,
+                                          [this]() { on_disk_stat(); },
+                                          std::chrono::seconds(disk_stat_interval_seconds),
+                                          0,
+                                          std::chrono::seconds(disk_stat_interval_seconds));
     }
 
     // attach rps
