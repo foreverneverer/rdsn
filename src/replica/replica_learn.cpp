@@ -1478,7 +1478,6 @@ void replica::on_add_learner(const group_check_request &request)
 {
     ddebug_replica("process add learner, primary = {}, ballot ={}, status ={}, "
                    "last_committed_decree = {}, duplicating = {}",
-                   name(),
                    request.config.primary.to_string(),
                    request.config.ballot,
                    enum_to_string(request.config.status),
