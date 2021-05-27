@@ -1058,6 +1058,8 @@ void replica::on_config_sync(const app_info &info,
     update_app_envs(info.envs);
     _duplicating = info.duplicating;
 
+    derror_replica("jiashuo_debug: duplicating={}[{}]", info.app_name, info.duplicating);
+
     if (status() == partition_status::PS_PRIMARY) {
         if (nullptr != _primary_states.reconfiguration_task) {
             // already under reconfiguration, skip configuration sync
