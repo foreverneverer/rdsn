@@ -956,7 +956,7 @@ void replica_stub::on_config_proposal(const configuration_update_request &propos
            enum_to_string(proposal.type),
            proposal.node.to_string());
 
-    derror_replica(
+    derror_f(
         "jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating);
 
     replica_ptr rep = get_replica(proposal.config.pid);
