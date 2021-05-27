@@ -1482,7 +1482,8 @@ void replica::on_add_learner(const group_check_request &request)
                    request.config.primary.to_string(),
                    request.config.ballot,
                    enum_to_string(request.config.status),
-                   request.last_committed_decree request.app.duplicating);
+                   request.last_committed_decree,
+                   request.app.duplicating);
 
     _duplicating = request.app.duplicating;
     if (request.config.ballot < get_ballot()) {
@@ -1545,22 +1546,22 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
     error_code err;
 
     // temp prepare list for learning purpose
-    prepare_list plist(this,
-                       _app->last_committed_decree(),
-                       _options->max_mutation_count_in_prepare_list,
-                       [this, duplicating](mutation_ptr &mu) {
-                           if (mu->data.header.decree == _app->last_committed_decree() + 1) {
-                               derror_replica("jiashuo_debug: duplicating={}", duplicating);// need delete
-                               // TODO: assign the returned error_code to err and check it
-                               _app->apply_mutation(mu);
+    prepare_list plist(
+        this,
+        _app->last_committed_decree(),
+        _options->max_mutation_count_in_prepare_list,
+        [this, duplicating](mutation_ptr &mu) {
+            if (mu->data.header.decree == _app->last_committed_decree() + 1) {
+                derror_replica("jiashuo_debug: duplicating={}", duplicating); // need delete
+                // TODO: assign the returned error_code to err and check it
+                _app->apply_mutation(mu);
 
-                               // appends logs-in-cache into plog to ensure them can be duplicated.
-                               if (duplicating) {
-                                   _private_log->append(
-                                       mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
-                               }
-                           }
-                       });
+                // appends logs-in-cache into plog to ensure them can be duplicated.
+                if (duplicating) {
+                    _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+                }
+            }
+        });
 
     err = mutation_log::replay(state.files,
                                [&plist](int log_length, mutation_ptr &mu) {
