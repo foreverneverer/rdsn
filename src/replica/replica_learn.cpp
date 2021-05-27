@@ -1484,7 +1484,7 @@ void replica::on_add_learner(const group_check_request &request)
                    request.last_committed_decree,
                    request.app.duplicating);
 
-    _duplicating = request.app.duplicating;
+    _duplicating = request.app.duplicating;/
     if (request.config.ballot < get_ballot()) {
         dwarn_replica(" on_add_learner ballot is old, skipped");
         return;
