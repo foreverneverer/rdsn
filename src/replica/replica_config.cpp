@@ -53,7 +53,7 @@ namespace replication {
 void replica::on_config_proposal(configuration_update_request &proposal)
 {
     _checker.only_one_thread_access();
-    derror_f("jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating)
+    derror_f("jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating);
 
         ddebug("%s: process config proposal %s for %s",
                name(),
