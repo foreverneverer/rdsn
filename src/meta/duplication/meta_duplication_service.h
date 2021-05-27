@@ -19,6 +19,7 @@
 
 #include "meta/server_state.h"
 #include "meta/meta_data.h"
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace replication {
