@@ -1314,7 +1314,8 @@ void server_state::send_proposal(rpc_address target, const configuration_update_
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CONFIG_PROPOSAL, 0, proposal.config.pid.thread_hash());
     ::marshall(msg, proposal);
-    _meta_svc->send_message(target, msg);
+    derror_f("jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating)
+        _meta_svc->send_message(target, msg);
 }
 
 void server_state::send_proposal(const configuration_proposal_action &action,
@@ -2372,7 +2373,7 @@ bool server_state::check_all_partitions()
     std::map<rpc_address, int> add_secondary_running_nodes; // node --> running_count
     for (auto &app_pair : _exist_apps) {
         std::shared_ptr<app_state> &app = app_pair.second;
-        derror_f("jiashuo_debug: app={}, deplicating={}",app->app_name, app->duplicating);
+        derror_f("jiashuo_debug: app={}, deplicating={}", app->app_name, app->duplicating);
         if (app->status == app_status::AS_CREATING || app->status == app_status::AS_DROPPING) {
             ddebug("ignore app(%s)(%d) because it's status is %s",
                    app->app_name.c_str(),
