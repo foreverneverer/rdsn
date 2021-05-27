@@ -53,12 +53,13 @@ namespace replication {
 void replica::on_config_proposal(configuration_update_request &proposal)
 {
     _checker.only_one_thread_access();
-    derror_f("jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating);
+    derror_f(
+        "jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating);
 
-        ddebug("%s: process config proposal %s for %s",
-               name(),
-               enum_to_string(proposal.type),
-               proposal.node.to_string());
+    ddebug("%s: process config proposal %s for %s",
+           name(),
+           enum_to_string(proposal.type),
+           proposal.node.to_string());
 
     if (proposal.config.ballot < get_ballot()) {
         dwarn("%s: on_config_proposal out-dated, %" PRId64 " vs %" PRId64,

@@ -1314,8 +1314,9 @@ void server_state::send_proposal(rpc_address target, const configuration_update_
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CONFIG_PROPOSAL, 0, proposal.config.pid.thread_hash());
     ::marshall(msg, proposal);
-    derror_f("jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating)
-        _meta_svc->send_message(target, msg);
+    derror_f(
+        "jiashuo_debug: duplicating={}[{}]", proposal.info.app_name, proposal.info.duplicating);
+    _meta_svc->send_message(target, msg);
 }
 
 void server_state::send_proposal(const configuration_proposal_action &action,
