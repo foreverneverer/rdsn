@@ -2372,6 +2372,7 @@ bool server_state::check_all_partitions()
     std::map<rpc_address, int> add_secondary_running_nodes; // node --> running_count
     for (auto &app_pair : _exist_apps) {
         std::shared_ptr<app_state> &app = app_pair.second;
+        derror_f("jiashuo_debug: app={}, deplicating={}",app->app_name, app->duplicating);
         if (app->status == app_status::AS_CREATING || app->status == app_status::AS_DROPPING) {
             ddebug("ignore app(%s)(%d) because it's status is %s",
                    app->app_name.c_str(),

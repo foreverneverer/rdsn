@@ -111,6 +111,7 @@ private:
             const auto &dup = kv.second;
             if (dup->is_valid()) {
                 app->__set_duplicating(true);
+                derror_f("jiashuo_debug: name={}, duplicating={}", app->app_name, app->duplicating);
                 return;
             }
         }
