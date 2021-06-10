@@ -320,17 +320,6 @@ decree replica::get_learn_start_decree(const learn_request &request) // on prima
     }
     dcheck_le_replica(learn_start_decree, local_committed_decree + 1);
     dcheck_gt_replica(learn_start_decree, 0); // learn_start_decree can never be invalid_decree
-    derror_replica("get_learn_start=>dup={}, local_committed_decree={}, "
-                   "learn_start_decree_no_dup={}, min_confirmed_decree={}, "
-                   "learn_start_decree_for_dup={}, max_gced_decree_no_lock_local={}, "
-                   "request.max_gced_decree={}",
-                   is_duplicating(),
-                   local_committed_decree,
-                   learn_start_decree_no_dup,
-                   min_confirmed_decree,
-                   learn_start_decree_for_dup,
-                   max_gced_decree_no_lock(),
-                   request.max_gced_decree);
     return learn_start_decree;
 }
 
@@ -579,12 +568,11 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         return;
     }
 
-    ddebug("%s: on_learn_reply_start=>jiashuo_debug[%016" PRIx64
-           "]: learnee = %s, learn_duration = %" PRIu64
+    ddebug("%s: on_learn_reply[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
            " ms, response_err = %s, remote_committed_decree = %" PRId64 ", "
            "prepare_start_decree = %" PRId64 ", learn_type = %s, learned_buffer_size = %u, "
            "learned_file_count = %u, to_decree_included = %" PRId64
-           ", learn_start_decree = %" PRId64 "[%" PRId64 "], current_learning_status = %s",
+           ", learn_start_decree = %" PRId64 ", current_learning_status = %s",
            name(),
            req.signature,
            resp.config.primary.to_string(),
@@ -597,7 +585,6 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
            static_cast<uint32_t>(resp.state.files.size()),
            resp.state.to_decree_included,
            resp.state.learn_start_decree,
-           _app->last_committed_decree(),
            enum_to_string(_potential_secondary_states.learning_status));
 
     _potential_secondary_states.learning_copy_buffer_size += resp.state.meta.length();
@@ -1489,16 +1476,16 @@ void replica::on_learn_completion_notification_reply(error_code err,
 
 void replica::on_add_learner(const group_check_request &request)
 {
-    dwarn_replica("process add learner, primary = {}, ballot ={}, status ={}, "
-                  "last_committed_decree = {}, duplicating = {}",
-                  request.config.primary.to_string(),
-                  request.config.ballot,
-                  enum_to_string(request.config.status),
-                  request.last_committed_decree,
-                  request.app.duplicating);
+    ddebug("%s: process add learner, primary = %s, ballot = %" PRId64
+           ", status = %s, last_committed_decree = %" PRId64,
+           name(),
+           request.config.primary.to_string(),
+           request.config.ballot,
+           enum_to_string(request.config.status),
+           request.last_committed_decree);
 
     if (request.config.ballot < get_ballot()) {
-        dwarn_replica("on_add_learner ballot is old, skipped");
+        dwarn("%s: on_add_learner ballot is old, skipped", name());
         return;
     }
 
@@ -1507,16 +1494,15 @@ void replica::on_add_learner(const group_check_request &request)
         if (!update_local_configuration(request.config, true))
             return;
 
-        dassert_replica(partition_status::PS_POTENTIAL_SECONDARY == status(),
-                        "invalid partition_status, status = {}",
-                        enum_to_string(status()));
-
-        _duplicating = request.app.duplicating;
+        dassert(partition_status::PS_POTENTIAL_SECONDARY == status(),
+                "invalid partition_status, status = %s",
+                enum_to_string(status()));
         init_learn(request.config.learner_signature);
     }
 }
 
 // in non-replication thread
+bool first = true;
 error_code replica::apply_learned_state_from_private_log(learn_state &state)
 {
     bool duplicating = is_duplicating();
@@ -1532,35 +1518,24 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
     // learner's plog    |                              committed
     // after applied:    [---------------log----------------]
 
-    bool step_back = false;
-
-    if (state.__isset.learn_start_decree) {
-        derror_replica(
-            "start=>jiashuo_debug: step back={}, start={}, last_commit_decree={}, dup={}",
-            step_back,
-            state.learn_start_decree,
-            _app->last_committed_decree(),
-            duplicating);
-    }
     if (duplicating && state.__isset.learn_start_decree &&
-        state.learn_start_decree < _app->last_committed_decree() + 1) {
-        dwarn_replica("jiashuo_debug: learn_start_decree({}) < _app->last_committed_decree() + "
-                      "1({}),   learn must stepped back to include all the unconfirmed ",
-                      state.learn_start_decree,
-                      _app->last_committed_decree() + 1);
+        state.learn_start_decree < _app->last_committed_decree() + 1 ||  (duplicating && state.__isset.learn_start_decree && first )/* only test */) {
+            first = false;
+            if (state.learn_start_decree < _app->last_committed_decree() + 1) {
+                derror_replica("jiashuo_debug:hhhhhhhhhhhhhhhhhhhhhhh");
+            } else {
+                derror_replica("jiashuo_debug:pppppppppppppppppppppppp");
+            }
         // it means this round of learn must have been stepped back
         // to include all the unconfirmed.
 
         // move the `learn/` dir to working dir (`plog/`).
-        error_code err = _private_log->reset_from(
-            _app->learn_dir(),
-            [](int log_length, mutation_ptr &mu) { return true; },
-            [this](error_code err) {
-                tasking::enqueue(LPC_REPLICATION_ERROR,
-                                 &_tracker,
-                                 [this, err]() { handle_local_failure(err); },
-                                 get_gpid().thread_hash());
-            });
+        error_code err = _private_log->reset_from(_app->learn_dir(), [this](error_code err) {
+            tasking::enqueue(LPC_REPLICATION_ERROR,
+                             &_tracker,
+                             [this, err]() { handle_local_failure(err); },
+                             get_gpid().thread_hash());
+        });
         if (err != ERR_OK) {
             derror_replica("failed to reset this private log with logs in learn/ dir: {}", err);
             return err;
@@ -1570,57 +1545,43 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
         learn_state tmp_state;
         _private_log->get_learn_state(get_gpid(), _app->last_committed_decree() + 1, tmp_state);
         state.files = tmp_state.files;
-        step_back = true;
     }
 
     int64_t offset;
     error_code err;
 
     // temp prepare list for learning purpose
-    prepare_list plist(
-        this,
-        _app->last_committed_decree(),
-        _options->max_mutation_count_in_prepare_list,
-        [this, duplicating, step_back](mutation_ptr &mu) {
-            if (mu->data.header.decree == _app->last_committed_decree() + 1) {
-                // TODO: assign the returned error_code to err and check it
-                _app->apply_mutation(mu);
+    prepare_list plist(this,
+                       _app->last_committed_decree(),
+                       _options->max_mutation_count_in_prepare_list,
+                       [this, duplicating](mutation_ptr &mu) {
+                           if (mu->data.header.decree == _app->last_committed_decree() + 1) {
+                               // TODO: assign the returned error_code to err and check it
+                               _app->apply_mutation(mu);
 
-                // appends logs-in-cache into plog to ensure them can be duplicated.
-                if (duplicating && !step_back) {
-                    derror_replica(
-                        "append: jiashuo_debug: step back={}, last_commit_decree={}, dup={}",
-                        step_back,
-                        _app->last_committed_decree(),
-                        duplicating);
-                    _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
-                }
-            }
-        });
+                               // appends logs-in-cache into plog to ensure them can be duplicated.
+                               if (duplicating) {
+                                   _private_log->append(
+                                       mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
+                               }
+                           }
+                       });
 
-    derror_replica("repaly_before=>jiashuo_debug: step back={}, last_commit_decree={}, dup={}",
-                   step_back,
-                   _app->last_committed_decree(),
-                   duplicating);
-    err = mutation_log::replay(
-        state.files,
-        [step_back, duplicating, &plist](int log_length, mutation_ptr &mu) {
-            auto d = mu->data.header.decree;
-            if (d <= plist.last_committed_decree())
-                return false;
+    err = mutation_log::replay(state.files,
+                               [&plist](int log_length, mutation_ptr &mu) {
+                                   auto d = mu->data.header.decree;
+                                   if (d <= plist.last_committed_decree())
+                                       return false;
 
-            auto old = plist.get_mutation_by_decree(d);
-            if (old != nullptr && old->data.header.ballot >= mu->data.header.ballot)
-                return false;
+                                   auto old = plist.get_mutation_by_decree(d);
+                                   if (old != nullptr &&
+                                       old->data.header.ballot >= mu->data.header.ballot)
+                                       return false;
 
-            plist.prepare(mu, partition_status::PS_SECONDARY);
-            derror_f("prepare=>jiashuo_debug: step back={}, last_commit_decree={}, dup={}",
-                     step_back,
-                     plist.last_committed_decree(),
-                     duplicating);
-            return true;
-        },
-        offset);
+                                   plist.prepare(mu, partition_status::PS_SECONDARY);
+                                   return true;
+                               },
+                               offset);
 
     // update first_learn_start_decree, the position where the first round of LT_LOG starts from.
     // we use this value to determine whether to learn back from min_confirmed_decree
@@ -1642,8 +1603,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
         _potential_secondary_states.first_learn_start_decree = state.learn_start_decree;
     }
 
-    ddebug("%s: replay_after=>jiashuo_debug: apply_learned_state_from_private_log[%016" PRIx64
-           "]: learnee = %s, "
+    ddebug("%s: apply_learned_state_from_private_log[%016" PRIx64 "]: learnee = %s, "
            "learn_duration = %" PRIu64 " ms, apply private log files done, "
            "file_count = %d, first_learn_start_decree = %" PRId64 ", learn_start_decree = %" PRId64
            ", app_committed_decree = %" PRId64,
