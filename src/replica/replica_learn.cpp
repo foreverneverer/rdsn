@@ -1518,19 +1518,18 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
     // learner's plog    |                              committed
     // after applied:    [---------------log----------------]
 
-    if (duplicating && state.__isset.learn_start_decree &&
-        state.learn_start_decree < _app->last_committed_decree() + 1 ||  (duplicating && state.__isset.learn_start_decree && first )/* only test */) {
+    if ((duplicating && state.__isset.learn_start_decree && state.learn_start_decree < _app->last_committed_decree() + 1) ||  (duplicating && state.__isset.learn_start_decree && first )/* only test */) {
             first = false;
             if (state.learn_start_decree < _app->last_committed_decree() + 1) {
-                derror_replica("jiashuo_debug:hhhhhhhhhhhhhhhhhhhhhhh");
+                derror_replica("jiashuo_debug:true step back");
             } else {
-                derror_replica("jiashuo_debug:pppppppppppppppppppppppp");
+                derror_replica("jiashuo_debug:mock step back");
             }
         // it means this round of learn must have been stepped back
         // to include all the unconfirmed.
 
         // move the `learn/` dir to working dir (`plog/`).
-        error_code err = _private_log->reset_from(_app->learn_dir(), [this](error_code err) {
+        error_code err = _private_log->reset_from(_app->learn_dir(),  [](int log_length, mutation_ptr &mu) { return true; }, [this](error_code err) {
             tasking::enqueue(LPC_REPLICATION_ERROR,
                              &_tracker,
                              [this, err]() { handle_local_failure(err); },
