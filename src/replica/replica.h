@@ -566,6 +566,9 @@ private:
     dsn::thread_access_checker _checker;
 
     std::unique_ptr<security::access_controller> _access_controller;
+
+    // step_back
+    bool first;
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication
