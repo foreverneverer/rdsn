@@ -1517,7 +1517,7 @@ void replica::on_add_learner(const group_check_request &request)
 }
 
 // in non-replication thread
-bool first = false;
+bool first = true;
 error_code replica::apply_learned_state_from_private_log(learn_state &state)
 {
     bool duplicating = is_duplicating();
