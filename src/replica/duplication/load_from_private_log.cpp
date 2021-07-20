@@ -135,12 +135,13 @@ void load_from_private_log::replay_log_block()
         _current,
         [this](int log_bytes_length, mutation_ptr &mu) -> bool {
             derror_f("jiashuo_debug_add_before=={}: last_commit_decree = {}, min.max={}|{} ||||| "
-                     "mu_last_commit_decree={}",
+                     "mu_last_commit_decree={}[{}]",
                      replica_name(),
                      _mutation_batch.last_decree(),
                      _mutation_batch._mutation_buffer->min_decree(),
                      _mutation_batch._mutation_buffer->max_decree(),
-                     mu->data.header.last_committed_decree);
+                     mu->data.header.last_committed_decree,
+                     mu->data.header.decree);
             auto es = _mutation_batch.add(std::move(mu));
             derror_f("jiashuo_debug_add_before=={}: last_commit_decree = {}, min.max={}|{}",
                      replica_name(),
