@@ -133,7 +133,7 @@ void replica_duplicator_manager::update_confirmed_decree_if_secondary(decree con
             _primary_confirmed_decree = confirmed;
         }
     } else { // duplication add with freeze but no start or no duplication(include removed)
-        _primary_confirmed_decree = confirmed
+        _primary_confirmed_decree = confirmed;
     }
 }
 
