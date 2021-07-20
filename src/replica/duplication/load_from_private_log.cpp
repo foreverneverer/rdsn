@@ -134,7 +134,7 @@ void load_from_private_log::replay_log_block()
     error_s err =
         mutation_log::replay_block(_current,
                                    [this](int log_bytes_length, mutation_ptr &mu) -> bool {
-                                        derror_f("jiashuo_debug==%s: last_commit_decree = %s", replica_name(),  _mutation_batch.last_decree());
+                                        derror_f("jiashuo_debug=={}: last_commit_decree = {}", replica_name(),  _mutation_batch.last_decree());
                                        auto es = _mutation_batch.add(std::move(mu));
                                        dassert_replica(es.is_ok(), es.description());
                                        _counter_dup_log_read_bytes_rate->add(log_bytes_length);
