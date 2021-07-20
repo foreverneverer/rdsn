@@ -34,8 +34,6 @@ error_s mutation_batch::add(mutation_ptr mu)
         return error_s::ok();
     }
 
-    derror_f("jiashuo_debug==%s: last_commit_decree = %s", _mutation_buffer->get_gpid(),  _mutation_buffer->last_committed_decree());
-
     auto old = _mutation_buffer->get_mutation_by_decree(mu->get_decree());
     if (old != nullptr && old->data.header.ballot >= mu->data.header.ballot) {
         // ignore
@@ -83,7 +81,7 @@ mutation_batch::mutation_batch(replica_duplicator *r) : replica_base(r)
 
     // start duplication from confirmed_decree
     _mutation_buffer->reset(r->progress().confirmed_decree);
-    derror_f("jiashuo_debug===%s: last_commit_decree = %s", r->get_gpid,  _mutation_buffer->last_committed_decree());
+    derror_f("jiashuo_debug===%s: last_commit_decree = %s", r->get_gpid(),  _mutation_buffer->last_committed_decree());
 }
 
 /*extern*/ void
