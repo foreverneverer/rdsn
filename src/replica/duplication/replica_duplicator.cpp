@@ -136,6 +136,11 @@ replica_duplicator::~replica_duplicator()
 error_s replica_duplicator::update_progress(const duplication_progress &p)
 {
     zauto_write_lock l(_lock);
+    derror_replica("jiashuo_debug_progress=local vs remote con[{} | {}] | last=[{} | {}]",
+                   _progress.confirmed_decree,
+                   p.confirmed_decree,
+                   _progress.last_decree,
+                   p.last_decree);
 
     if (p.confirmed_decree >= 0 && p.confirmed_decree < _progress.confirmed_decree) {
         return FMT_ERR(ERR_INVALID_STATE,
