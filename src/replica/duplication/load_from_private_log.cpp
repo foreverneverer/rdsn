@@ -246,6 +246,11 @@ void load_from_private_log::set_start_decree(decree start_decree)
     _mutation_batch.set_start_decree(start_decree);
 }
 
+void load_from_private_log::set_mutation_batch(decree init_decree)
+{
+    _mutation_batch._mutation_buffer->reset(init_decree);
+}
+
 void load_from_private_log::start_from_log_file(log_file_ptr f)
 {
     ddebug_replica("start loading from log file {}", f->path());
