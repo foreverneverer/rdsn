@@ -78,6 +78,9 @@ mutation_batch::mutation_batch(replica_duplicator *r) : replica_base(r)
             // committer
             add_mutation_if_valid(mu, _loaded_mutations, _start_decree);
         });
+
+     // start duplication from confirmed_decree
+    _mutation_buffer->reset(r->progress().confirmed_decree);
 }
 
 /*extern*/ void
