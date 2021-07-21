@@ -40,8 +40,9 @@ namespace replication {
 void load_mutation::run()
 {
     if  ( _duplicator->progress().confirmed_decree == invalid_decree) {
-        // wait 100ms for next try if progress hasn't update to valid decree from meta.
-        repeat(100_ms);
+        // wait 1s for next try if progress hasn't update to valid decree from meta.
+        derror_replica("jiashuo_debug=con={}, delay 1s", _duplicator->progress().confirmed_decree);
+        repeat(1_s);
         return;
     } 
 
