@@ -70,7 +70,7 @@ void load_from_private_log::run()
     _duplicator->verify_start_decree(_start_decree);
 
     if (_mutation_batch.last_decree() == invalid_decree) {
-        if (_duplicator->progress().confirmed_decree != invalid_decree) {
+        if (_duplicator->progress().confirmed_decree == invalid_decree) {
              derror_replica("jiashuo_debug=con={}, delay 1s", _duplicator->progress().confirmed_decree);
             repeat(1_s);
             return;
