@@ -80,6 +80,8 @@ mutation_batch::mutation_batch(replica_duplicator *r) : replica_base(r)
         });
 
     // start duplication from confirmed_decree
+    dcheck_eq_replica(r->update_progress(duplication_progress().set_last_decree(_last_decree)),
+                      error_s::ok());
     _mutation_buffer->reset(r->progress().confirmed_decree);
     derror_f("jiashuo_debug==={}: last_commit_decree = {}",
              r->get_gpid(),
