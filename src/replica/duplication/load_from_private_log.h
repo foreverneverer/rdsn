@@ -47,7 +47,6 @@ public:
     void run() override;
 
     void set_start_decree(decree start_decree);
-    void set_mutation_batch(decree init_decree);
 
     /// ==== Implementation ==== ///
 

@@ -69,6 +69,16 @@ void load_from_private_log::run()
     dassert_replica(_start_decree != invalid_decree, "{}", _start_decree);
     _duplicator->verify_start_decree(_start_decree);
 
+    if (_mutation_batch.last_decree() == invalid_decree) {
+        if (_duplicator->progress().confirmed_decree != invalid_decree) {
+             derror_replica("jiashuo_debug=con={}, delay 1s", _duplicator->progress().confirmed_decree);
+            repeat(1_s);
+            return;
+        } else {
+            _mutation_batch._mutation_buffer->reset(_duplicator->progress().confirmed_decree);
+        }
+    }
+
     if (_current == nullptr) {
         find_log_file_to_start();
         if (_current == nullptr) {
@@ -244,11 +254,6 @@ void load_from_private_log::set_start_decree(decree start_decree)
 {
     _start_decree = start_decree;
     _mutation_batch.set_start_decree(start_decree);
-}
-
-void load_from_private_log::set_mutation_batch(decree init_decree)
-{
-    _mutation_batch._mutation_buffer->reset(init_decree);
 }
 
 void load_from_private_log::start_from_log_file(log_file_ptr f)

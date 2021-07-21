@@ -39,13 +39,6 @@ namespace replication {
 
 void load_mutation::run()
 {
-    if  ( _duplicator->progress().confirmed_decree == invalid_decree) {
-        // wait 1s for next try if progress hasn't update to valid decree from meta.
-        derror_replica("jiashuo_debug=con={}, delay 1s", _duplicator->progress().confirmed_decree);
-        repeat(1_s);
-        return;
-    } 
-
     decree last_decree = _duplicator->progress().last_decree;
     _start_decree = last_decree + 1;
     if (_replica->private_log()->max_commit_on_disk() < _start_decree) {
@@ -54,7 +47,6 @@ void load_mutation::run()
         return;
     }
 
-    _log_on_disk->set_mutation_batch(_duplicator->progress().confirmed_decree);
     _log_on_disk->set_start_decree(_start_decree);
     _log_on_disk->async();
 }
