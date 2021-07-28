@@ -54,11 +54,12 @@ namespace replication {
 
     _slock.lock();
 
-    ADD_POINT(mu->tracer);
     // init pending buffer
     if (nullptr == _pending_write) {
-        _pending_write = std::make_shared<log_appender>(mark_new_offset(0, true).second);
+        _pending_write = std::make_shared<log_appender>(mark_new_offset(0, true).second, true);
     }
+
+    ADD_CUSTOM_POINT(mu->tracer, _pending_write->slog_id);
     _pending_write->append_mutation(mu, cb);
 
     // update meta

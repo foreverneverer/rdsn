@@ -69,13 +69,20 @@ private:
     void init();
 };
 
+static std::atomic<uint64_t> _slog_id(0);
 // Append writes into a buffer which consists of one or more fixed-size log blocks,
 // which will be continuously flushed into one log file.
 // Not thread-safe. Requires lock protection.
 class log_appender
 {
 public:
-    explicit log_appender(int64_t start_offset) { _blocks.emplace_back(start_offset); }
+    explicit log_appender(int64_t start_offset, bool slog = false)
+    {
+        _blocks.emplace_back(start_offset);
+        if (slog) {
+            slog_id = ++_slog_id;
+        }
+    }
 
     log_appender(int64_t start_offset, log_block &block)
     {
@@ -97,6 +104,8 @@ public:
     int64_t start_offset() const { return _blocks.cbegin()->start_offset(); }
 
     std::vector<log_block> &all_blocks() { return _blocks; }
+
+    std::uint64_t slog_id;
 
 protected:
     static constexpr size_t DEFAULT_MAX_BLOCK_BYTES = 1 * 1024 * 1024; // 1MB
