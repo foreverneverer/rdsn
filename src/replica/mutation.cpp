@@ -378,9 +378,7 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
         auto ret = _pending_mutation;
         _pending_mutation = nullptr;
         _current_op_count++;
-        if (request != nullptr) {
-            ADD_CUSTOM_POINT(ret->tracer, "{}=>return[short-cut]");
-        }
+        ADD_CUSTOM_POINT(ret->tracer, "{}=>return[short-cut]");
         return ret;
     }
 
@@ -402,9 +400,7 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
         auto ret = _pending_mutation;
         _pending_mutation = nullptr;
         _current_op_count++;
-        if (request != nullptr) {
-            ADD_CUSTOM_POINT(ret->tracer, "{}=>return[next]");
-        }
+        ADD_CUSTOM_POINT(ret->tracer, "{}=>return[next]");
         return ret;
     } else {
         _current_op_count++;
