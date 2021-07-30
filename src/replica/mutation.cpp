@@ -378,6 +378,9 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
         auto ret = _pending_mutation;
         _pending_mutation = nullptr;
         _current_op_count++;
+        if (request != nullptr) {
+            ADD_CUSTOM_POINT(tracer, fmt::format("{}=>return[short-cut]", request->header->id));
+        }
         return ret;
     }
 
@@ -399,9 +402,15 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
         auto ret = _pending_mutation;
         _pending_mutation = nullptr;
         _current_op_count++;
+        if (request != nullptr) {
+            ADD_CUSTOM_POINT(tracer, fmt::format("{}=>return[next]", request->header->id));
+        }
         return ret;
     } else {
         _current_op_count++;
+        if (request != nullptr) {
+            ADD_CUSTOM_POINT(tracer, fmt::format("{}=>return[unlink]", request->header->id));
+        }
         return unlink_next_workload();
     }
 }
