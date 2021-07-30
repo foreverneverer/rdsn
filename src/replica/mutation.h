@@ -215,6 +215,8 @@ private:
             r->release_ref(); // added in add_work
             --(*_pcount);
         }
+
+        ADD_CUSTOM_POINT(r->tracer, "return[unlink]");
         return r;
     }
 
