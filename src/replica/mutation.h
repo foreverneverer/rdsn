@@ -212,11 +212,10 @@ private:
     {
         mutation_ptr r = _hdr.pop_one();
         if (r.get() != nullptr) {
+             ADD_CUSTOM_POINT(r->tracer, "return[unlink]");
             r->release_ref(); // added in add_work
             --(*_pcount);
         }
-
-        ADD_CUSTOM_POINT(r->tracer, "return[unlink]");
         return r;
     }
 
