@@ -154,6 +154,7 @@ void mutation::add_client_request(task_code code, dsn::message_ex *request)
     _appro_data_bytes += 32; // approximate code size
 
     if (request != nullptr) {
+        ADD_CUSTOM_POINT(tracer, fmt::format("Line157=>{}", request->header->id));
         update.code = code;
         update.serialization_type =
             (dsn_msg_serialize_format)request->header->context.u.serialize_format;
@@ -163,8 +164,10 @@ void mutation::add_client_request(task_code code, dsn::message_ex *request)
         void *ptr;
         size_t size;
         bool r = request->read_next(&ptr, &size);
+        ADD_CUSTOM_POINT(tracer, fmt::format("Line167=>{}", request->header->id));
         dassert(r, "payload is not present");
         request->read_commit(0); // so we can re-read the request buffer in replicated app
+        ADD_CUSTOM_POINT(tracer, fmt::format("Line170=>{}", request->header->id));
         update.data.assign((char *)ptr, 0, (int)size);
 
         _appro_data_bytes += sizeof(int) + (int)size; // data size
@@ -174,6 +177,9 @@ void mutation::add_client_request(task_code code, dsn::message_ex *request)
     }
 
     client_requests.push_back(request);
+    if (request != nullptr) {
+        ADD_CUSTOM_POINT(tracer, fmt::format("Line181=>{}", request->header->id));
+    }
 
     dassert(client_requests.size() == data.updates.size(), "size must be equal");
 }
@@ -385,6 +391,7 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
     // check if need to switch work queue
     if (_batch_write_disabled || !spec->rpc_request_is_write_allow_batch ||
         _pending_mutation->is_full()) {
+        ADD_CUSTOM_POINT(_pending_mutation->tracer, "Line392");
         _pending_mutation->add_ref(); // released when unlink
         _hdr.add(_pending_mutation);
         _pending_mutation = nullptr;
