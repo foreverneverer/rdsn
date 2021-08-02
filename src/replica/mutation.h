@@ -210,6 +210,9 @@ public:
 private:
     mutation_ptr unlink_next_workload()
     {
+        if (_hdr._first) {
+            ADD_CUSTOM_POINT(_hdr._first->tracer, "hdr=unlink");
+        }
         mutation_ptr r = _hdr.pop_one();
         if (r.get() != nullptr) {
             ADD_CUSTOM_POINT(r->tracer, "return[unlink]");
