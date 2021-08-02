@@ -397,9 +397,9 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
         _hdr.add(_pending_mutation);
         ADD_CUSTOM_POINT(_pending_mutation->tracer, "Line394");
         _pending_mutation = nullptr;
-        ADD_CUSTOM_POINT(_pending_mutation->tracer, "Line395");
+        ADD_CUSTOM_POINT(_hdr._first->tracer, "Line395");
         ++(*_pcount);
-        ADD_CUSTOM_POINT(_pending_mutation->tracer, "Line396");
+        ADD_CUSTOM_POINT(_hdr._first->tracer, "Line396");
     }
 
     // get next work item
@@ -421,9 +421,9 @@ mutation_ptr mutation_queue::add_work(task_code code, dsn::message_ex *request, 
         ADD_CUSTOM_POINT(ret->tracer, "{}=>return[next]");
         return ret;
     } else {
-         if (_hdr._first) {
-                ADD_CUSTOM_POINT(_hdr._first->tracer, "hdr=ulinkberpre");
-            }
+        if (_hdr._first) {
+            ADD_CUSTOM_POINT(_hdr._first->tracer, "hdr=ulinkberpre");
+        }
         _current_op_count++;
         return unlink_next_workload();
     }
