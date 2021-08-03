@@ -215,7 +215,8 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     if (err != ERR_OK) {
         goto ErrOut;
     }
-
+    
+    ADD_CUSTOM_POINT(mu->tracer, "prepare_completed");
     // remote prepare
     mu->set_prepare_ts();
     mu->set_left_secondary_ack_count((unsigned int)_primary_states.membership.secondaries.size());
@@ -475,6 +476,7 @@ void replica::on_prepare(dsn::message_ex *request)
 
     error_code err = _prepare_list->prepare(mu, status());
     dassert(err == ERR_OK, "prepare mutation failed, err = %s", err.to_string());
+    ADD_CUSTOM_POINT(mu->tracer, "prepare_completed");
 
     if (partition_status::PS_POTENTIAL_SECONDARY == status()) {
         dassert(mu->data.header.decree <=
