@@ -42,6 +42,7 @@ DSN_DEFINE_bool("replication",
                 open_slog,
                 true, // 1s
                 "if open slog");
+DSN_TAG_VARIABLE(open_slog, FT_MUTABLE);
 
 void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
 {
