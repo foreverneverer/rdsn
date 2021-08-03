@@ -100,7 +100,6 @@ private:
 
     utils::rw_lock_nr _lock;
     std::string _name;
-    
     const uint64_t _threshold;
     bool _is_sub;
     const uint64_t _start_time;

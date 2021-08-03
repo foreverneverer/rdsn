@@ -215,7 +215,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     if (err != ERR_OK) {
         goto ErrOut;
     }
-    
+
     ADD_CUSTOM_POINT(mu->tracer, "prepare_completed");
     // remote prepare
     mu->set_prepare_ts();

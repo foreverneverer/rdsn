@@ -130,9 +130,16 @@ void mutation_log_shared::write_pending_mutations(bool release_lock_required)
 void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
+    int size = 0;
     for (auto &mu : pending->mutations()) {
+        size += mu->appro_data_bytes();
         ADD_POINT(mu->tracer);
     }
+
+    for (auto &mu : pending->mutations()) {
+        ADD_CUSTOM_POINT(mu->tracer, fmt::format("length={}", size));
+    }
+
     lf->commit_log_blocks( // forces a new line for params
         *pending,
         LPC_WRITE_REPLICATION_LOG_SHARED,
