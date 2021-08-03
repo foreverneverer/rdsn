@@ -165,6 +165,8 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
          mu->name(),
          mu->tid());
 
+    
+
     // check bounded staleness
     if (mu->data.header.decree > last_committed_decree() + _options->staleness_for_commit) {
         err = ERR_CAPACITY_EXCEEDED;
@@ -248,32 +250,36 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                 "invalid log offset, offset = %" PRId64,
                 mu->data.header.log_offset);
         dassert(mu->log_task() == nullptr, "");
-        int64_t pending_size;
-        mu->log_task() = _stub->_log->append(mu,
-                                             LPC_WRITE_REPLICATION_LOG,
-                                             &_tracker,
-                                             std::bind(&replica::on_append_log_completed,
-                                                       this,
-                                                       mu,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2),
-                                             get_gpid().thread_hash(),
-                                             &pending_size);
-        dassert(nullptr != mu->log_task(), "");
-        if (_options->log_shared_pending_size_throttling_threshold_kb > 0 &&
-            _options->log_shared_pending_size_throttling_delay_ms > 0 &&
-            pending_size >= _options->log_shared_pending_size_throttling_threshold_kb * 1024) {
-            int delay_ms = _options->log_shared_pending_size_throttling_delay_ms;
-            for (dsn::message_ex *r : mu->client_requests) {
-                if (r && r->io_session->delay_recv(delay_ms)) {
-                    dwarn("too large pending shared log (%" PRId64 "), "
-                          "delay traffic from %s for %d milliseconds",
-                          pending_size,
-                          r->header->from_address.to_string(),
-                          delay_ms);
-                }
-            }
-        }
+        tasking::enqueue(LPC_WRITE_REPLICATION_LOG,
+                         &_tracker,
+                         [this, mu]() { on_append_log_completed(mu, ERR_OK, mu->data.header.decree); },
+                         get_gpid().thread_hash());
+        /* int64_t pending_size;
+         mu->log_task() = _stub->_log->append(mu,
+                                              LPC_WRITE_REPLICATION_LOG,
+                                              &_tracker,
+                                              std::bind(&replica::on_append_log_completed,
+                                                        this,
+                                                        mu,
+                                                        std::placeholders::_1,
+                                                        std::placeholders::_2),
+                                              get_gpid().thread_hash(),
+                                              &pending_size);
+         dassert(nullptr != mu->log_task(), "");
+         if (_options->log_shared_pending_size_throttling_threshold_kb > 0 &&
+             _options->log_shared_pending_size_throttling_delay_ms > 0 &&
+             pending_size >= _options->log_shared_pending_size_throttling_threshold_kb * 1024) {
+             int delay_ms = _options->log_shared_pending_size_throttling_delay_ms;
+             for (dsn::message_ex *r : mu->client_requests) {
+                 if (r && r->io_session->delay_recv(delay_ms)) {
+                     dwarn("too large pending shared log (%" PRId64 "), "
+                           "delay traffic from %s for %d milliseconds",
+                           pending_size,
+                           r->header->from_address.to_string(),
+                           delay_ms);
+                 }
+             }
+         }*/
     }
 
     _primary_states.last_prepare_ts_ms = mu->prepare_ts_ms();
@@ -488,19 +494,24 @@ void replica::on_prepare(dsn::message_ex *request)
     }
 
     dassert(mu->log_task() == nullptr, "");
-    mu->log_task() = _stub->_log->append(mu,
-                                         LPC_WRITE_REPLICATION_LOG,
-                                         &_tracker,
-                                         std::bind(&replica::on_append_log_completed,
-                                                   this,
-                                                   mu,
-                                                   std::placeholders::_1,
-                                                   std::placeholders::_2),
-                                         get_gpid().thread_hash());
-    dassert(nullptr != mu->log_task(), "");
+    tasking::enqueue(LPC_WRITE_REPLICATION_LOG,
+                     &_tracker,
+                     [this, mu]() { on_append_log_completed(mu, ERR_OK, mu->data.header.decree); },
+                     get_gpid().thread_hash());
+
+    /* mu->log_task() = _stub->_log->append(mu,
+                                          LPC_WRITE_REPLICATION_LOG,
+                                          &_tracker,
+                                          std::bind(&replica::on_append_log_completed,
+                                                    this,
+                                                    mu,
+                                                    std::placeholders::_1,
+                                                    std::placeholders::_2),
+                                          get_gpid().thread_hash());
+     dassert(nullptr != mu->log_task(), "");*/
 }
 
-void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t size)
+void replica::on_append_log_completed(mutation_ptr mu, error_code err, size_t size)
 {
     _checker.only_one_thread_access();
 
@@ -510,6 +521,8 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
           size,
           err.to_string());
 
+    dassert_f(mu, "must not null");
+    dassert_f(mu->tracer, "must not null");
     ADD_POINT(mu->tracer);
 
     if (err == ERR_OK) {

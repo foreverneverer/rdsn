@@ -263,7 +263,7 @@ private:
                               int timeout_milliseconds,
                               bool pop_all_committed_mutations = false,
                               int64_t learn_signature = invalid_signature);
-    void on_append_log_completed(mutation_ptr &mu, error_code err, size_t size);
+    void on_append_log_completed(mutation_ptr mu, error_code err, size_t size);
     void on_prepare_reply(std::pair<mutation_ptr, partition_status::type> pr,
                           error_code err,
                           dsn::message_ex *request,
