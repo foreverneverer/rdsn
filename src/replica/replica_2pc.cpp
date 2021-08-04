@@ -474,33 +474,39 @@ void replica::on_prepare(dsn::message_ex *request)
         return;
     }
 
-    error_code err = _prepare_list->prepare(mu, status());
-    dassert(err == ERR_OK, "prepare mutation failed, err = %s", err.to_string());
-    ADD_CUSTOM_POINT(mu->tracer, "prepare_completed");
-
-    if (partition_status::PS_POTENTIAL_SECONDARY == status()) {
-        dassert(mu->data.header.decree <=
-                    last_committed_decree() + _options->max_mutation_count_in_prepare_list,
-                "%" PRId64 " VS %" PRId64 "(%" PRId64 " + %d)",
-                mu->data.header.decree,
-                last_committed_decree() + _options->max_mutation_count_in_prepare_list,
-                last_committed_decree(),
-                _options->max_mutation_count_in_prepare_list);
-    } else if (partition_status::PS_SECONDARY == status()) {
-        dassert(mu->data.header.decree <= last_committed_decree() + _options->staleness_for_commit,
-                "%" PRId64 " VS %" PRId64 "(%" PRId64 " + %d)",
-                mu->data.header.decree,
-                last_committed_decree() + _options->staleness_for_commit,
-                last_committed_decree(),
-                _options->staleness_for_commit);
-    } else {
-        derror("%s: mutation %s on_prepare failed as invalid replica state, state = %s",
-               name(),
-               mu->name(),
-               enum_to_string(status()));
+    if (partition_status::PS_POTENTIAL_SECONDARY != status() &&
+        partition_status::PS_SECONDARY != status()) {
         ack_prepare_message(ERR_INVALID_STATE, mu);
         return;
     }
+
+    /* error_code err = _prepare_list->prepare(mu, status());
+     dassert(err == ERR_OK, "prepare mutation failed, err = %s", err.to_string());
+     ADD_CUSTOM_POINT(mu->tracer, "prepare_completed");
+
+     if (partition_status::PS_POTENTIAL_SECONDARY == status()) {
+         dassert(mu->data.header.decree <=
+                     last_committed_decree() + _options->max_mutation_count_in_prepare_list,
+                 "%" PRId64 " VS %" PRId64 "(%" PRId64 " + %d)",
+                 mu->data.header.decree,
+                 last_committed_decree() + _options->max_mutation_count_in_prepare_list,
+                 last_committed_decree(),
+                 _options->max_mutation_count_in_prepare_list);
+     } else if (partition_status::PS_SECONDARY == status()) {
+         dassert(mu->data.header.decree <= last_committed_decree() + _options->staleness_for_commit,
+                 "%" PRId64 " VS %" PRId64 "(%" PRId64 " + %d)",
+                 mu->data.header.decree,
+                 last_committed_decree() + _options->staleness_for_commit,
+                 last_committed_decree(),
+                 _options->staleness_for_commit);
+     } else {
+         derror("%s: mutation %s on_prepare failed as invalid replica state, state = %s",
+                name(),
+                mu->name(),
+                enum_to_string(status()));
+         ack_prepare_message(ERR_INVALID_STATE, mu);
+         return;
+     } */
 
     if (_split_mgr->is_splitting()) {
         _split_mgr->copy_mutation(mu);
@@ -583,6 +589,25 @@ void replica::on_append_log_completed(mutation_ptr mu, error_code err, size_t si
 
     // write local private log if necessary
     if (err == ERR_OK && status() != partition_status::PS_ERROR) {
+        error_code err = _prepare_list->prepare(mu, status());
+        dassert(err == ERR_OK, "prepare mutation failed, err = %s", err.to_string());
+        if (partition_status::PS_POTENTIAL_SECONDARY == status()) {
+            dassert(mu->data.header.decree <=
+                        last_committed_decree() + _options->max_mutation_count_in_prepare_list,
+                    "%" PRId64 " VS %" PRId64 "(%" PRId64 " + %d)",
+                    mu->data.header.decree,
+                    last_committed_decree() + _options->max_mutation_count_in_prepare_list,
+                    last_committed_decree(),
+                    _options->max_mutation_count_in_prepare_list);
+        } else if (partition_status::PS_SECONDARY == status()) {
+            dassert(mu->data.header.decree <=
+                        last_committed_decree() + _options->staleness_for_commit,
+                    "%" PRId64 " VS %" PRId64 "(%" PRId64 " + %d)",
+                    mu->data.header.decree,
+                    last_committed_decree() + _options->staleness_for_commit,
+                    last_committed_decree(),
+                    _options->staleness_for_commit);
+        }
         _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
     }
 }
