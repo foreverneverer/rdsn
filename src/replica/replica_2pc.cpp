@@ -588,7 +588,8 @@ void replica::on_append_log_completed(mutation_ptr mu, error_code err, size_t si
     }
 
     // write local private log if necessary
-    if (err == ERR_OK && status() != partition_status::PS_ERROR) {
+    if (err == ERR_OK && status() != partition_status::PS_ERROR &&
+        status() != partition_status::PS_PRIMARY) {
         error_code err = _prepare_list->prepare(mu, status());
         dassert(err == ERR_OK, "prepare mutation failed, err = %s", err.to_string());
         if (partition_status::PS_POTENTIAL_SECONDARY == status()) {
