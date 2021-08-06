@@ -30,6 +30,7 @@
 #include <dsn/c/api_utilities.h>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/fail_point.h>
+#include <dsn/utils/latency_tracer.h>
 
 namespace dsn {
 
@@ -127,6 +128,9 @@ error_code native_linux_aio_provider::read(const aio_context &aio_ctx,
 
 void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk)
 {
+    if (aio_tsk->tracer != nullptr) {
+        ADD_POINT(aio_tsk->tracer);
+    }
     tasking::enqueue(aio_tsk->code(),
                      aio_tsk->tracker(),
                      [=]() { aio_internal(aio_tsk, true); },
@@ -137,6 +141,9 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                                                    bool async,
                                                    /*out*/ uint32_t *pbytes /*= nullptr*/)
 {
+    if (aio_tsk->tracer != nullptr) {
+        ADD_POINT(aio_tsk->tracer);
+    }
     aio_context *aio_ctx = aio_tsk->get_aio_context();
     error_code err = ERR_UNKNOWN;
     uint32_t processed_bytes = 0;
@@ -149,6 +156,10 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         break;
     default:
         return err;
+    }
+
+    if (aio_tsk->tracer != nullptr) {
+        ADD_CUSTOM_POINT(aio_tsk->tracer, "write_completed");
     }
 
     if (pbytes) {

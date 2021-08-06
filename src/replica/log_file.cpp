@@ -242,6 +242,11 @@ error_code log_file::read_next_log_block(/*out*/ ::dsn::blob &bb)
     return ERR_OK;
 }
 
+DSN_DEFINE_uint64("replication",
+                  abnormal_write_trace_latency_slog_threshold,
+                  1000 * 1000 * 1000, // 1s
+                  "latency trace will be logged when exceed the write latency threshold");
+
 aio_task_ptr log_file::commit_log_block(log_block &block,
                                         int64_t offset,
                                         dsn::task_code evt,
@@ -307,6 +312,12 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  tracker,
                                  std::forward<aio_handler>(callback),
                                  hash);
+        if (tsk) {
+            tsk->tracer = std::make_shared<dsn::utils::latency_tracer>(
+                fmt::format("{}[{}]", "slog", _slog_id),
+                false,
+                FLAGS_abnormal_write_trace_latency_slog_threshold);
+        }
     } else {
         tsk = file::write_vector(_handle,
                                  buffer_vector.data(),
@@ -316,6 +327,12 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  tracker,
                                  nullptr,
                                  hash);
+        if (tsk) {
+            tsk->tracer = std::make_shared<dsn::utils::latency_tracer>(
+                fmt::format("{}[{}]", "slog", _slog_id),
+                false,
+                FLAGS_abnormal_write_trace_latency_slog_threshold);
+        }
     }
 
     _end_offset.fetch_add(size);
