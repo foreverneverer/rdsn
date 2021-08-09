@@ -115,7 +115,7 @@ fds_service::fds_service()
     ///  Here we set burst_size to max value of double, in order to make file not rejected by the
     ///  token bucket
     _write_token_bucket.reset(new folly::TokenBucket(FLAGS_fds_write_limit_rate << 20,
-                                                     std::numeric_limits<double>::max()));
+                                                     1.2 * (FLAGS_fds_write_limit_rate << 20)));
 
     uint32_t burst_size = 2 * FLAGS_fds_read_limit_rate << 20;
     _read_token_bucket.reset(new folly::TokenBucket(FLAGS_fds_read_limit_rate << 20, burst_size));
