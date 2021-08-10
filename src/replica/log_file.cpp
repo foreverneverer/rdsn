@@ -314,7 +314,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  hash);
         if (tsk) {
             tsk->tracer = std::make_shared<dsn::utils::latency_tracer>(
-                fmt::format("{}[{}]", "slog", _slog_id),
+                fmt::format("{}[{}]", "slog", pending.slog_id),
                 false,
                 FLAGS_abnormal_write_trace_latency_slog_threshold);
         }
@@ -329,7 +329,7 @@ aio_task_ptr log_file::commit_log_blocks(log_appender &pending,
                                  hash);
         if (tsk) {
             tsk->tracer = std::make_shared<dsn::utils::latency_tracer>(
-                fmt::format("{}[{}]", "slog", _slog_id),
+                fmt::format("{}[{}]", "slog", pending.slog_id),
                 false,
                 FLAGS_abnormal_write_trace_latency_slog_threshold);
         }
