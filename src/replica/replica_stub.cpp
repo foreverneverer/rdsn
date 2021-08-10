@@ -64,6 +64,11 @@
 namespace dsn {
 namespace replication {
 
+DSN_DEFINE_bool("replication",
+                ignore_broken_disk,
+                true,
+                "true means ignore broken data disk when initialize");
+
 bool replica_stub::s_not_exit_on_log_failure = false;
 
 replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
@@ -89,9 +94,11 @@ replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
       _is_running(false)
 {
 #ifdef DSN_ENABLE_GPERF
+    _is_releasing_memory = false;
     _release_tcmalloc_memory_command = nullptr;
     _get_tcmalloc_status_command = nullptr;
     _max_reserved_memory_percentage_command = nullptr;
+    _release_all_reserved_memory_command = nullptr;
 #endif
     _replica_state_subscriber = subscriber;
     _is_long_subscriber = is_long_subscriber;
@@ -407,6 +414,59 @@ void replica_stub::install_perf_counters()
                                                            COUNTER_TYPE_NUMBER,
                                                            "current tcmalloc release memory size");
 #endif
+
+    // <- Partition split Metrics ->
+
+    _counter_replicas_splitting_count.init_app_counter("eon.replica_stub",
+                                                       "replicas.splitting.count",
+                                                       COUNTER_TYPE_NUMBER,
+                                                       "current partition splitting count");
+
+    _counter_replicas_splitting_max_duration_time_ms.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.max.duration.time(ms)",
+        COUNTER_TYPE_NUMBER,
+        "current partition splitting max duration time(ms)");
+    _counter_replicas_splitting_max_async_learn_time_ms.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.max.async.learn.time(ms)",
+        COUNTER_TYPE_NUMBER,
+        "current partition splitting max async learn time(ms)");
+    _counter_replicas_splitting_max_copy_file_size.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.max.copy.file.size",
+        COUNTER_TYPE_NUMBER,
+        "current splitting max copy file size");
+    _counter_replicas_splitting_recent_start_count.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.recent.start.count",
+        COUNTER_TYPE_VOLATILE_NUMBER,
+        "current splitting start count in the recent period");
+    _counter_replicas_splitting_recent_copy_file_count.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.recent.copy.file.count",
+        COUNTER_TYPE_VOLATILE_NUMBER,
+        "splitting copy file count in the recent period");
+    _counter_replicas_splitting_recent_copy_file_size.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.recent.copy.file.size",
+        COUNTER_TYPE_VOLATILE_NUMBER,
+        "splitting copy file size in the recent period");
+    _counter_replicas_splitting_recent_copy_mutation_count.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.recent.copy.mutation.count",
+        COUNTER_TYPE_VOLATILE_NUMBER,
+        "splitting copy mutation count in the recent period");
+    _counter_replicas_splitting_recent_split_succ_count.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.recent.split.succ.count",
+        COUNTER_TYPE_VOLATILE_NUMBER,
+        "splitting succeed count in the recent period");
+    _counter_replicas_splitting_recent_split_fail_count.init_app_counter(
+        "eon.replica_stub",
+        "replicas.splitting.recent.split.fail.count",
+        COUNTER_TYPE_VOLATILE_NUMBER,
+        "splitting fail count in the recent period");
 }
 
 void replica_stub::initialize(bool clear /* = false*/)
@@ -452,33 +512,13 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     }
 
     // init dirs
-    if (!dsn::utils::filesystem::create_directory(_options.slog_dir)) {
-        dassert(false, "Fail to create directory %s.", _options.slog_dir.c_str());
-    }
     std::string cdir;
-    if (!dsn::utils::filesystem::get_absolute_path(_options.slog_dir, cdir)) {
-        dassert(false, "Fail to get absolute path from %s.", _options.slog_dir.c_str());
+    std::string err_msg;
+    if (!dsn::utils::filesystem::create_directory(_options.slog_dir, cdir, err_msg)) {
+        dassert_f(false, "{}", err_msg);
     }
     _options.slog_dir = cdir;
-    int count = 0;
-    for (auto &dir : _options.data_dirs) {
-        if (!dsn::utils::filesystem::create_directory(dir)) {
-            dassert(false, "Fail to create directory %s.", dir.c_str());
-        }
-        std::string cdir;
-        if (!dsn::utils::filesystem::get_absolute_path(dir, cdir)) {
-            dassert(false, "Fail to get absolute path from %s.", dir.c_str());
-        }
-        dir = cdir;
-        ddebug("data_dirs[%d] = %s", count, dir.c_str());
-        count++;
-    }
-
-    {
-        dsn::error_code err;
-        err = _fs_manager.initialize(_options.data_dirs, _options.data_dir_tags, false);
-        dassert(err == dsn::ERR_OK, "initialize fs manager failed, err(%s)", err.to_string());
-    }
+    initialize_fs_manager(_options.data_dirs, _options.data_dir_tags);
 
     _log = new mutation_log_shared(_options.slog_dir,
                                    _options.log_shared_file_size_mb,
@@ -490,7 +530,7 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     ddebug("start to load replicas");
 
     std::vector<std::string> dir_list;
-    for (auto &dir : _options.data_dirs) {
+    for (auto &dir : _fs_manager.get_available_data_dirs()) {
         std::vector<std::string> tmp_list;
         if (!dsn::utils::filesystem::get_subdirectories(dir, tmp_list, false)) {
             dassert(false, "Fail to get subdirectories in %s.", dir.c_str());
@@ -738,6 +778,37 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     }
 }
 
+void replica_stub::initialize_fs_manager(std::vector<std::string> &data_dirs,
+                                         std::vector<std::string> &data_dir_tags)
+{
+    std::string cdir;
+    std::string err_msg;
+    int count = 0;
+    std::vector<std::string> available_dirs;
+    std::vector<std::string> available_dir_tags;
+    for (auto i = 0; i < data_dir_tags.size(); ++i) {
+        std::string &dir = data_dirs[i];
+        if (dsn_unlikely(!utils::filesystem::create_directory(dir, cdir, err_msg) ||
+                         !utils::filesystem::check_dir_rw(dir, err_msg))) {
+            if (FLAGS_ignore_broken_disk) {
+                dwarn_f("data dir[{}] is broken, ignore it, error:{}", dir, err_msg);
+            } else {
+                dassert_f(false, "{}", err_msg);
+            }
+            continue;
+        }
+        ddebug_f("data_dirs[{}] = {}", count, cdir);
+        available_dirs.emplace_back(cdir);
+        available_dir_tags.emplace_back(data_dir_tags[i]);
+        count++;
+    }
+
+    dassert_f(available_dirs.size() > 0,
+              "initialize fs manager failed, no available data directory");
+    error_code err = _fs_manager.initialize(available_dirs, available_dir_tags, false);
+    dassert_f(err == dsn::ERR_OK, "initialize fs manager failed, err({})", err);
+}
+
 void replica_stub::initialize_start()
 {
     if (_is_running) {
@@ -762,7 +833,7 @@ void replica_stub::initialize_start()
     _mem_release_timer_task =
         tasking::enqueue_timer(LPC_MEM_RELEASE,
                                &_tracker,
-                               std::bind(&replica_stub::gc_tcmalloc_memory, this),
+                               std::bind(&replica_stub::gc_tcmalloc_memory, this, false),
                                std::chrono::milliseconds(_options.mem_release_check_interval_ms),
                                0,
                                std::chrono::milliseconds(_options.mem_release_check_interval_ms));
@@ -1073,6 +1144,53 @@ void replica_stub::on_query_app_info(query_app_info_rpc rpc)
     }
 }
 
+// ThreadPool: THREAD_POOL_DEFAULT
+void replica_stub::on_add_new_disk(add_new_disk_rpc rpc)
+{
+    const auto &disk_str = rpc.request().disk_str;
+    auto &resp = rpc.response();
+    resp.err = ERR_OK;
+
+    std::vector<std::string> data_dirs;
+    std::vector<std::string> data_dir_tags;
+    std::string err_msg = "";
+    if (disk_str.empty() ||
+        !replication_options::get_data_dir_and_tag(
+            disk_str, "", "replica", data_dirs, data_dir_tags, err_msg)) {
+        resp.err = ERR_INVALID_PARAMETERS;
+        resp.__set_err_hint(fmt::format("invalid str({}), err_msg: {}", disk_str, err_msg));
+        return;
+    }
+
+    for (auto i = 0; i < data_dir_tags.size(); ++i) {
+        auto dir = data_dirs[i];
+        if (_fs_manager.is_dir_node_available(dir, data_dir_tags[i])) {
+            resp.err = ERR_NODE_ALREADY_EXIST;
+            resp.__set_err_hint(
+                fmt::format("data_dir({}) tag({}) already available", dir, data_dir_tags[i]));
+            return;
+        }
+
+        if (dsn_unlikely(utils::filesystem::directory_exists(dir) &&
+                         !utils::filesystem::is_directory_empty(dir).second)) {
+            resp.err = ERR_DIR_NOT_EMPTY;
+            resp.__set_err_hint(fmt::format("Disk({}) directory is not empty", dir));
+            return;
+        }
+
+        std::string cdir;
+        if (dsn_unlikely(!utils::filesystem::create_directory(dir, cdir, err_msg) ||
+                         !utils::filesystem::check_dir_rw(dir, err_msg))) {
+            resp.err = ERR_FILE_OPERATION_FAILED;
+            resp.__set_err_hint(err_msg);
+            return;
+        }
+
+        ddebug_f("Add a new disk in fs_manager, data_dir={}, tag={}", cdir, data_dir_tags[i]);
+        _fs_manager.add_new_dir_node(cdir, data_dir_tags[i]);
+    }
+}
+
 void replica_stub::on_prepare(dsn::message_ex *request)
 {
     gpid id;
@@ -1229,6 +1347,11 @@ void replica_stub::get_local_replicas(std::vector<replica_info> &replicas)
 
     for (auto &pairs : _replicas) {
         replica_ptr &rep = pairs.second;
+        // child partition should not sync config from meta server
+        // because it is not ready in meta view
+        if (rep->status() == partition_status::PS_PARTITION_SPLIT) {
+            continue;
+        }
         replica_info info;
         get_replica_info(info, rep);
         replicas.push_back(std::move(info));
@@ -1434,7 +1557,8 @@ void replica_stub::on_node_query_reply_scatter(replica_stub_ptr this_,
 void replica_stub::on_node_query_reply_scatter2(replica_stub_ptr this_, gpid id)
 {
     replica_ptr replica = get_replica(id);
-    if (replica != nullptr && replica->status() != partition_status::PS_POTENTIAL_SECONDARY) {
+    if (replica != nullptr && replica->status() != partition_status::PS_POTENTIAL_SECONDARY &&
+        replica->status() != partition_status::PS_PARTITION_SPLIT) {
         if (replica->status() == partition_status::PS_INACTIVE &&
             dsn_now_ms() - replica->create_time_milliseconds() <
                 _options.gc_memory_replica_interval_ms) {
@@ -1744,6 +1868,10 @@ void replica_stub::on_gc()
     uint64_t bulk_load_running_count = 0;
     uint64_t bulk_load_max_ingestion_time_ms = 0;
     uint64_t bulk_load_max_duration_time_ms = 0;
+    uint64_t splitting_count = 0;
+    uint64_t splitting_max_duration_time_ms = 0;
+    uint64_t splitting_max_async_learn_time_ms = 0;
+    uint64_t splitting_max_copy_file_size = 0;
     for (auto &kv : rs) {
         replica_ptr &rep = kv.second.rep;
         if (rep->status() == partition_status::PS_POTENTIAL_SECONDARY) {
@@ -1770,6 +1898,16 @@ void replica_stub::on_gc()
                     std::max(bulk_load_max_duration_time_ms, rep->get_bulk_loader()->duration_ms());
             }
         }
+        // splitting_max_copy_file_size, rep->_split_states.copy_file_size
+        if (rep->status() == partition_status::PS_PARTITION_SPLIT) {
+            splitting_count++;
+            splitting_max_duration_time_ms =
+                std::max(splitting_max_duration_time_ms, rep->_split_states.total_ms());
+            splitting_max_async_learn_time_ms =
+                std::max(splitting_max_async_learn_time_ms, rep->_split_states.async_learn_ms());
+            splitting_max_copy_file_size =
+                std::max(splitting_max_copy_file_size, rep->_split_states.splitting_copy_file_size);
+        }
     }
 
     _counter_replicas_learning_count->set(learning_count);
@@ -1781,6 +1919,10 @@ void replica_stub::on_gc()
     _counter_bulk_load_running_count->set(bulk_load_running_count);
     _counter_bulk_load_max_ingestion_time_ms->set(bulk_load_max_ingestion_time_ms);
     _counter_bulk_load_max_duration_time_ms->set(bulk_load_max_duration_time_ms);
+    _counter_replicas_splitting_count->set(splitting_count);
+    _counter_replicas_splitting_max_duration_time_ms->set(splitting_max_duration_time_ms);
+    _counter_replicas_splitting_max_async_learn_time_ms->set(splitting_max_async_learn_time_ms);
+    _counter_replicas_splitting_max_copy_file_size->set(splitting_max_copy_file_size);
 
     ddebug("finish to garbage collection, time_used_ns = %" PRIu64, dsn_now_ns() - start);
 }
@@ -1791,9 +1933,10 @@ void replica_stub::on_disk_stat()
     uint64_t start = dsn_now_ns();
     disk_cleaning_report report{};
 
-    dsn::replication::disk_remove_useless_dirs(_options.data_dirs, report);
+    dsn::replication::disk_remove_useless_dirs(_fs_manager.get_available_data_dirs(), report);
     _fs_manager.update_disk_stat();
     update_disk_holding_replicas();
+    update_disks_status();
 
     _counter_replicas_error_replica_dir_count->set(report.error_replica_count);
     _counter_replicas_garbage_replica_dir_count->set(report.garbage_replica_count);
@@ -2094,6 +2237,9 @@ void replica_stub::open_service()
         RPC_REPLICA_DISK_MIGRATE, "disk_migrate_replica", &replica_stub::on_disk_migrate);
     register_rpc_handler_with_rpc_holder(
         RPC_QUERY_APP_INFO, "query_app_info", &replica_stub::on_query_app_info);
+    register_rpc_handler_with_rpc_holder(RPC_SPLIT_UPDATE_CHILD_PARTITION_COUNT,
+                                         "update_child_group_partition_count",
+                                         &replica_stub::on_update_child_group_partition_count);
     register_rpc_handler_with_rpc_holder(RPC_SPLIT_NOTIFY_CATCH_UP,
                                          "child_notify_catch_up",
                                          &replica_stub::on_notify_primary_split_catch_up);
@@ -2102,6 +2248,8 @@ void replica_stub::open_service()
         RPC_GROUP_BULK_LOAD, "group_bulk_load", &replica_stub::on_group_bulk_load);
     register_rpc_handler_with_rpc_holder(
         RPC_DETECT_HOTKEY, "detect_hotkey", &replica_stub::on_detect_hotkey);
+    register_rpc_handler_with_rpc_holder(
+        RPC_ADD_NEW_DISK, "add_new_disk", &replica_stub::on_add_new_disk);
 
     register_ctrl_command();
 }
@@ -2213,8 +2361,8 @@ void replica_stub::register_ctrl_command()
 
         _get_tcmalloc_status_command = ::dsn::command_manager::instance().register_command(
             {"replica.get-tcmalloc-status"},
-            "replica.get-tcmalloc-status",
             "replica.get-tcmalloc-status - get status of tcmalloc",
+            "get status of tcmalloc",
             [](const std::vector<std::string> &args) {
                 char buf[4096];
                 MallocExtension::instance()->GetStats(buf, 4096);
@@ -2246,6 +2394,15 @@ void replica_stub::register_ctrl_command()
                     _mem_release_max_reserved_mem_percentage = percentage;
                 }
                 return result;
+            });
+
+        _release_all_reserved_memory_command = ::dsn::command_manager::instance().register_command(
+            {"replica.release-all-reserved-memory"},
+            "replica.release-all-reserved-memory - release tcmalloc all reserved-not-used memory",
+            "release tcmalloc all reserverd not-used memory back to operating system",
+            [this](const std::vector<std::string> &args) {
+                auto release_bytes = gc_tcmalloc_memory(true);
+                return "OK, release_bytes=" + std::to_string(release_bytes);
             });
 #endif
         _max_concurrent_bulk_load_downloading_count_command =
@@ -2408,6 +2565,7 @@ void replica_stub::close()
     UNREGISTER_VALID_HANDLER(_release_tcmalloc_memory_command);
     UNREGISTER_VALID_HANDLER(_get_tcmalloc_status_command);
     UNREGISTER_VALID_HANDLER(_max_reserved_memory_percentage_command);
+    UNREGISTER_VALID_HANDLER(_release_all_reserved_memory_command);
 #endif
     UNREGISTER_VALID_HANDLER(_max_concurrent_bulk_load_downloading_count_command);
 
@@ -2422,6 +2580,7 @@ void replica_stub::close()
     _release_tcmalloc_memory_command = nullptr;
     _get_tcmalloc_status_command = nullptr;
     _max_reserved_memory_percentage_command = nullptr;
+    _release_all_reserved_memory_command = nullptr;
 #endif
     _max_concurrent_bulk_load_downloading_count_command = nullptr;
 
@@ -2500,7 +2659,7 @@ std::string replica_stub::get_replica_dir(const char *app_type, gpid id, bool cr
     std::string gpid_str = fmt::format("{}.{}", id, app_type);
     std::string replica_dir;
     bool is_dir_exist = false;
-    for (const std::string &data_dir : _options.data_dirs) {
+    for (const std::string &data_dir : _fs_manager.get_available_data_dirs()) {
         std::string dir = utils::filesystem::path_combine(data_dir, gpid_str);
         if (utils::filesystem::directory_exists(dir)) {
             if (is_dir_exist) {
@@ -2522,7 +2681,7 @@ replica_stub::get_child_dir(const char *app_type, gpid child_pid, const std::str
 {
     std::string gpid_str = fmt::format("{}.{}", child_pid.to_string(), app_type);
     std::string child_dir;
-    for (const std::string &data_dir : _options.data_dirs) {
+    for (const std::string &data_dir : _fs_manager.get_available_data_dirs()) {
         std::string dir = utils::filesystem::path_combine(data_dir, gpid_str);
         // <parent_dir> = <prefix>/<gpid>.<app_type>
         // check if <parent_dir>'s <prefix> is equal to <data_dir>
@@ -2550,23 +2709,31 @@ static int64_t get_tcmalloc_numeric_property(const char *prop)
     return value;
 }
 
-void replica_stub::gc_tcmalloc_memory()
+uint64_t replica_stub::gc_tcmalloc_memory(bool release_all)
 {
-    int64_t tcmalloc_released_bytes = 0;
+    auto tcmalloc_released_bytes = 0;
     if (!_release_tcmalloc_memory) {
+        _is_releasing_memory.store(false);
         _counter_tcmalloc_release_memory_size->set(tcmalloc_released_bytes);
-        return;
+        return tcmalloc_released_bytes;
     }
 
+    if (_is_releasing_memory.load()) {
+        dwarn_f("This node is releasing memory...");
+        return tcmalloc_released_bytes;
+    }
+
+    _is_releasing_memory.store(true);
     int64_t total_allocated_bytes =
         get_tcmalloc_numeric_property("generic.current_allocated_bytes");
     int64_t reserved_bytes = get_tcmalloc_numeric_property("tcmalloc.pageheap_free_bytes");
     if (total_allocated_bytes == -1 || reserved_bytes == -1) {
-        return;
+        return tcmalloc_released_bytes;
     }
 
     int64_t max_reserved_bytes =
-        total_allocated_bytes * _mem_release_max_reserved_mem_percentage / 100.0;
+        release_all ? 0
+                    : (total_allocated_bytes * _mem_release_max_reserved_mem_percentage / 100.0);
     if (reserved_bytes > max_reserved_bytes) {
         int64_t release_bytes = reserved_bytes - max_reserved_bytes;
         tcmalloc_released_bytes = release_bytes;
@@ -2579,6 +2746,8 @@ void replica_stub::gc_tcmalloc_memory()
         }
     }
     _counter_tcmalloc_release_memory_size->set(tcmalloc_released_bytes);
+    _is_releasing_memory.store(false);
+    return tcmalloc_released_bytes;
 }
 #endif
 
@@ -2594,7 +2763,7 @@ void replica_stub::create_child_replica(rpc_address primary_address,
 {
     replica_ptr child_replica = create_child_replica_if_not_found(child_gpid, &app, parent_dir);
     if (child_replica != nullptr) {
-        ddebug_f("create child replica ({}) succeed", child_gpid);
+        ddebug_f("app({}), create child replica ({}) succeed", app.app_name, child_gpid);
         tasking::enqueue(LPC_PARTITION_SPLIT,
                          child_replica->tracker(),
                          std::bind(&replica_split_manager::child_init_replica,
@@ -2800,6 +2969,25 @@ void replica_stub::query_app_manual_compact_status(
     for (auto it = _replicas.begin(); it != _replicas.end(); ++it) {
         if (it->first.get_app_id() == app_id) {
             status[it->first] = it->second->get_manual_compact_status();
+        }
+    }
+}
+
+void replica_stub::update_disks_status()
+{
+    for (const auto &dir_node : _fs_manager._status_updated_dir_nodes) {
+        for (const auto &holding_replicas : dir_node->holding_replicas) {
+            const std::set<gpid> &pids = holding_replicas.second;
+            for (const auto &pid : pids) {
+                replica_ptr replica = get_replica(pid);
+                if (replica == nullptr) {
+                    continue;
+                }
+                replica->set_disk_status(dir_node->status);
+                ddebug_f("{} update disk_status to {}",
+                         replica->name(),
+                         enum_to_string(replica->get_disk_status()));
+            }
         }
     }
 }

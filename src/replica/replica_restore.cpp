@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 #include <fstream>
 #include <boost/lexical_cast.hpp>
 
@@ -225,8 +242,11 @@ dsn::error_code replica::find_valid_checkpoint(const configuration_restore_reque
     old_gpid.set_app_id(req.app_id);
     old_gpid.set_partition_index(_config.pid.get_partition_index());
     std::string backup_root = req.cluster_name;
+    if (!req.restore_path.empty()) {
+        backup_root = dsn::utils::filesystem::path_combine(req.restore_path, backup_root);
+    }
     if (!req.policy_name.empty()) {
-        backup_root += ("/" + req.policy_name);
+        backup_root = dsn::utils::filesystem::path_combine(backup_root, req.policy_name);
     }
     int64_t backup_id = req.time_stamp;
 
@@ -328,10 +348,17 @@ dsn::error_code replica::restore_checkpoint()
         skip_bad_partition = true;
     }
 
-    ddebug_f("{}: restore checkpoint(policy_name {}, backup_id {}) from {} to local dir {}",
+    iter = _app_info.envs.find(backup_restore_constant::RESTORE_PATH);
+    if (iter != _app_info.envs.end()) {
+        restore_req.__set_restore_path(iter->second);
+    }
+
+    ddebug_f("{}: restore checkpoint(policy_name {}, backup_id {}), restore_path({}) from {} to "
+             "local dir {}",
              name(),
              restore_req.policy_name,
              restore_req.time_stamp,
+             restore_req.restore_path,
              restore_req.backup_provider_name,
              _dir);
 

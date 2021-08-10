@@ -71,6 +71,8 @@ public:
 
     void update_disk_replica() { stub->on_disk_stat(); }
 
+    void update_disks_status() { stub->update_disks_status(); }
+
     std::vector<std::shared_ptr<dir_node>> get_dir_nodes() { return stub->_fs_manager._dir_nodes; }
 
     void generate_mock_dir_node(const app_info &app,
@@ -81,6 +83,7 @@ public:
         dir_node *node_disk = new dir_node(tag, full_dir);
         node_disk->holding_replicas[app.app_id].emplace(pid);
         stub->_fs_manager._dir_nodes.emplace_back(node_disk);
+        stub->_fs_manager._available_data_dirs.emplace_back(full_dir);
     }
 
     void remove_mock_dir_node(const std::string &tag)
@@ -93,6 +96,65 @@ public:
                 break;
             }
         }
+    }
+
+    void
+    mock_node_status(int32_t node_index, disk_status::type old_status, disk_status::type new_status)
+    {
+        auto node = get_dir_nodes()[node_index];
+        for (const auto &kv : node->holding_replicas) {
+            for (const auto &pid : kv.second) {
+                update_replica_disk_status(pid, old_status);
+            }
+        }
+        stub->_fs_manager._status_updated_dir_nodes.clear();
+        if (old_status != new_status) {
+            node->status = new_status;
+            stub->_fs_manager._status_updated_dir_nodes.emplace_back(node);
+        }
+    }
+
+    error_code replica_disk_space_insufficient(const gpid &pid, bool &flag)
+    {
+        replica_ptr replica = stub->get_replica(pid);
+        if (replica == nullptr) {
+            return ERR_OBJECT_NOT_FOUND;
+        }
+        flag = replica->disk_space_insufficient();
+        return ERR_OK;
+    }
+
+    int32_t ignore_broken_disk_test(const std::string &mock_create_directory,
+                                    const std::string &mock_check_rw)
+    {
+        std::vector<std::string> data_dirs = {"disk1", "disk2", "disk3"};
+        std::vector<std::string> data_dir_tags = {"tag1", "tag2", "tag3"};
+        auto test_stub = make_unique<mock_replica_stub>();
+        fail::cfg("filesystem_create_directory", "return(" + mock_create_directory + ")");
+        fail::cfg("filesystem_check_dir_rw", "return(" + mock_check_rw + ")");
+        fail::cfg("update_disk_stat", "return()");
+        test_stub->initialize_fs_manager(data_dirs, data_dir_tags);
+        int32_t dir_size = test_stub->_fs_manager.get_available_data_dirs().size();
+        test_stub.reset();
+        return dir_size;
+    }
+
+    void prepare_before_add_new_disk_test(const std::string &create_dir,
+                                          const std::string &check_rw)
+    {
+        stub->_fs_manager.add_new_dir_node("add_new_exist_disk/replica/reps", "add_new_exist_tag");
+        std::string dir_name = "add_new_not_empty_disk/replica/reps";
+        utils::filesystem::create_directory(dir_name);
+        utils::filesystem::create_file(dir_name + "/test_file");
+        fail::cfg("filesystem_create_directory", "return(" + create_dir + ")");
+        fail::cfg("filesystem_check_dir_rw", "return(" + check_rw + ")");
+    }
+
+    void reset_after_add_new_disk_test()
+    {
+        stub->_fs_manager._dir_nodes.clear();
+        stub->_fs_manager._available_data_dirs.clear();
+        dsn::utils::filesystem::remove_path("add_new_not_empty_disk");
     }
 
 public:
@@ -131,7 +193,7 @@ private:
             dir_node *node_disk =
                 new dir_node(fmt::format("tag_empty_{}", num), fmt::format("./tag_empty_{}", num));
             stub->_fs_manager._dir_nodes.emplace_back(node_disk);
-            stub->_options.data_dirs.push_back(node_disk->full_dir);
+            stub->_fs_manager._available_data_dirs.emplace_back(node_disk->full_dir);
             utils::filesystem::create_directory(node_disk->full_dir);
             num--;
         }
@@ -177,7 +239,17 @@ private:
             }
 
             stub->_fs_manager._dir_nodes.emplace_back(node_disk);
+            stub->_fs_manager._available_data_dirs.emplace_back(node_disk->full_dir);
         }
+    }
+
+    void update_replica_disk_status(const gpid &pid, const disk_status::type status)
+    {
+        replica_ptr replica = stub->get_replica(pid);
+        if (replica == nullptr) {
+            return;
+        }
+        replica->set_disk_status(status);
     }
 };
 

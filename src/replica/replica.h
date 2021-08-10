@@ -100,6 +100,8 @@ const char *manual_compaction_status_to_string(manual_compaction_status status);
         }                                                                                          \
     }
 
+DSN_DECLARE_bool(reject_write_when_disk_insufficient);
+
 class replica : public serverlet<replica>, public ref_counter, public replica_base
 {
 public:
@@ -231,6 +233,10 @@ public:
 
     // routine for get extra envs from replica
     const std::map<std::string, std::string> &get_replica_extra_envs() const { return _extra_envs; }
+
+    void set_disk_status(disk_status::type status) { _disk_status = status; }
+    bool disk_space_insufficient() { return _disk_status == disk_status::SPACE_INSUFFICIENT; }
+    disk_status::type get_disk_status() { return _disk_status; }
 
 protected:
     // this method is marked protected to enable us to mock it in unit tests.
@@ -370,7 +376,7 @@ private:
 
     /////////////////////////////////////////////////////////////////
     // cold backup
-    void generate_backup_checkpoint(cold_backup_context_ptr backup_context);
+    virtual void generate_backup_checkpoint(cold_backup_context_ptr backup_context);
     void trigger_async_checkpoint_for_backup(cold_backup_context_ptr backup_context);
     void wait_async_checkpoint_for_backup(cold_backup_context_ptr backup_context);
     void local_create_backup_checkpoint(cold_backup_context_ptr backup_context);
@@ -570,6 +576,8 @@ private:
     dsn::thread_access_checker _checker;
 
     std::unique_ptr<security::access_controller> _access_controller;
+
+    disk_status::type _disk_status{disk_status::NORMAL};
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication

@@ -331,6 +331,12 @@ void replica::execute_mutation(mutation_ptr &mu)
             dassert(_private_log != nullptr, "");
         }
         break;
+    case partition_status::PS_PARTITION_SPLIT:
+        if (_split_states.is_caught_up) {
+            dcheck_eq(_app->last_committed_decree() + 1, d);
+            err = _app->apply_mutation(mu);
+        }
+        break;
     case partition_status::PS_ERROR:
         break;
     default:
@@ -438,6 +444,9 @@ void replica::close()
 
         r = _potential_secondary_states.cleanup(true);
         dassert(r, "potential secondary context is not cleared");
+
+        r = _split_states.cleanup(true);
+        dassert_replica(r, "partition split context is not cleared");
     }
 
     if (_private_log != nullptr) {
@@ -533,8 +542,8 @@ void replica::init_table_level_latency_counters()
         _counters_table_level_latency[code] = nullptr;
         if (get_storage_rpc_req_codes().find(task_code(code)) !=
             get_storage_rpc_req_codes().end()) {
-            std::string counter_str =
-                fmt::format("table.level.{}.latency(ns)@{}", task_code(code), _app_info.app_name);
+            std::string counter_str = fmt::format(
+                "table.level.{}.latency(ns)@{}", task_code(code).to_string(), _app_info.app_name);
             _counters_table_level_latency[code] =
                 dsn::perf_counters::instance()
                     .get_app_counter("eon.replica",

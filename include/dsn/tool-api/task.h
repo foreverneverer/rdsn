@@ -435,10 +435,11 @@ public:
                 _handler(_request);
             }
         } else {
-            dwarn("rpc_request_task(%s) from(%s) stop to execute due to timeout_ms(%d) exceed",
+            dinfo("rpc_request_task(%s) from(%s) stop to execute due to timeout_ms(%d) exceed",
                   spec().name.c_str(),
                   _request->header->from_address.to_string(),
                   _request->header->client.timeout_ms);
+            spec().on_rpc_task_dropped.execute(this);
         }
     }
 

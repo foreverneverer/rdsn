@@ -25,6 +25,7 @@
  */
 
 #include "native_linux_aio_provider.h"
+#include "runtime/service_engine.h"
 
 #include <dsn/tool-api/async_calls.h>
 #include <dsn/c/api_utilities.h>
@@ -131,15 +132,18 @@ void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk)
     if (aio_tsk->tracer != nullptr) {
         ADD_POINT(aio_tsk->tracer);
     }
-    tasking::enqueue(aio_tsk->code(),
-                     aio_tsk->tracker(),
-                     [=]() { aio_internal(aio_tsk, true); },
-                     aio_tsk->hash());
+
+    // for the tests which use simulator need sync submit for aio
+    if (dsn_unlikely(service_engine::instance().is_simulator())) {
+        aio_internal(aio_tsk);
+        return;
+    }
+
+    tasking::enqueue(
+        aio_tsk->code(), aio_tsk->tracker(), [=]() { aio_internal(aio_tsk); }, aio_tsk->hash());
 }
 
-error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
-                                                   bool async,
-                                                   /*out*/ uint32_t *pbytes /*= nullptr*/)
+error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
 {
     if (aio_tsk->tracer != nullptr) {
         ADD_POINT(aio_tsk->tracer);
@@ -162,16 +166,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
         ADD_CUSTOM_POINT(aio_tsk->tracer, "write_completed");
     }
 
-    if (pbytes) {
-        *pbytes = processed_bytes;
-    }
-
-    if (async) {
-        complete_io(aio_tsk, err, processed_bytes);
-    } else {
-        utils::notify_event notify;
-        notify.notify();
-    }
+    complete_io(aio_tsk, err, processed_bytes);
 
     return err;
 }

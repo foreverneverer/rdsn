@@ -1,47 +1,35 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2015 Microsoft Corporation
- *
- * -=- Robust Distributed System Nucleus (rDSN) -=-
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
-/*
- * Description:
- *     fs_manager's header: used to track the disk position for all the allocated replicas
- *
- * Revision history:
- *     2017-08-08: sunweijie@xiaomi.com, first draft
- */
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 #pragma once
 
+#include <memory>
+
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 #include <dsn/service_api_cpp.h>
 #include <dsn/tool-api/zlocks.h>
-#include <dsn/perf_counter/perf_counter_wrapper.h>
-#include <memory>
+#include <dsn/utility/flags.h>
+
 #include "replication_common.h"
 
 namespace dsn {
 namespace replication {
+
+DSN_DECLARE_int32(disk_min_available_space_ratio);
 
 struct dir_node
 {
@@ -51,6 +39,7 @@ public:
     int64_t disk_capacity_mb;
     int64_t disk_available_mb;
     int disk_available_ratio;
+    disk_status::type status;
     std::map<app_id, std::set<gpid>> holding_replicas;
     std::map<app_id, std::set<gpid>> holding_primary_replicas;
     std::map<app_id, std::set<gpid>> holding_secondary_replicas;
@@ -60,19 +49,21 @@ public:
              const std::string &dir_,
              int64_t disk_capacity_mb_ = 0,
              int64_t disk_available_mb_ = 0,
-             int disk_available_ratio_ = 0)
+             int disk_available_ratio_ = 0,
+             disk_status::type status_ = disk_status::NORMAL)
         : tag(tag_),
           full_dir(dir_),
           disk_capacity_mb(disk_capacity_mb_),
           disk_available_mb(disk_available_mb_),
-          disk_available_ratio(disk_available_ratio_)
+          disk_available_ratio(disk_available_ratio_),
+          status(status_)
     {
     }
     unsigned replicas_count(app_id id) const;
     unsigned replicas_count() const;
     bool has(const dsn::gpid &pid) const;
     unsigned remove(const dsn::gpid &pid);
-    void update_disk_stat();
+    bool update_disk_stat(const bool update_disk_status);
 };
 
 class fs_manager
@@ -94,7 +85,15 @@ public:
     void add_replica(const dsn::gpid &pid, const std::string &pid_dir);
     void remove_replica(const dsn::gpid &pid);
     bool for_each_dir_node(const std::function<bool(const dir_node &)> &func) const;
-    void update_disk_stat();
+    void update_disk_stat(bool check_status_changed = true);
+
+    void add_new_dir_node(const std::string &data_dir, const std::string &tag);
+    bool is_dir_node_available(const std::string &data_dir, const std::string &tag) const;
+    const std::vector<std::string> &get_available_data_dirs() const
+    {
+        zauto_read_lock l(_lock);
+        return _available_data_dirs;
+    }
 
 private:
     void reset_disk_stat()
@@ -104,6 +103,7 @@ private:
         _total_available_ratio = 0;
         _min_available_ratio = 100;
         _max_available_ratio = 0;
+        _status_updated_dir_nodes.clear();
     }
 
     dir_node *get_dir_node(const std::string &subdir);
@@ -119,6 +119,12 @@ private:
     int _max_available_ratio = 0;
 
     std::vector<std::shared_ptr<dir_node>> _dir_nodes;
+    std::vector<std::string> _available_data_dirs;
+
+    // Used for disk available space check
+    // disk status will be updated periodically, this vector record nodes whose disk_status changed
+    // in this round
+    std::vector<std::shared_ptr<dir_node>> _status_updated_dir_nodes;
 
     perf_counter_wrapper _counter_total_capacity_mb;
     perf_counter_wrapper _counter_total_available_mb;

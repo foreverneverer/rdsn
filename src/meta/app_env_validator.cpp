@@ -1,28 +1,19 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2015 Microsoft Corporation
- *
- * -=- Robust Distributed System Nucleus (rDSN) -=-
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 #include "common/replication_common.h"
 #include <fmt/format.h>
@@ -133,6 +124,16 @@ bool check_split_validation(const std::string &env_value, std::string &hint_mess
     return true;
 }
 
+bool check_rocksdb_block_cache_enabled(const std::string &env_value, std::string &hint_message)
+{
+    bool result = false;
+    if (!dsn::buf2bool(env_value, result)) {
+        hint_message = fmt::format("invalid string {}, should be \"true\" or \"false\"", env_value);
+        return false;
+    }
+    return true;
+}
+
 bool app_env_validator::validate_app_env(const std::string &env_name,
                                          const std::string &env_value,
                                          std::string &hint_message)
@@ -163,6 +164,9 @@ void app_env_validator::register_all_validators()
          std::bind(&check_throttling, std::placeholders::_1, std::placeholders::_2)},
         {replica_envs::ROCKSDB_ITERATION_THRESHOLD_TIME_MS,
          std::bind(&check_rocksdb_iteration, std::placeholders::_1, std::placeholders::_2)},
+        {replica_envs::ROCKSDB_BLOCK_CACHE_ENABLED,
+         std::bind(
+             &check_rocksdb_block_cache_enabled, std::placeholders::_1, std::placeholders::_2)},
         // TODO(zhaoliwei): not implemented
         {replica_envs::BUSINESS_INFO, nullptr},
         {replica_envs::DENY_CLIENT_WRITE, nullptr},
@@ -183,6 +187,7 @@ void app_env_validator::register_all_validators()
          std::bind(&check_throttling, std::placeholders::_1, std::placeholders::_2)},
         {replica_envs::SPLIT_VALIDATE_PARTITION_HASH,
          std::bind(&check_split_validation, std::placeholders::_1, std::placeholders::_2)},
+        {replica_envs::USER_SPECIFIED_COMPACTION, nullptr},
         {replica_envs::BACKUP_REQUEST_QPS_THROTTLING,
          std::bind(&check_throttling, std::placeholders::_1, std::placeholders::_2)}};
 }

@@ -35,6 +35,9 @@ namespace replication {
 typedef std::unordered_map<::dsn::rpc_address, partition_status::type> node_statuses;
 typedef std::unordered_map<::dsn::rpc_address, dsn::task_ptr> node_tasks;
 
+typedef rpc_holder<configuration_update_app_env_request, configuration_update_app_env_response>
+    update_app_env_rpc;
+
 typedef rpc_holder<start_bulk_load_request, start_bulk_load_response> start_bulk_load_rpc;
 typedef rpc_holder<bulk_load_request, bulk_load_response> bulk_load_rpc;
 typedef rpc_holder<control_bulk_load_request, control_bulk_load_response> control_bulk_load_rpc;
@@ -43,9 +46,11 @@ typedef rpc_holder<query_bulk_load_request, query_bulk_load_response> query_bulk
 typedef rpc_holder<start_partition_split_request, start_partition_split_response> start_split_rpc;
 typedef rpc_holder<control_split_request, control_split_response> control_split_rpc;
 typedef rpc_holder<query_split_request, query_split_response> query_split_rpc;
+typedef rpc_holder<register_child_request, register_child_response> register_child_rpc;
 typedef rpc_holder<notify_stop_split_request, notify_stop_split_response> notify_stop_split_rpc;
-typedef rpc_holder<configuration_update_app_env_request, configuration_update_app_env_response>
-    update_app_env_rpc;
+typedef rpc_holder<query_child_state_request, query_child_state_response> query_child_state_rpc;
+
+typedef rpc_holder<backup_request, backup_response> backup_rpc;
 
 class replication_options
 {
@@ -127,14 +132,23 @@ public:
 
 public:
     replication_options();
-    void initialize();
     ~replication_options();
+
+    void initialize();
+    static bool get_data_dir_and_tag(const std::string &config_dirs_str,
+                                     const std::string &default_dir,
+                                     const std::string &app_name,
+                                     /*out*/ std::vector<std::string> &data_dirs,
+                                     /*out*/ std::vector<std::string> &data_dir_tags,
+                                     /*out*/ std::string &err_msg);
+    static void get_data_dirs_in_black_list(const std::string &fname,
+                                            /*out*/ std::vector<std::string> &dirs);
+    static bool check_if_in_black_list(const std::vector<std::string> &black_list_dir,
+                                       const std::string &dir);
 
 private:
     void sanity_check();
 };
-
-typedef rpc_holder<register_child_request, register_child_response> register_child_rpc;
 
 extern const char *partition_status_to_string(partition_status::type status);
 
@@ -149,6 +163,7 @@ public:
     static const std::string APP_ID;
     static const std::string BACKUP_ID;
     static const std::string SKIP_BAD_PARTITION;
+    static const std::string RESTORE_PATH;
 };
 
 class bulk_load_constant
@@ -161,6 +176,5 @@ public:
     static const std::string BULK_LOAD_LOCAL_ROOT_DIR;
     static const int32_t PROGRESS_FINISHED;
 };
-
 } // namespace replication
 } // namespace dsn

@@ -62,12 +62,14 @@ typedef rpc_holder<update_child_group_partition_count_request,
     update_child_group_partition_count_rpc;
 typedef rpc_holder<group_bulk_load_request, group_bulk_load_response> group_bulk_load_rpc;
 typedef rpc_holder<detect_hotkey_request, detect_hotkey_response> detect_hotkey_rpc;
+typedef rpc_holder<add_new_disk_request, add_new_disk_response> add_new_disk_rpc;
 
 class mutation_log;
 namespace test {
 class test_checker;
 }
 class cold_backup_context;
+class replica_split_manager;
 
 typedef std::unordered_map<gpid, replica_ptr> replicas;
 typedef std::function<void(
@@ -96,6 +98,8 @@ public:
     //
     void initialize(const replication_options &opts, bool clear = false);
     void initialize(bool clear = false);
+    void initialize_fs_manager(std::vector<std::string> &data_dirs,
+                               std::vector<std::string> &data_dir_tags);
     void set_options(const replication_options &opts) { _options = opts; }
     void open_service();
     void close();
@@ -220,6 +224,7 @@ public:
     // query partitions compact status by app_id
     void query_app_manual_compact_status(
         int32_t app_id, /*out*/ std::unordered_map<gpid, manual_compaction_status> &status);
+    void on_add_new_disk(add_new_disk_rpc rpc);
 
 private:
     enum replica_node_state
@@ -275,6 +280,8 @@ private:
                          error_code error);
     void update_disk_holding_replicas();
 
+    void update_disks_status();
+
     void register_ctrl_command();
 
     int get_app_id_from_replicas(std::string app_name)
@@ -294,7 +301,8 @@ private:
 
 #ifdef DSN_ENABLE_GPERF
     // Try to release tcmalloc memory back to operating system
-    void gc_tcmalloc_memory();
+    // If release_all = true, it will release all reserved-not-used memory
+    uint64_t gc_tcmalloc_memory(bool release_all);
 #endif
 
 private:
@@ -365,6 +373,7 @@ private:
     dsn_handle_t _release_tcmalloc_memory_command;
     dsn_handle_t _get_tcmalloc_status_command;
     dsn_handle_t _max_reserved_memory_percentage_command;
+    dsn_handle_t _release_all_reserved_memory_command;
 #endif
     dsn_handle_t _max_concurrent_bulk_load_downloading_count_command;
 
@@ -396,6 +405,10 @@ private:
     std::atomic_int _bulk_load_downloading_count;
 
     bool _is_running;
+
+#ifdef DSN_ENABLE_GPERF
+    std::atomic_bool _is_releasing_memory{false};
+#endif
 
     // performance counters
     perf_counter_wrapper _counter_replicas_count;
@@ -474,6 +487,18 @@ private:
     perf_counter_wrapper _counter_bulk_load_download_file_size;
     perf_counter_wrapper _counter_bulk_load_max_ingestion_time_ms;
     perf_counter_wrapper _counter_bulk_load_max_duration_time_ms;
+
+    // <- Partition split Metrics ->
+    perf_counter_wrapper _counter_replicas_splitting_count;
+    perf_counter_wrapper _counter_replicas_splitting_max_duration_time_ms;
+    perf_counter_wrapper _counter_replicas_splitting_max_async_learn_time_ms;
+    perf_counter_wrapper _counter_replicas_splitting_max_copy_file_size;
+    perf_counter_wrapper _counter_replicas_splitting_recent_start_count;
+    perf_counter_wrapper _counter_replicas_splitting_recent_copy_file_count;
+    perf_counter_wrapper _counter_replicas_splitting_recent_copy_file_size;
+    perf_counter_wrapper _counter_replicas_splitting_recent_copy_mutation_count;
+    perf_counter_wrapper _counter_replicas_splitting_recent_split_fail_count;
+    perf_counter_wrapper _counter_replicas_splitting_recent_split_succ_count;
 
     dsn::task_tracker _tracker;
 };

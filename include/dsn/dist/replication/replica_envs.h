@@ -45,6 +45,7 @@ public:
     static const std::string ROCKSDB_CHECKPOINT_RESERVE_MIN_COUNT;
     static const std::string ROCKSDB_CHECKPOINT_RESERVE_TIME_SECONDS;
     static const std::string ROCKSDB_ITERATION_THRESHOLD_TIME_MS;
+    static const std::string ROCKSDB_BLOCK_CACHE_ENABLED;
     static const std::string MANUAL_COMPACT_DISABLED;
     static const std::string MANUAL_COMPACT_MAX_CONCURRENT_RUNNING_COUNT;
     static const std::string MANUAL_COMPACT_ONCE_TRIGGER_TIME;
@@ -58,6 +59,7 @@ public:
     static const std::string READ_QPS_THROTTLING;
     static const std::string BACKUP_REQUEST_QPS_THROTTLING;
     static const std::string SPLIT_VALIDATE_PARTITION_HASH;
+    static const std::string USER_SPECIFIED_COMPACTION;
 };
 
 } // namespace replication

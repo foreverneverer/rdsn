@@ -37,7 +37,6 @@
 
 #include "runtime/service_engine.h"
 #include <dsn/tool-api/task_queue.h>
-#include <dsn/tool-api/admission_controller.h>
 #include <dsn/tool-api/task_worker.h>
 #include <dsn/tool-api/timer_service.h>
 
@@ -79,7 +78,6 @@ public:
     void get_queue_info(/*out*/ std::stringstream &ss);
     std::vector<task_queue *> &queues() { return _queues; }
     std::vector<task_worker *> &workers() { return _workers; }
-    std::vector<admission_controller *> &controllers() { return _controllers; }
 
 private:
     threadpool_spec _spec;
@@ -88,7 +86,6 @@ private:
 
     std::vector<task_worker *> _workers;
     std::vector<task_queue *> _queues;
-    std::vector<admission_controller *> _controllers;
 
     std::vector<timer_service *> _per_queue_timer_svcs;
 

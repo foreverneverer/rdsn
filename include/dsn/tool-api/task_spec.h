@@ -136,8 +136,6 @@ class aio_task;
 class rpc_request_task;
 class rpc_response_task;
 class message_ex;
-class admission_controller;
-typedef void (*task_rejection_handler)(task *, admission_controller *);
 
 std::set<dsn::task_code> &get_storage_rpc_req_codes();
 
@@ -193,8 +191,6 @@ public:
     std::vector<int> rpc_request_delays_milliseconds; // see exp_delay for delaying recving
     bool rpc_request_dropped_before_execution_when_timeout;
 
-    task_rejection_handler rejection_handler;
-
     // COMPUTE
     /*!
      @addtogroup tool-api-hooks
@@ -221,6 +217,7 @@ public:
     join_point<bool, task *, message_ex *, rpc_response_task *>
         on_rpc_call; // return true means continue, otherwise dropped and (optionally) timedout
     join_point<bool, rpc_request_task *> on_rpc_request_enqueue;
+    join_point<void, rpc_request_task *> on_rpc_task_dropped; // rpc task dropped
 
     // RPC_RESPONSE
     join_point<bool, task *, message_ex *> on_rpc_reply;
