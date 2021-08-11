@@ -32,8 +32,14 @@
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/fail_point.h>
 #include <dsn/utils/latency_tracer.h>
+#include <dsn/dist/replication/replication.codes.h>
 
 namespace dsn {
+
+dsn::perf_counter_wrapper _native_aio_slog_start2submit;
+dsn::perf_counter_wrapper _native_aio_slog_submit2exec;
+dsn::perf_counter_wrapper _native_aio_slog_exec2complete;
+dsn::perf_counter_wrapper _native_aio_slog_total;
 
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk) {}
 
@@ -129,8 +135,9 @@ error_code native_linux_aio_provider::read(const aio_context &aio_ctx,
 
 void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk)
 {
-    if (aio_tsk->tracer != nullptr) {
+    if (aio_tsk->tracer != nullptr && aio_tsk->code() == LPC_WRITE_REPLICATION_LOG_SHARED) {
         ADD_POINT(aio_tsk->tracer);
+        aio_tsk->submit = dsn_now_ns();
     }
 
     // for the tests which use simulator need sync submit for aio
@@ -145,8 +152,9 @@ void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk)
 
 error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
 {
-    if (aio_tsk->tracer != nullptr) {
+    if (aio_tsk->tracer != nullptr && aio_tsk->code() == LPC_WRITE_REPLICATION_LOG_SHARED) {
         ADD_POINT(aio_tsk->tracer);
+        aio_tsk->execute = dsn_now_ns();
     }
     aio_context *aio_ctx = aio_tsk->get_aio_context();
     error_code err = ERR_UNKNOWN;
@@ -162,8 +170,45 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
         return err;
     }
 
-    if (aio_tsk->tracer != nullptr) {
+    if (aio_tsk->tracer != nullptr && aio_tsk->code() == LPC_WRITE_REPLICATION_LOG_SHARED) {
         ADD_CUSTOM_POINT(aio_tsk->tracer, "write_completed");
+        aio_tsk->complete = dsn_now_ns();
+
+        static std::once_flag flag;
+        std::call_once(flag, [&]() {
+            _native_aio_slog_start2submit.init_global_counter(
+                "replica",
+                "slog",
+                "_native_aio_slog_start2submit_latency_time",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+
+            _native_aio_slog_submit2exec.init_global_counter(
+                "replica",
+                "slog",
+                "_native_aio_slog_submit2exec_latency_time",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+
+            _native_aio_slog_exec2complete.init_global_counter(
+                "replica",
+                "slog",
+                "_native_aio_slog_exec2complete_latency_time",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+
+            _native_aio_slog_total.init_global_counter(
+                "replica",
+                "slog",
+                "_native_aio_slog_total_latency_time",
+                COUNTER_TYPE_NUMBER_PERCENTILES,
+                "statistic the through bytes of rocksdb write rate limiter");
+        });
+
+        _native_aio_slog_start2submit->set(aio_tsk->submit - aio_tsk->create);
+        _native_aio_slog_submit2exec->set(aio_tsk->execute - aio_tsk->submit);
+        _native_aio_slog_exec2complete->set(aio_tsk->complete - aio_tsk->execute);
+        _native_aio_slog_total->set(aio_tsk->complete - aio_tsk->create);
     }
 
     complete_io(aio_tsk, err, processed_bytes);

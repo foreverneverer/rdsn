@@ -105,6 +105,11 @@ public:
     blob _merged_write_buffer_holder;
     std::shared_ptr<dsn::utils::latency_tracer> tracer;
 
+    int64_t create;
+    int64_t submit;
+    int64_t execute;
+    int64_t complete;
+
 protected:
     void clear_non_trivial_on_task_end() override { _cb = nullptr; }
 

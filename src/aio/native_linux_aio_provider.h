@@ -27,6 +27,7 @@
 #pragma once
 
 #include "aio_provider.h"
+#include <dsn/perf_counter/perf_counter_wrapper.h>
 
 namespace dsn {
 

@@ -128,6 +128,8 @@ DSN_DEFINE_uint64("replication",
     cb->tracer = std::make_shared<dsn::utils::latency_tracer>(
         "slog", false, FLAGS_abnormal_write_trace_latency_slog_threshold);
 
+    cb->create = dsn_now_ns();
+
     cb->get_aio_context()->file = file;
     cb->get_aio_context()->file_offset = offset;
     cb->get_aio_context()->type = AIO_Write;
