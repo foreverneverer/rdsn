@@ -109,6 +109,11 @@ namespace file {
     return cb;
 }
 
+DSN_DEFINE_uint64("replication",
+                  abnormal_write_trace_latency_slog_threshold,
+                  500 * 1000 * 1000, // 500ms
+                  "latency trace will be logged when exceed the write latency threshold");
+
 /*extern*/ aio_task_ptr write_vector(disk_file *file,
                                      const dsn_file_buffer_t *buffers,
                                      int buffer_count,
@@ -119,6 +124,10 @@ namespace file {
                                      int hash /*= 0*/)
 {
     auto cb = create_aio_task(callback_code, tracker, std::move(callback), hash);
+
+    cb->tracer = std::make_shared<dsn::utils::latency_tracer>(
+        "slog", false, FLAGS_abnormal_write_trace_latency_slog_threshold);
+
     cb->get_aio_context()->file = file;
     cb->get_aio_context()->file_offset = offset;
     cb->get_aio_context()->type = AIO_Write;
