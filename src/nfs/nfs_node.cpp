@@ -46,6 +46,7 @@ aio_task_ptr nfs_node::copy_remote_files(rpc_address remote,
                                          int hash)
 {
     auto cb = dsn::file::create_aio_task(callback_code, tracker, std::move(callback), hash);
+    derror_f("jiashuo_debug=copy_remote_files={}", source_dir);
 
     std::shared_ptr<remote_copy_request> rci = std::make_shared<remote_copy_request>();
     rci->source = remote;

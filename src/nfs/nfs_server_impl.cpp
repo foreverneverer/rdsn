@@ -68,7 +68,7 @@ void nfs_service_impl::on_copy(const ::dsn::service::copy_request &request,
                                ::dsn::rpc_replier<::dsn::service::copy_response> &reply)
 {
     // dinfo(">>> on call RPC_COPY end, exec RPC_NFS_COPY");
-
+    derror_f("jiashuo_server=on_copy={}", request.file_name);
     std::string file_path =
         dsn::utils::filesystem::path_combine(request.source_dir, request.file_name);
     disk_file *hfile;
@@ -131,6 +131,7 @@ void nfs_service_impl::on_copy(const ::dsn::service::copy_request &request,
 
 void nfs_service_impl::internal_read_callback(error_code err, size_t sz, callback_para &cp)
 {
+    derror_f("internal_read_callback");
     {
         zauto_lock l(_handles_map_lock);
         auto it = _handles_map.find(cp.file_path);
@@ -163,7 +164,7 @@ void nfs_service_impl::on_get_file_size(
     ::dsn::rpc_replier<::dsn::service::get_file_size_response> &reply)
 {
     // dinfo(">>> on call RPC_NFS_GET_FILE_SIZE end, exec RPC_NFS_GET_FILE_SIZE");
-
+    derror_f("on_get_file_size");
     get_file_size_response resp;
     error_code err = ERR_OK;
     std::vector<std::string> file_list;

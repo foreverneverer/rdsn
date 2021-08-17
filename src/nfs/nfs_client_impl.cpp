@@ -135,6 +135,8 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
     req->nfs_task = nfs_task;
     req->is_finished = false;
 
+    derror_f("jiashuo_debug=begin_remote_copy={}",  rci->source_dir);
+
     async_nfs_get_file_size(req->file_size_req,
                             [=](error_code err, get_file_size_response &&resp) {
                                 end_get_file_size(err, std::move(resp), req);
@@ -155,6 +157,8 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
         ureq->nfs_task->enqueue(err, 0);
         return;
     }
+
+     derror_f("jiashuo_debug=begin_remote_copy={}",  ureq->file_size_req.source_dir.c_str());
 
     err = dsn::error_code(resp.error);
     if (err != ::dsn::ERR_OK) {
@@ -230,6 +234,8 @@ void nfs_client_impl::continue_copy()
         --_concurrent_copy_request_count;
         return;
     }
+
+    derror_f("jiashuo_debug=continue_copy");
 
     copy_request_ex_ptr req = nullptr;
     while (true) {
@@ -314,6 +320,7 @@ void nfs_client_impl::end_copy(::dsn::error_code err,
                                const copy_response &resp,
                                const copy_request_ex_ptr &reqc)
 {
+    derror_f("jiashuo_debug=end_copy");
     --_concurrent_copy_request_count;
     --reqc->file_ctx->user_req->concurrent_copy_count;
 
@@ -395,6 +402,7 @@ void nfs_client_impl::end_copy(::dsn::error_code err,
 
 void nfs_client_impl::continue_write()
 {
+    derror_f("jiashuo_debug=continue_write");
     // check write quota
     if (++_concurrent_local_write_count > FLAGS_max_concurrent_local_writes) {
         // exceed max_concurrent_local_writes limit, pause.
@@ -484,6 +492,7 @@ void nfs_client_impl::continue_write()
 
 void nfs_client_impl::end_write(error_code err, size_t sz, const copy_request_ex_ptr &reqc)
 {
+    derror_f("jiashuo_debug=end_write");
     --_concurrent_local_write_count;
 
     // clear content to release memory quickly

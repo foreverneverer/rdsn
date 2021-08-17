@@ -37,6 +37,7 @@
 #include <dsn/utility/TokenBucket.h>
 #include <dsn/utility/flags.h>
 #include <dsn/tool-api/async_calls.h>
+#include <dsn/dist/fmt_logging.h>
 
 #include "nfs_types.h"
 #include "nfs_code_definition.h"
@@ -66,6 +67,7 @@ task_ptr async_nfs_copy(const copy_request &request,
                         std::chrono::milliseconds timeout,
                         rpc_address server_addr)
 {
+     derror_f("jiashuo_debug=async_nfs_copy={}", request.file_name);
     return rpc::call(
         server_addr, RPC_NFS_COPY, request, nullptr, std::forward<TCallback>(callback), timeout);
 }
