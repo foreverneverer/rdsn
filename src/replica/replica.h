@@ -238,6 +238,8 @@ public:
     bool disk_space_insufficient() { return _disk_status == disk_status::SPACE_INSUFFICIENT; }
     disk_status::type get_disk_status() { return _disk_status; }
 
+    bool _is_checkpoint;
+
 protected:
     // this method is marked protected to enable us to mock it in unit tests.
     virtual decree max_gced_decree_no_lock() const;

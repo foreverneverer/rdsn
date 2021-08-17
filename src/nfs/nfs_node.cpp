@@ -1,6 +1,7 @@
 #include <dsn/utility/smart_pointers.h>
 #include <dsn/tool-api/async_calls.h>
 #include <dsn/dist/nfs_node.h>
+#include <dsn/dist/fmt_logging.h>
 
 #include "nfs_node_simple.h"
 

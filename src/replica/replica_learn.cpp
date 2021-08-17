@@ -924,6 +924,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                static_cast<int>(resp.state.files.size()),
                high_priority ? "high" : "low");
 
+        _is_checkpoint = true;
         _potential_secondary_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
             resp.config.primary,
             resp.base_local_dir,
@@ -1132,6 +1133,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                        dsn_now_ns() - start_ts,
                        err.to_string());
             }
+            _is_checkpoint = false;
         }
 
         // apply log learning
@@ -1488,6 +1490,10 @@ void replica::on_add_learner(const group_check_request &request)
     if (request.config.ballot < get_ballot()) {
         dwarn_replica("on_add_learner ballot is old, skipped");
         return;
+    }
+
+    if (_is_checkpoint) {
+        derror_replica("jiashuo_debug: is copy checkpoint, please wait next loop");
     }
 
     if (request.config.ballot > get_ballot() ||
