@@ -255,26 +255,7 @@ ExternalProject_Add(curl
         http://curl.haxx.se/download/curl-7.47.0.tar.gz
         URL_MD5 5109d1232d208dfd712c0272b8360393
         CONFIGURE_COMMAND ./configure --prefix=${TP_OUTPUT}
-        --disable-dict
-        --disable-file
-        --disable-ftp
-        --disable-gopher
-        --disable-imap
-        --disable-ipv6
-        --disable-ldap
-        --disable-ldaps
-        --disable-manual
-        --disable-pop3
-        --disable-rtsp
-        --disable-smtp
-        --disable-telnet
-        --disable-tftp
-        --disable-shared
-        --without-librtmp
-        --without-zlib
-        --without-libssh2
         --without-ssl
-        --without-libidn
         BUILD_IN_SOURCE 1
         )
 

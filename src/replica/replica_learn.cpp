@@ -953,7 +953,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 on_copy_remote_state_completed(
                     ERR_OK, 0, copy_start, std::move(req_cap), std::move(resp_cap));
             });
-        _potential_secondary_states.learn_remote_files_task->enqueue();
+        //_potential_secondary_states.learn_remote_files_task->enqueue();
     }
 }
 

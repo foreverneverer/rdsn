@@ -319,6 +319,9 @@ function(dsn_setup_thirdparty_libs)
 
     link_directories(${DSN_THIRDPARTY_ROOT}/lib)
     link_directories(${DSN_THIRDPARTY_ROOT}/lib64)
+
+    # curl
+    find_package(CURL)
 endfunction(dsn_setup_thirdparty_libs)
 
 function(dsn_common_setup)

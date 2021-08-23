@@ -21,3 +21,5 @@ set(MY_BINPLACES "")
 dsn_add_static_library()
 
 add_subdirectory(test)
+
+target_link_libraries(${MY_PROJ_NAME} curl)

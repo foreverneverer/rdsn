@@ -28,6 +28,7 @@
 
 #include <string>
 #include <memory>
+#include <curl/curl.h>
 #include <dsn/utility/utils.h>
 #include <dsn/utility/binary_reader.h>
 #include <dsn/utility/binary_writer.h>
@@ -49,6 +50,7 @@ class nfs_node
 {
 public:
     static std::unique_ptr<nfs_node> create();
+    static CURL *curl;
 
 public:
     aio_task_ptr copy_remote_directory(rpc_address remote,
