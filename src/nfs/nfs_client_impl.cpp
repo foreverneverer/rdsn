@@ -36,6 +36,9 @@
 #include <queue>
 #include <dsn/tool-api/command_manager.h>
 #include "nfs_client_impl.h"
+#include <dsn/dist/fmt_logging.h>
+#include <boost/algorithm/string.hpp>
+#include <dsn/utility/filesystem.h>
 
 namespace dsn {
 namespace service {
@@ -79,6 +82,14 @@ DSN_DEFINE_int32("nfs",
                  "rpc timeout in milliseconds for nfs copy, "
                  "0 means use default timeout of rpc engine");
 
+size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+    size_t written = fwrite(ptr, size, nmemb, stream);
+    _copy_token_bucket->consumeWithBorrowAndWait(written);
+    dassert_f(written == nmemb, "unconplete!!!!!!!!!!");
+    return written;
+}
+
 nfs_client_impl::nfs_client_impl()
     : _concurrent_copy_request_count(0),
       _concurrent_local_write_count(0),
@@ -86,6 +97,9 @@ nfs_client_impl::nfs_client_impl()
       _copy_requests_low(FLAGS_max_file_copy_request_count_per_file),
       _high_priority_remaining_time(FLAGS_high_priority_speed_rate)
 {
+
+    curl_global_init(CURL_GLOBAL_ALL);
+
     _recent_copy_data_size.init_app_counter("eon.nfs_client",
                                             "recent_copy_data_size",
                                             COUNTER_TYPE_VOLATILE_NUMBER,
@@ -135,12 +149,52 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
     req->nfs_task = nfs_task;
     req->is_finished = false;
 
-    async_nfs_get_file_size(req->file_size_req,
-                            [=](error_code err, get_file_size_response &&resp) {
-                                end_get_file_size(err, std::move(resp), req);
-                            },
-                            std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
-                            req->file_size_req.source);
+    CURLcode res;
+    FILE *fp;
+    CURL *curl = curl_easy_init();
+    // derror_f("AAAAAAA: ={}", files.size());
+    for (const auto &file_name : rci->files) {
+        // derror_f("HHH={}", file_name);
+        std::string url =
+            fmt::format("http://{}:8000{}/{}", rci->source.ipv4_str(), rci->source_dir, file_name);
+        std::vector<std::string> args;
+        boost::split(args, file_name, boost::is_any_of("/"));
+        if (args.size() != 2) {
+            derror_f("FATATL: {}", file_name);
+            continue;
+        }
+        if (!dsn::utils::filesystem::file_exists(fmt::format("{}/{}", rci->dest_dir, args[0]))) {
+            dsn::utils::filesystem::create_directory(fmt::format("{}/{}", rci->dest_dir, args[0]));
+        }
+        std::string dst = fmt::format("{}/{}", rci->dest_dir, file_name);
+        // derror_f("WARN:{}=>{}", url, dst);
+        if (curl) {
+            fp = fopen(dst.c_str(), "wb");
+            dassert_f(fp, "nullllllll");
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                derror_f("jiashuo_debug: ERROR copy {}=>{}", res, url);
+                nfs_task->_cb(ERR_FILE_OPERATION_FAILED, 0);
+            }
+            /* always cleanup */
+            derror_f("jiashuo_debug: complete copy {}=>{}", url, dst);
+            fclose(fp);
+        } else {
+            dassert_f("curl init failed = {}", "null");
+        }
+    }
+    curl_easy_cleanup(curl);
+    nfs_task->_cb(ERR_OK, 1000);
+
+    /*  async_nfs_get_file_size(req->file_size_req,
+                              [=](error_code err, get_file_size_response &&resp) {
+                                  end_get_file_size(err, std::move(resp), req);
+                              },
+                              std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
+                              req->file_size_req.source);*/
 }
 
 void nfs_client_impl::end_get_file_size(::dsn::error_code err,

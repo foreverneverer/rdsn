@@ -251,9 +251,9 @@ ExternalProject_Get_property(civetweb SOURCE_DIR)
 set(civetweb_SRC ${SOURCE_DIR})
 
 ExternalProject_Add(curl
-        URL ${OSS_URL_PREFIX}/curl-7.78.0.tar.gz
-        http://curl.haxx.se/download/curl-7.78.0.tar.gz
-        URL_MD5 8068c0803a28e14068711522a84b50a6
+        URL ${OSS_URL_PREFIX}/curl-7.47.0.tar.gz
+        http://curl.haxx.se/download/curl-7.47.0.tar.gz
+        URL_MD5 5109d1232d208dfd712c0272b8360393
         CONFIGURE_COMMAND ./configure --prefix=${TP_OUTPUT}
         --without-ssl
         BUILD_IN_SOURCE 1
