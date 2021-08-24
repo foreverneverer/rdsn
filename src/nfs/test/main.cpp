@@ -15,17 +15,77 @@ struct aio_result
     size_t sz;
 };
 
-TEST(nfs, http_download) {
+TEST(nfs, http_download)
+{
     std::unique_ptr<dsn::nfs_node> nfs(dsn::nfs_node::create());
     rpc_address rpc_address("10.231.57.98", 8000);
-    std::string source = "/home/mi/work/incubator-pegasus/onebox/replica3/data/replica/reps/3.0.pegasus/data";
-    std::string dst = "/home/mi/work/incubator-pegasus/onebox/replica2/data/replica/reps/3.0.pegasus/learn";
-    const std::vector<std::string>  &files = {
-    "checkpoint.4640192/026018.sst",
-    "checkpoint.4640192/026019.sst",
-    "checkpoint.4640192/026021.sst",
-    "checkpoint.4640192/026022.sst"};
-    nfs->copy_remote_files(rpc_address, source, files,  dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    std::string source =
+        "/home/mi/work/incubator-pegasus/onebox/replica3/data/replica/reps/3.0.pegasus/data";
+    std::string dst = "./learn";
+    const std::vector<std::string> &files = {"checkpoint.4640192/026018.sst",
+                                             "checkpoint.4640192/026019.sst",
+                                             "checkpoint.4640192/026021.sst",
+                                             "checkpoint.4640192/026022.sst"};
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
+    nfs->copy_remote_files(
+        rpc_address, source, files, dst, true, true, LPC_AIO_TEST_NFS, nullptr, nullptr, 0);
 }
 
 TEST(nfs, basic)
