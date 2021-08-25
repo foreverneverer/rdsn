@@ -22,7 +22,7 @@ TEST(nfs, http_download)
     std::string source =
         "/home/mi/work/incubator-pegasus/onebox/replica3/data/replica/reps/3.0.pegasus/data";
     std::string dst = "./learn";
-    const std::vector<std::string> &files = {"checkpoint.4640192/026018.sst",
+    const std::vector<std::string> &files = {"checkpoint.4640192/026023.sst",
                                              "checkpoint.4640192/026019.sst",
                                              "checkpoint.4640192/026021.sst",
                                              "checkpoint.4640192/026022.sst"};

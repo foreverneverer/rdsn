@@ -10,6 +10,7 @@ set(MY_PROJ_SRC "")
 set(MY_SRC_SEARCH_MODE "GLOB")
 
 set(MY_PROJ_LIBS dsn_nfs dsn_runtime gtest dsn_aio)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 
 set(MY_BOOST_LIBS Boost::system Boost::filesystem)
 
