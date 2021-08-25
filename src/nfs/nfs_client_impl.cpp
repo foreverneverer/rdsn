@@ -85,7 +85,7 @@ DSN_DEFINE_int32("nfs",
 size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t written = fwrite(ptr, size, nmemb, stream);
-    //    _copy_token_bucket->consumeWithBorrowAndWait(written);
+    _copy_token_bucket->consumeWithBorrowAndWait(written);
     dassert_f(written == nmemb, "unconplete!!!!!!!!!!");
     return written;
 }

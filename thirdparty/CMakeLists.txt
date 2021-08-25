@@ -252,7 +252,7 @@ set(civetweb_SRC ${SOURCE_DIR})
 
 ExternalProject_Add(curl
         URL ${OSS_URL_PREFIX}/curl-7.78.0.tar.gz
-        https://curl.se/download/curl-7.78.0.tar.xz
+        http://curl.haxx.se/download/curl-7.78.0.tar.xz
         URL_MD5 419c2461366cf404160a820f7a902b7e
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${TP_OUTPUT}
         BUILD_IN_SOURCE 1
