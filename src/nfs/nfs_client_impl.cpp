@@ -165,14 +165,13 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
                                                            file_name);
                              std::vector<std::string> args;
                              boost::split(args, file_name, boost::is_any_of("/"));
-                             if (args.size() != 2) {
-                                 derror_f("FATATL: {}", file_name);
-                                 continue;
-                             }
-                             if (!dsn::utils::filesystem::file_exists(
-                                     fmt::format("{}/{}", rci->dest_dir, args[0]))) {
-                                 dsn::utils::filesystem::create_directory(
-                                     fmt::format("{}/{}", rci->dest_dir, args[0]));
+                             if (args.size() == 2) {
+                                 derror_f("Checkpoint: {}", file_name);
+                                 if (!dsn::utils::filesystem::file_exists(
+                                         fmt::format("{}/{}", rci->dest_dir, args[0]))) {
+                                     dsn::utils::filesystem::create_directory(
+                                         fmt::format("{}/{}", rci->dest_dir, args[0]));
+                                 }
                              }
                              std::string dst = fmt::format("{}/{}", rci->dest_dir, file_name);
                              // derror_f("WARN:{}=>{}", url, dst);
