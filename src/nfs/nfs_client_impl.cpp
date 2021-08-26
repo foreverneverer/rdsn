@@ -36,6 +36,9 @@
 #include <queue>
 #include <dsn/tool-api/command_manager.h>
 #include "nfs_client_impl.h"
+#include <boost/algorithm/string.hpp>
+#include <fmt/chrono.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace service {
@@ -137,7 +140,10 @@ void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rc
 
     async_nfs_get_file_size(req->file_size_req,
                             [=](error_code err, get_file_size_response &&resp) {
-                                end_get_file_size(err, std::move(resp), req);
+                                tasking::enqueue(LPC_NFS_COPY_FILE,
+                                                 &_tracker,
+                                                 [=]() { end_get_file_size(err, resp, req); },
+                                                 0);
                             },
                             std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
                             req->file_size_req.source);
@@ -166,54 +172,90 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
         return;
     }
 
-    std::deque<copy_request_ex_ptr> copy_requests;
-    ureq->file_contexts.resize(resp.size_list.size());
+    int64_t total_size = 0;
     for (size_t i = 0; i < resp.size_list.size(); i++) // file list
     {
-        file_context_ptr filec(new file_context(ureq, resp.file_list[i], resp.size_list[i]));
-        ureq->file_contexts[i] = filec;
-
-        // init copy requests
-        uint64_t size = resp.size_list[i];
-        uint64_t req_offset = 0;
-        uint32_t req_size = size > FLAGS_nfs_copy_block_bytes ? FLAGS_nfs_copy_block_bytes
-                                                              : static_cast<uint32_t>(size);
-
-        filec->copy_requests.reserve(size / FLAGS_nfs_copy_block_bytes + 1);
-        int idx = 0;
-        for (;;) // send one file with multi-round rpc
-        {
-            copy_request_ex_ptr req(
-                new copy_request_ex(filec, idx++, FLAGS_max_retry_count_per_copy_request));
-            req->offset = req_offset;
-            req->size = req_size;
-            req->is_last = (size <= req_size);
-
-            filec->copy_requests.push_back(req);
-            copy_requests.push_back(req);
-
-            req_offset += req_size;
-            size -= req_size;
-            if (size <= 0) {
-                dassert(size == 0, "last request must read exactly the remaing size of the file");
-                break;
+        std::string file_name = resp.file_list[i];
+        int64_t file_size = resp.size_list[i];
+        derror_f("jiashuo_debug Start copy {}[{}]", file_name, file_size);
+        std::vector<std::string> args;
+        boost::split(args, file_name, boost::is_any_of("/"));
+        if (args.size() == 2) {
+            if (!dsn::utils::filesystem::directory_exists(
+                    fmt::format("{}/{}", ureq->file_size_req.dst_dir, args[0]))) {
+                dsn::utils::filesystem::create_directory(
+                    fmt::format("{}/{}", ureq->file_size_req.dst_dir, args[0]));
             }
-
-            req_size = size > FLAGS_nfs_copy_block_bytes ? FLAGS_nfs_copy_block_bytes
-                                                         : static_cast<uint32_t>(size);
         }
-    }
+        std::string dst = fmt::format("{}/{}", ureq->file_size_req.dst_dir, file_name);
+        if (dsn::utils::filesystem::file_exists(dst)) {
+            dsn::utils::filesystem::remove_file_name(dst);
+        }
+        auto current_file = open(dst.c_str(), O_RDWR | O_CREAT | O_BINARY, 0666);
+        int file_offset = 0;
+        int retry = 0;
+        while (file_size > 0) {
+            error_code err_copy;
+            copy_request copy_req;
+            copy_req.source = ureq->file_size_req.source;
+            copy_req.file_name = file_name;
+            copy_req.offset = file_offset;
+            copy_req.size =
+                file_size > FLAGS_nfs_copy_block_bytes ? FLAGS_nfs_copy_block_bytes : file_size;
+            copy_req.dst_dir = ureq->file_size_req.dst_dir;
+            copy_req.source_dir = ureq->file_size_req.source_dir;
+            copy_req.overwrite = ureq->file_size_req.overwrite;
+            copy_req.is_last = file_size <= FLAGS_nfs_copy_block_bytes;
+            auto copy_task = async_nfs_copy(
+                copy_req,
+                [&err_copy, &current_file, file_offset](error_code err, copy_response &&resp) {
+                    err_copy = err;
+                    if (err_copy != ERR_OK) {
+                        return;
+                    }
 
-    if (!copy_requests.empty()) {
-        zauto_lock l(_copy_requests_lock);
-        if (ureq->high_priority)
-            _copy_requests_high.insert(
-                _copy_requests_high.end(), copy_requests.begin(), copy_requests.end());
-        else
-            _copy_requests_low.push(std::move(copy_requests));
-    }
+                    err_copy = dsn::error_code(resp.error);
+                    if (err_copy != ERR_OK) {
+                        return;
+                    }
 
-    tasking::enqueue(LPC_NFS_COPY_FILE, nullptr, [this]() { continue_copy(); }, 0);
+                    int64_t buffer_offset = 0;
+                    do {
+                        uint32_t ret = pwrite(current_file,
+                                              resp.file_content.data() + buffer_offset,
+                                              resp.file_content.size() - buffer_offset,
+                                              file_offset + buffer_offset);
+                        buffer_offset += ret;
+                    } while (dsn_unlikely(buffer_offset < resp.file_content.size()));
+                },
+                std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
+                ureq->file_size_req.source);
+            copy_task->wait();
+            if (err_copy != ERR_OK) {
+                derror_f("jiashuo_debug Error {}={}", dst, err_copy);
+                if (retry++ > 3) {
+                    ureq->nfs_task->enqueue(ERR_FILE_OPERATION_FAILED, total_size);
+                    return;
+                }
+                sleep(1);
+                continue;
+            } else {
+                file_size = file_size - copy_req.size;
+                file_offset = file_offset + copy_req.size;
+            }
+        }
+        dassert_f(close(current_file) >=0, "close failed={}", dst);
+        total_size = total_size + file_size;
+        int64_t local_size;
+        dsn::utils::filesystem::file_size(dst, local_size);
+        derror_f("jiashuo_debug Complete copy {}/{}[{}]=>{}[{}]",
+                 ureq->file_size_req.source_dir,
+                 file_name,
+                  resp.size_list[i],
+                 dst,
+                 local_size);
+    }
+    ureq->nfs_task->enqueue(ERR_OK, total_size);
 }
 
 void nfs_client_impl::continue_copy()
