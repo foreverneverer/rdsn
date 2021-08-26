@@ -206,7 +206,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
             copy_req.source_dir = ureq->file_size_req.source_dir;
             copy_req.overwrite = ureq->file_size_req.overwrite;
             copy_req.is_last = file_size <= FLAGS_nfs_copy_block_bytes;
-            _copy_token_bucket->consumeWithBorrowAndWait(req->size);
+            _copy_token_bucket->consumeWithBorrowAndWait(copy_req->size);
             auto copy_task = async_nfs_copy(
                 copy_req,
                 [&err_copy, &current_file, file_offset](error_code err, copy_response &&resp) {
