@@ -139,77 +139,22 @@ nfs_client_impl::~nfs_client_impl()
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
                                         aio_task *nfs_task)
 {
-    tasking::enqueue(
-        LPC_NFS_COPY_FILE,
-        nullptr,
-        [this, rci, nfs_task]() {
-            user_request_ptr req(new user_request());
-            req->high_priority = rci->high_priority;
-            req->file_size_req.source = rci->source;
-            req->file_size_req.dst_dir = rci->dest_dir;
-            req->file_size_req.file_list = rci->files;
-            req->file_size_req.source_dir = rci->source_dir;
-            req->file_size_req.overwrite = rci->overwrite;
-            req->nfs_task = nfs_task;
-            req->is_finished = false;
+    user_request_ptr req(new user_request());
+    req->high_priority = rci->high_priority;
+    req->file_size_req.source = rci->source;
+    req->file_size_req.dst_dir = rci->dest_dir;
+    req->file_size_req.file_list = rci->files;
+    req->file_size_req.source_dir = rci->source_dir;
+    req->file_size_req.overwrite = rci->overwrite;
+    req->nfs_task = nfs_task;
+    req->is_finished = false;
 
-            CURLcode res = CURLE_OK;
-            FILE *fp;
-            CURL *curl = curl_easy_init();
-            // derror_f("AAAAAAA: ={}", files.size());
-            for (const auto &file_name : rci->files) {
-                // derror_f("HHH={}", file_name);
-                std::string url = fmt::format(
-                    "http://{}:8000{}/{}", rci->source.ipv4_str(), rci->source_dir, file_name);
-                std::vector<std::string> args;
-                boost::split(args, file_name, boost::is_any_of("/"));
-                if (args.size() == 2) {
-                    derror_f("Checkpoint: {}", file_name);
-                    if (!dsn::utils::filesystem::file_exists(
-                            fmt::format("{}/{}", rci->dest_dir, args[0]))) {
-                        dsn::utils::filesystem::create_directory(
-                            fmt::format("{}/{}", rci->dest_dir, args[0]));
-                    }
-                }
-                std::string dst = fmt::format("{}/{}", rci->dest_dir, file_name);
-                // derror_f("WARN:{}=>{}", url, dst);
-                if (curl) {
-                    fp = fopen(dst.c_str(), "wb");
-                    dassert_f(fp, "fp!=nullllllll");
-                    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-                    res = curl_easy_perform(curl);
-                    if (res != CURLE_OK) {
-                        derror_f("jiashuo_debug: ERROR copy {}=>{}", res, url);
-                        nfs_task->_cb(ERR_FILE_OPERATION_FAILED, 0);
-                    }
-                    /* always cleanup */
-                    fclose(fp);
-
-                    int64_t file_size;
-                    int64_t local_size;
-                    curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &file_size);
-                    derror_f("jiashuo_debug: complete copy[{}], {}=>{}", file_size, url, dst);
-                    dsn::utils::filesystem::file_size(dst, local_size);
-                    dassert_f(file_size == local_size,
-                              "laji..............{} vs {}",
-                              file_size,
-                              local_size);
-                } else {
-                    dassert_f("curl init failed = {}", "null");
-                }
-            }
-            curl_easy_cleanup(curl);
-            nfs_task->_cb(ERR_OK, 1000);
-        },
-        0);
-    /*  async_nfs_get_file_size(req->file_size_req,
-                              [=](error_code err, get_file_size_response &&resp) {
-                                  end_get_file_size(err, std::move(resp), req);
-                              },
-                              std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
-                              req->file_size_req.source);*/
+    async_nfs_get_file_size(req->file_size_req,
+                            [=](error_code err, get_file_size_response &&resp) {
+                                end_get_file_size(err, std::move(resp), req);
+                            },
+                            std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
+                            req->file_size_req.source);
 }
 
 void nfs_client_impl::end_get_file_size(::dsn::error_code err,
@@ -235,7 +180,88 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
         return;
     }
 
-    std::deque<copy_request_ex_ptr> copy_requests;
+    tasking::enqueue(
+        LPC_NFS_COPY_FILE,
+        nullptr,
+        [ureq, resp]() {
+            CURLcode res = CURLE_OK;
+            FILE *fp;
+            CURL *curl = curl_easy_init();
+            // derror_f("AAAAAAA: ={}", files.size());
+            for (size_t i = 0; i < resp.size_list.size(); i++) {
+                int64_t remote_file_size = resp.size_list[i];
+                std::string remote_file_name = resp.file_list[i];
+                std::string url = fmt::format("http://{}:8000{}/{}",
+                                              ureq->file_size_req.source.ipv4_str(),
+                                              ureq->file_size_req.source_dir,
+                                              remote_file_name);
+                std::vector<std::string> args;
+                boost::split(args, remote_file_name, boost::is_any_of("/"));
+                if (args.size() == 2) {
+                    if (!dsn::utils::filesystem::file_exists(
+                            fmt::format("{}/{}", ureq->file_size_req.dst_dir, args[0]))) {
+                        dsn::utils::filesystem::create_directory(
+                            fmt::format("{}/{}", ureq->file_size_req.dst_dir, args[0]));
+                    }
+                }
+                std::string dst =
+                    fmt::format("{}/{}", ureq->file_size_req.dst_dir, remote_file_name);
+                // derror_f("WARN:{}=>{}", url, dst);
+                if (curl) {
+                    fp = fopen(dst.c_str(), "wb");
+                    dassert_f(fp, "fp!=nullllllll");
+                    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+                    res = curl_easy_perform(curl);
+                    if (res != CURLE_OK) {
+                        derror_f("jiashuo_debug: ERROR copy {}=>{}", res, url);
+                        ureq->nfs_task->enqueue(ERR_FILE_OPERATION_FAILED, 0);
+                    }
+                    /* always cleanup */
+                    fclose(fp);
+
+                    int64_t local_size;
+                    dsn::utils::filesystem::file_size(dst, local_size);
+                    derror_f(
+                        "jiashuo_debug: complete copy[{}], {}=>{}", remote_file_size, url, dst);
+                    if (remote_file_size != local_size) {
+                        derror_f("FATATL: jiashuo_debug {}[{}] != {}[{}], del and retry!",
+                                 url,
+                                 remote_file_size,
+                                 dst,
+                                 local_size);
+                        dsn::utils::filesystem::remove_file_name(dst);
+                        fp = fopen(dst.c_str(), "wb");
+                        dassert_f(fp, "fp!=nullllllll");
+                        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+                        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+                        res = curl_easy_perform(curl);
+                        if (res != CURLE_OK) {
+                            derror_f("jiashuo_debug: ERROR retry copy {}=>{}", res, url);
+                            ureq->nfs_task->enqueue(ERR_FILE_OPERATION_FAILED, 0);
+                        }
+                        /* always cleanup */
+                        fclose(fp);
+                    }
+                    dsn::utils::filesystem::file_size(dst, local_size);
+                    dassert_f(remote_file_size == local_size,
+                              "laji..............still {}[{}] != {}[{}]!",
+                              url,
+                              remote_file_size,
+                              dst,
+                              local_size);
+                } else {
+                    dassert_f("curl init failed = {}", "null");
+                }
+            }
+            curl_easy_cleanup(curl);
+            ureq->nfs_task->enqueue(ERR_OK, 1000);
+        },
+        0);
+
+    /*std::deque<copy_request_ex_ptr> copy_requests;
     ureq->file_contexts.resize(resp.size_list.size());
     for (size_t i = 0; i < resp.size_list.size(); i++) // file list
     {
@@ -282,7 +308,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
             _copy_requests_low.push(std::move(copy_requests));
     }
 
-    tasking::enqueue(LPC_NFS_COPY_FILE, nullptr, [this]() { continue_copy(); }, 0);
+    tasking::enqueue(LPC_NFS_COPY_FILE, nullptr, [this]() { continue_copy(); }, 0);*/
 }
 
 void nfs_client_impl::continue_copy()
