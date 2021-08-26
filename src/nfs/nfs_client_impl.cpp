@@ -198,7 +198,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                 std::vector<std::string> args;
                 boost::split(args, remote_file_name, boost::is_any_of("/"));
                 if (args.size() == 2) {
-                    if (!dsn::utils::filesystem::file_exists(
+                    if (!dsn::utils::filesystem::directory_exists(
                             fmt::format("{}/{}", ureq->file_size_req.dst_dir, args[0]))) {
                         dsn::utils::filesystem::create_directory(
                             fmt::format("{}/{}", ureq->file_size_req.dst_dir, args[0]));
@@ -208,6 +208,10 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                     fmt::format("{}/{}", ureq->file_size_req.dst_dir, remote_file_name);
                 // derror_f("WARN:{}=>{}", url, dst);
                 if (curl) {
+                     if (dsn::utils::filesystem::file_exists(dst) {
+                         derror_f("jiashuo_debug file out, remove {}", dst);
+                        dsn::utils::filesystem::remove_file_name(dst);
+                     }
                     fp = fopen(dst.c_str(), "wb");
                     dassert_f(fp, "fp!=nullllllll");
                     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -223,35 +227,11 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
 
                     int64_t local_size;
                     dsn::utils::filesystem::file_size(dst, local_size);
-                    derror_f(
-                        "jiashuo_debug: complete copy[{}], {}=>{}", remote_file_size, url, dst);
-                    if (remote_file_size != local_size) {
-                        derror_f("FATATL: jiashuo_debug {}[{}] != {}[{}], del and retry!",
+                    derror_f("Complete: jiashuo_debug {}[{}] != {}[{}], del and retry!",
                                  url,
                                  remote_file_size,
                                  dst,
                                  local_size);
-                        dsn::utils::filesystem::remove_file_name(dst);
-                        fp = fopen(dst.c_str(), "wb");
-                        dassert_f(fp, "fp!=nullllllll");
-                        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-                        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-                        res = curl_easy_perform(curl);
-                        if (res != CURLE_OK) {
-                            derror_f("jiashuo_debug: ERROR retry copy {}=>{}", res, url);
-                            ureq->nfs_task->enqueue(ERR_FILE_OPERATION_FAILED, 0);
-                        }
-                        /* always cleanup */
-                        fclose(fp);
-                    }
-                    dsn::utils::filesystem::file_size(dst, local_size);
-                    dassert_f(remote_file_size == local_size,
-                              "laji..............still {}[{}] != {}[{}]!",
-                              url,
-                              remote_file_size,
-                              dst,
-                              local_size);
                 } else {
                     dassert_f("curl init failed = {}", "null");
                 }
