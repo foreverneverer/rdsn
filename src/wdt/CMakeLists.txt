@@ -1,0 +1,19 @@
+set(MY_PROJ_NAME dsn_wdt)
+
+set(MY_PROJ_SRC ${NFS_THRIFT_SRCS})
+
+# Search mode for source files under CURRENT project directory?
+# "GLOB_RECURSE" for recursive search
+# "GLOB" for non-recursive search
+set(MY_SRC_SEARCH_MODE "GLOB")
+
+set(MY_PROJ_LIBS dsn_aio)
+
+# Extra files that will be installed
+set(MY_BINPLACES "")
+
+dsn_add_static_library()
+
+add_subdirectory(test)
+
+target_link_libraries(${MY_PROJ_NAME} wdt)

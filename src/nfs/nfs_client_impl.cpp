@@ -184,10 +184,11 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
         LPC_NFS_COPY_FILE,
         nullptr,
         [ureq, resp]() {
-            CURLcode res = CURLE_OK;
+            CURLcode res;
             FILE *fp;
             CURL *curl = curl_easy_init();
-            // derror_f("AAAAAAA: ={}", files.size());
+            dassert_f(curl != nullptr, "curl is null");
+            int try_time = 0;
             for (size_t i = 0; i < resp.size_list.size(); i++) {
                 int64_t remote_file_size = resp.size_list[i];
                 std::string remote_file_name = resp.file_list[i];
@@ -207,34 +208,45 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                 std::string dst =
                     fmt::format("{}/{}", ureq->file_size_req.dst_dir, remote_file_name);
                 // derror_f("WARN:{}=>{}", url, dst);
-                if (curl) {
-                     if (dsn::utils::filesystem::file_exists(dst) {
-                         derror_f("jiashuo_debug file out, remove {}", dst);
-                        dsn::utils::filesystem::remove_file_name(dst);
-                     }
-                    fp = fopen(dst.c_str(), "wb");
-                    dassert_f(fp, "fp!=nullllllll");
-                    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-                    res = curl_easy_perform(curl);
-                    if (res != CURLE_OK) {
-                        derror_f("jiashuo_debug: ERROR copy {}=>{}", res, url);
-                        ureq->nfs_task->enqueue(ERR_FILE_OPERATION_FAILED, 0);
-                    }
-                    /* always cleanup */
-                    fclose(fp);
 
-                    int64_t local_size;
-                    dsn::utils::filesystem::file_size(dst, local_size);
-                    derror_f("Complete: jiashuo_debug {}[{}] != {}[{}], del and retry!",
-                                 url,
-                                 remote_file_size,
-                                 dst,
-                                 local_size);
-                } else {
-                    dassert_f("curl init failed = {}", "null");
+                if (dsn::utils::filesystem::file_exists(dst)) {
+                    derror_f("jiashuo_debug file out, remove {}", dst);
+                    dsn::utils::filesystem::remove_file_name(dst);
                 }
+                fp = fopen(dst.c_str(), "wb");
+                dassert_f(fp, "fp!=nullllllll");
+                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+                curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+                res = curl_easy_perform(curl);
+                if (res != CURLE_OK) {
+                    derror_f("jiashuo_debug: ERROR copy {}=>{}", res, url);
+                    ureq->nfs_task->enqueue(ERR_FILE_OPERATION_FAILED, 0);
+                }
+                /* always cleanup */
+                fclose(fp);
+                int64_t local_size;
+                dsn::utils::filesystem::file_size(dst, local_size);
+                derror_f("Complete: jiashuo_debug {}[{}] => {}[{}]",
+                         url,
+                         remote_file_size,
+                         dst,
+                         local_size);
+                if (local_size < remote_file_size && try_time++ > 10) {
+                    derror_f("Retry: jiashuo_debug {}[{}] => {}[{}]",
+                             url,
+                             remote_file_size,
+                             dst,
+                             local_size);
+                    i--;
+                    continue;
+                }
+                dassert_f(local_size >= remote_file_size,
+                          "jiashuo_debug {}[{}] => {}[{}]",
+                          url,
+                          remote_file_size,
+                          dst,
+                          local_size);
             }
             curl_easy_cleanup(curl);
             ureq->nfs_task->enqueue(ERR_OK, 1000);
