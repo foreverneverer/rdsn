@@ -39,7 +39,7 @@
 #include <boost/algorithm/string.hpp>
 #include <fmt/chrono.h>
 #include <dsn/dist/fmt_logging.h>
-
+#include <fstream>
 namespace dsn {
 namespace service {
 static uint32_t current_max_copy_rate_megabytes = 0;
@@ -191,7 +191,9 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
         if (dsn::utils::filesystem::file_exists(dst)) {
             dsn::utils::filesystem::remove_file_name(dst);
         }
-        auto current_file = open(dst.c_str(), O_RDWR | O_CREAT | O_BINARY, 0666);
+        // auto current_file = open(dst.c_str(), O_RDWR | O_CREAT | O_BINARY, 0666);
+        std::shared_ptr<std::ofstream> file_handle(
+            new std::ofstream(dst, std::ios::binary | std::ios::out | std::ios::trunc));
         int file_offset = 0;
         int retry = 0;
         while (file_size > 0) {
@@ -209,7 +211,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
             _copy_token_bucket->consumeWithBorrowAndWait(copy_req.size);
             auto copy_task = async_nfs_copy(
                 copy_req,
-                [&err_copy, &current_file, file_offset](error_code err, copy_response &&resp) {
+                [&err_copy, &file_handle](error_code err, copy_response &&resp) {
                     err_copy = err;
                     if (err_copy != ERR_OK) {
                         return;
@@ -220,14 +222,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                         return;
                     }
 
-                    int64_t buffer_offset = 0;
-                    do {
-                        uint32_t ret = pwrite(current_file,
-                                              resp.file_content.data() + buffer_offset,
-                                              resp.file_content.size() - buffer_offset,
-                                              file_offset + buffer_offset);
-                        buffer_offset += ret;
-                    } while (dsn_unlikely(buffer_offset < resp.file_content.size()));
+                    file_handle->write(resp.file_content.data(), resp.file_content.size());
                 },
                 std::chrono::milliseconds(FLAGS_rpc_timeout_ms),
                 ureq->file_size_req.source);
@@ -245,14 +240,14 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
                 file_offset = file_offset + copy_req.size;
             }
         }
-        dassert_f(close(current_file) >=0, "close failed={}", dst);
+        file_handle->close();
         total_size = total_size + file_size;
         int64_t local_size;
         dsn::utils::filesystem::file_size(dst, local_size);
         derror_f("jiashuo_debug Complete copy {}/{}[{}]=>{}[{}]",
                  ureq->file_size_req.source_dir,
                  file_name,
-                  resp.size_list[i],
+                 resp.size_list[i],
                  dst,
                  local_size);
     }
