@@ -17,6 +17,7 @@
 
 #include <dsn/http/http_server.h>
 #include <dsn/utility/flags.h>
+#include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/output_utils.h>
 
 namespace dsn {
@@ -51,6 +52,7 @@ void list_all_configs(const http_request &req, http_response &resp)
 
 void get_config(const http_request &req, http_response &resp)
 {
+    derror_f("jiashuo_debug: get_config");
     std::string config_name;
     for (const auto &p : req.query_args) {
         if ("name" == p.first) {
@@ -61,7 +63,10 @@ void get_config(const http_request &req, http_response &resp)
         }
     }
 
+    derror_f("jiashuo_debug: get_config={}", config_name);
+
     auto res = get_flag_str(config_name);
+    derror_f("jiashuo_debug: ret={}", res.get_value());
     if (res.is_ok()) {
         resp.body = res.get_value();
     } else {
