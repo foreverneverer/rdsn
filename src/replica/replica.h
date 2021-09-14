@@ -286,7 +286,7 @@ private:
     void on_copy_remote_state_completed(error_code err,
                                         size_t size,
                                         uint64_t copy_start_time,
-                                        learn_request &&req,
+                                        learn_request req,
                                         learn_response &&resp);
     void on_learn_remote_state_completed(error_code err);
     void handle_learning_error(error_code err, bool is_local_error);

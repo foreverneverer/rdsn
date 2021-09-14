@@ -46,6 +46,17 @@
 namespace dsn {
 namespace replication {
 
+DSN_DEFINE_int32("replication",
+                 learn_checkpoint_type,
+                 0,
+                 "learn checkpoint type, 0 means nfs, 1 means hdfs");
+DSN_TAG_VARIABLE(learn_checkpoint_type, FT_MUTABLE);
+DSN_DEFINE_validator(learn_checkpoint_type, [](uint32_t learn_checkpoint_type) -> bool {
+    return learn_checkpoint_type == 0 || learn_checkpoint_type == 1;
+});
+
+DSN_DEFINE_string("replication", learn_checkpoint_hdfs_path, "/tmp/", "learn checkpoint hdfs path");
+
 void replica::init_learn(uint64_t signature)
 {
     _checker.only_one_thread_access();
@@ -525,7 +536,23 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
                        request.learner.to_string(),
                        err.to_string());
             } else {
-                response.base_local_dir = _app->data_dir();
+                if (FLAGS_learn_checkpoint_type == 1) {
+                    int64_t id = dsn_now_ns();
+                    backup_request upload_request;
+                    upload_request.__set_app_name(_app_info.app_name);
+                    upload_request.__set_backup_id(id);
+                    upload_request.__set_backup_path(FLAGS_learn_checkpoint_hdfs_path);
+
+                    backup_response upload_response;
+                    on_cold_backup(upload_request, upload_response);
+                    if (upload_response.err != ERR_OK) {
+                        response.err = ERR_CHECKPOINT_FAILED;
+                    }
+                    response.base_local_dir = fmt::format("{}", id);
+                } else {
+                    response.base_local_dir = _app->data_dir();
+                }
+
                 ddebug(
                     "%s: on_learn[%016" PRIx64 "]: learner = %s, get app learn state succeed, "
                     "learned_meta_size = %u, learned_file_count = %u, learned_to_decree = %" PRId64,
@@ -924,6 +951,39 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                static_cast<int>(resp.state.files.size()),
                high_priority ? "high" : "low");
 
+        if (FLAGS_learn_checkpoint_type == 1 && resp.type == learn_type::LT_APP) {
+            int64_t ts_id = 0;
+            bool suc = dsn::buf2int64(resp.base_local_dir, ts_id);
+
+            configuration_restore_request restore_request;
+            restore_request.__set_app_name(_app_info.app_name);
+            restore_request.__set_app_id(_app_info.app_id);
+            restore_request.__set_backup_provider_name("c3prc_hadoop");
+            restore_request.__set_time_stamp(ts_id);
+            restore_request.__set_cluster_name("LearnCheckPoint");
+            tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES,
+                             &_tracker,
+                             [
+                               this,
+                               restore_request,
+                               copy_start = _potential_secondary_states.duration_ms(),
+                               req_cap = req,
+                               resp_copy = resp
+                             ]() mutable {
+                                 error_code err;
+                                 while (err != ERR_OK) {
+                                     err = download_checkpoint(restore_request,
+                                                               FLAGS_learn_checkpoint_hdfs_path,
+                                                               _app->learn_dir());
+                                     derror_replica("jiashuo_debug: download {}, please wait", err);
+                                     sleep(60);
+                                 }
+                                 on_copy_remote_state_completed(
+                                     err, 100, copy_start, req_cap, std::move(resp_copy));
+                             },
+                             0);
+        }
+
         _potential_secondary_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
             resp.config.primary,
             resp.base_local_dir,
@@ -1020,11 +1080,8 @@ bool replica::prepare_cached_learn_state(const learn_request &request,
     return false;
 }
 
-void replica::on_copy_remote_state_completed(error_code err,
-                                             size_t size,
-                                             uint64_t copy_start_time,
-                                             learn_request &&req,
-                                             learn_response &&resp)
+void replica::on_copy_remote_state_completed(
+    error_code err, size_t size, uint64_t copy_start_time, learn_request req, learn_response &&resp)
 {
     decree old_prepared = last_prepared_decree();
     decree old_committed = last_committed_decree();
