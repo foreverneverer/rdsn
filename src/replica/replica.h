@@ -48,6 +48,7 @@
 
 #include <dsn/perf_counter/perf_counter_wrapper.h>
 #include <dsn/dist/replication/replica_base.h>
+#include <replica/backup/cold_backup_context.h>
 
 #include "common/replication_common.h"
 #include "mutation.h"
@@ -106,6 +107,15 @@ DSN_DECLARE_bool(reject_write_when_disk_insufficient);
 class replica : public serverlet<replica>, public ref_counter, public replica_base
 {
 public:
+    void upload_checkpoint_to_remote(const std::string &remote_dir,
+                                     const std::string &local_dir,
+                                     learn_state &state,
+                                     const std::string &provider_name);
+    void download_checkpoint_from_remote(const std::string &remote_dir,
+                                         const std::string &local_dir,
+                                         const learn_state &state,
+                                         const std::string &provider_name);
+
     ~replica(void);
 
     //
@@ -582,6 +592,8 @@ private:
     std::unique_ptr<security::access_controller> _access_controller;
 
     disk_status::type _disk_status{disk_status::NORMAL};
+
+    zlock _lock; // lock the structure below
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication

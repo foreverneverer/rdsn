@@ -59,6 +59,14 @@ public:
                              block_filesystem *fs,
                              /*out*/ uint64_t &download_file_size);
 
+    error_code upload_file(const std::string &remote_dir,
+                           const std::string &local_dir,
+                           const std::string &file_name,
+                           block_filesystem *fs,
+                           uint64_t &download_file_size);
+    error_code
+    check_exist(const std::string &remote_dir, const std::string &file_name, block_filesystem *fs);
+
 private:
     block_service_registry &_registry_holder;
 

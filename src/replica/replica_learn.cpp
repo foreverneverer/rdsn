@@ -42,20 +42,133 @@
 #include <dsn/utility/filesystem.h>
 #include <dsn/dist/replication/replication_app_base.h>
 #include <dsn/dist/fmt_logging.h>
+#include <boost/algorithm/string.hpp>
+#include "block_service/block_service_manager.h"
 
 namespace dsn {
 namespace replication {
 
 DSN_DEFINE_int32("replication",
                  learn_checkpoint_type,
-                 0,
+                 1,
                  "learn checkpoint type, 0 means nfs, 1 means hdfs");
 DSN_TAG_VARIABLE(learn_checkpoint_type, FT_MUTABLE);
 DSN_DEFINE_validator(learn_checkpoint_type, [](uint32_t learn_checkpoint_type) -> bool {
     return learn_checkpoint_type == 0 || learn_checkpoint_type == 1;
 });
 
-DSN_DEFINE_string("replication", learn_checkpoint_hdfs_path, "/tmp/", "learn checkpoint hdfs path");
+DSN_DEFINE_string("replication",
+                  learn_checkpoint_provider,
+                  "hdfs_tjwq",
+                  "learn checkpoint provider, such as hdfs_zjy, hdfs_tjwq");
+DSN_TAG_VARIABLE(learn_checkpoint_provider, FT_MUTABLE);
+
+DSN_DEFINE_string("replication",
+                  learn_checkpoint_hdfs_path,
+                  "/tmp/s_pegasus/learn",
+                  "learn checkpoint hdfs path");
+
+void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
+                                          const std::string &local_dir,
+                                          dsn::replication::learn_state &state,
+                                          const std::string &provider_name)
+{
+    dist::block_service::block_filesystem *fs =
+        _stub->_block_service_manager.get_or_create_block_filesystem(provider_name);
+    if (_stub->_block_service_manager.check_exist(remote_dir, "", fs) ==
+        ERR_OK) { // todo(jiashuo1) maybe last upload hasn't created the path for some block
+        derror_replica("jiashuo_debug: the checkpoint has been uploading {}", remote_dir);
+        return;
+    }
+
+    task_tracker tracker;
+    for (const auto &file : state.files) {
+        tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES,
+                         &tracker,
+                         [this, remote_dir, local_dir, file, fs]() mutable {
+                             uint64_t upload_size = 0;
+                             auto err = _stub->_block_service_manager.upload_file(
+                                 remote_dir, local_dir, file, fs, upload_size);
+                             if (err != ERR_OK) {
+                                 derror_replica("jiashuo_debug: upload {}/{} => {}/{} failed",
+                                                _app->data_dir(),
+                                                file,
+                                                remote_dir,
+                                                file);
+                             } else {
+                                 derror_replica("jiashuo_debug: upload {}/{} => {}/{} completed",
+                                                _app->data_dir(),
+                                                file,
+                                                remote_dir,
+                                                file);
+                             }
+                         });
+    }
+    tracker.wait_outstanding_tasks();
+    std::string local_success_path = "/tmp";
+    std::string success_file = "success";
+    uint64_t success_file_size = 0;
+    dsn::utils::filesystem::create_file(fmt::format("{}/{}", local_success_path, success_file));
+    auto err = _stub->_block_service_manager.upload_file(
+        remote_dir, local_success_path, success_file, fs, success_file_size);
+    if (err != ERR_OK) {
+        derror_replica("jiashuo_debug: upload {}/{} => {}/{} failed",
+                       _app->data_dir(),
+                       success_file,
+                       remote_dir,
+                       success_file);
+    } else {
+        derror_replica("jiashuo_debug: upload {}/{} => {}/{} completed",
+                       _app->data_dir(),
+                       success_file,
+                       remote_dir,
+                       success_file);
+    }
+}
+
+void replica::download_checkpoint_from_remote(const std::string &remote_dir,
+                                              const std::string &local_dir,
+                                              const learn_state &state,
+                                              const std::string &provider_name)
+{
+    dist::block_service::block_filesystem *fs =
+        _stub->_block_service_manager.get_or_create_block_filesystem(provider_name);
+    std::string success_file = "success";
+    error_code exist = _stub->_block_service_manager.check_exist(remote_dir, success_file, fs);
+    while (exist != ERR_OK) {
+        derror_replica(
+            "jiashuo_debug: hasn't upload success {}/{}, {}", remote_dir, success_file, exist);
+        sleep(60);
+        exist = _stub->_block_service_manager.check_exist(remote_dir, success_file, fs);
+    }
+    if (!dsn::utils::filesystem::path_exists(_app->learn_dir())) {
+        dsn::utils::filesystem::create_directory(_app->learn_dir());
+    }
+
+    task_tracker tracker;
+    for (auto &file : state.files) {
+        tasking::enqueue(
+            LPC_COMMON_TASK, &tracker, [this, remote_dir, local_dir, file, fs]() mutable {
+                uint64_t f_size = 0;
+                auto err = _stub->_block_service_manager.download_file(
+                    remote_dir, local_dir, file, fs, f_size);
+                if (err != ERR_OK) {
+                    derror_replica("jiashuo download failed: {}/{}=>{}/{}",
+                                   remote_dir,
+                                   file,
+                                   _app->learn_dir(),
+                                   file);
+                } else {
+                    derror_replica("jiashuo download success: {}/{}=>{}/{}",
+                                   remote_dir,
+                                   file,
+                                   _app->learn_dir(),
+                                   file);
+                }
+            });
+    }
+    tracker.wait_outstanding_tasks();
+}
 
 void replica::init_learn(uint64_t signature)
 {
@@ -526,7 +639,11 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
         } else {
             ::dsn::error_code err = _app->get_checkpoint(
                 learn_start_decree, request.app_specific_learn_request, response.state);
-
+            std::vector<std::string> args;
+            boost::split(args, response.state.files.back(), boost::is_any_of("/"));
+            for (auto &file : response.state.files) {
+                file = file.substr(_app->data_dir().size() + args[args.size() - 2].size() + 1);
+            }
             if (err != ERR_OK) {
                 response.err = ERR_GET_LEARN_STATE_FAILED;
                 derror("%s: on_learn[%016" PRIx64
@@ -536,23 +653,29 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
                        request.learner.to_string(),
                        err.to_string());
             } else {
+                std::string checkpoint_timestamp = args[args.size() - 2];
+                std::string local_dir =
+                    fmt::format("{}/{}", _app->data_dir(), checkpoint_timestamp);
                 if (FLAGS_learn_checkpoint_type == 1) {
-                    int64_t id = dsn_now_ns();
-                    backup_request upload_request;
-                    upload_request.__set_app_name(_app_info.app_name);
-                    upload_request.__set_backup_id(id);
-                    upload_request.__set_backup_path(FLAGS_learn_checkpoint_hdfs_path);
-
-                    backup_response upload_response;
-                    on_cold_backup(upload_request, upload_response);
-                    if (upload_response.err != ERR_OK) {
-                        response.err = ERR_CHECKPOINT_FAILED;
-                    }
-                    response.base_local_dir = fmt::format("{}", id);
+                    response.base_local_dir = fmt::format("{}/{}/{}/{}/",
+                                                          FLAGS_learn_checkpoint_hdfs_path,
+                                                          _app_info.app_name,
+                                                          get_gpid(),
+                                                          checkpoint_timestamp);
+                    tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES, &_tracker, [
+                        this,
+                        remote_dir_copy = response.base_local_dir,
+                        local_dir_copy = local_dir,
+                        state_copy = response.state
+                    ]() mutable {
+                        upload_checkpoint_to_remote(remote_dir_copy,
+                                                    local_dir_copy,
+                                                    state_copy,
+                                                    FLAGS_learn_checkpoint_provider);
+                    });
                 } else {
-                    response.base_local_dir = _app->data_dir();
+                    response.base_local_dir = local_dir;
                 }
-
                 ddebug(
                     "%s: on_learn[%016" PRIx64 "]: learner = %s, get app learn state succeed, "
                     "learned_meta_size = %u, learned_file_count = %u, learned_to_decree = %" PRId64,
@@ -566,12 +689,7 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
         }
     }
 
-    for (auto &file : response.state.files) {
-        file = file.substr(response.base_local_dir.length() + 1);
-    }
-
     reply(msg, response);
-
     // the replayed prepare msg needs to be AFTER the learning response msg
     if (delayed_replay_prepare_list) {
         replay_prepare_list();
@@ -673,7 +791,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         _stub->_counter_replicas_learning_recent_learn_reset_count->increment();
 
         // close app
-        auto err = _app->close(true);
+        err = _app->close(true);
         if (err != ERR_OK) {
             derror("%s: on_learn_reply[%016" PRIx64
                    "]: learnee = %s, close app (with clear_state=true) failed, err = %s",
@@ -952,56 +1070,46 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                high_priority ? "high" : "low");
 
         if (FLAGS_learn_checkpoint_type == 1 && resp.type == learn_type::LT_APP) {
-            int64_t ts_id = 0;
-            bool suc = dsn::buf2int64(resp.base_local_dir, ts_id);
-
-            configuration_restore_request restore_request;
-            restore_request.__set_app_name(_app_info.app_name);
-            restore_request.__set_app_id(_app_info.app_id);
-            restore_request.__set_backup_provider_name("c3prc_hadoop");
-            restore_request.__set_time_stamp(ts_id);
-            restore_request.__set_cluster_name("LearnCheckPoint");
             tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES,
                              &_tracker,
                              [
                                this,
-                               restore_request,
                                copy_start = _potential_secondary_states.duration_ms(),
-                               req_cap = req,
+                               req_cap = std::move(req),
                                resp_copy = resp
                              ]() mutable {
-                                 error_code err;
-                                 while (err != ERR_OK) {
-                                     err = download_checkpoint(restore_request,
-                                                               FLAGS_learn_checkpoint_hdfs_path,
-                                                               _app->learn_dir());
-                                     derror_replica("jiashuo_debug: download {}, please wait", err);
-                                     sleep(60);
-                                 }
+                                 download_checkpoint_from_remote(resp_copy.base_local_dir,
+                                                                 _app->learn_dir(),
+                                                                 resp_copy.state,
+                                                                 FLAGS_learn_checkpoint_provider);
                                  on_copy_remote_state_completed(
-                                     err, 100, copy_start, req_cap, std::move(resp_copy));
+                                     ERR_OK,
+                                     1000,
+                                     _potential_secondary_states.duration_ms(),
+                                     req_cap,
+                                     std::move(resp_copy));
                              },
                              0);
+        } else {
+            _potential_secondary_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
+                resp.config.primary,
+                resp.base_local_dir,
+                resp.state.files,
+                learn_dir,
+                true, // overwrite
+                high_priority,
+                LPC_REPLICATION_COPY_REMOTE_FILES,
+                &_tracker,
+                [
+                  this,
+                  copy_start = _potential_secondary_states.duration_ms(),
+                  req_cap = std::move(req),
+                  resp_copy = resp
+                ](error_code err, size_t sz) mutable {
+                    on_copy_remote_state_completed(
+                        err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
+                });
         }
-
-        _potential_secondary_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
-            resp.config.primary,
-            resp.base_local_dir,
-            resp.state.files,
-            learn_dir,
-            true, // overwrite
-            high_priority,
-            LPC_REPLICATION_COPY_REMOTE_FILES,
-            &_tracker,
-            [
-              this,
-              copy_start = _potential_secondary_states.duration_ms(),
-              req_cap = std::move(req),
-              resp_copy = resp
-            ](error_code err, size_t sz) mutable {
-                on_copy_remote_state_completed(
-                    err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
-            });
     } else {
         _potential_secondary_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [

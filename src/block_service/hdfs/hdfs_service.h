@@ -93,6 +93,7 @@ public:
                            const download_callback &cb,
                            dsn::task_tracker *tracker) override;
     error_code get_file_meta();
+    error_code exist();
 
 private:
     error_code

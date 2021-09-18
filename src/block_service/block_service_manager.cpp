@@ -112,6 +112,16 @@ static create_file_response create_block_file_sync(const std::string &remote_fil
     return ret;
 }
 
+static upload_response
+upload_block_file_sync(const std::string &local_file_path, block_file *bf, task_tracker *tracker)
+{
+    upload_response ret;
+    bf->upload(upload_request{local_file_path},
+               TASK_CODE_EXEC_INLINED,
+               [&ret](const upload_response &resp) { ret = resp; });
+    return ret;
+}
+
 static download_response
 download_block_file_sync(const std::string &local_file_path, block_file *bf, task_tracker *tracker)
 {
@@ -122,6 +132,47 @@ download_block_file_sync(const std::string &local_file_path, block_file *bf, tas
                  tracker);
     tracker->wait_outstanding_tasks();
     return ret;
+}
+
+error_code block_service_manager::upload_file(const std::string &remote_dir,
+                                              const std::string &local_dir,
+                                              const std::string &file_name,
+                                              block_filesystem *fs,
+                                              /*out*/ uint64_t &download_file_size)
+{
+    // local file exists
+    const std::string local_file_name = utils::filesystem::path_combine(local_dir, file_name);
+    if (!utils::filesystem::file_exists(local_file_name)) {
+        ddebug_f("local file({}) not exists", local_file_name);
+        return ERR_PATH_NOT_FOUND;
+    }
+
+    task_tracker tracker;
+    // Create a block_file object.
+    const std::string remote_file_name = utils::filesystem::path_combine(remote_dir, file_name);
+    auto create_resp =
+        create_block_file_sync(remote_file_name, false /*ignore file meta*/, fs, &tracker);
+    error_code err = create_resp.err;
+    block_file_ptr bf = create_resp.file_handle;
+    if (err != ERR_OK || !bf) {
+        derror_f("create file({}) failed with error({})", remote_file_name, err.to_string());
+        return err;
+    }
+
+    upload_response resp = upload_block_file_sync(local_file_name, bf.get(), &tracker);
+    if (resp.err != ERR_OK) {
+        if (resp.err == ERR_OBJECT_NOT_FOUND) {
+            derror_f("upload file({}) failed, file on remote file provider is not existed",
+                     local_file_name);
+            return ERR_OBJECT_NOT_FOUND;
+        }
+        return resp.err;
+    }
+
+    ddebug_f(
+        "upload file({}) succeed, file_size = {}", local_file_name.c_str(), resp.uploaded_size);
+    download_file_size = resp.uploaded_size;
+    return ERR_OK;
 }
 
 // ThreadPool: THREAD_POOL_REPLICATION, THREAD_POOL_DEFAULT
@@ -168,6 +219,25 @@ error_code block_service_manager::download_file(const std::string &remote_dir,
         "download file({}) succeed, file_size = {}", local_file_name.c_str(), resp.downloaded_size);
     download_file_size = resp.downloaded_size;
     return ERR_OK;
+}
+
+error_code block_service_manager::check_exist(const std::string &remote_dir,
+                                              const std::string &file_name,
+                                              block_filesystem *fs)
+{
+    // Create a block_file object.
+    task_tracker tracker;
+    const std::string remote_file_name = utils::filesystem::path_combine(remote_dir, file_name);
+    auto create_resp =
+        create_block_file_sync(remote_file_name, false /*ignore file meta*/, fs, &tracker);
+    error_code err = create_resp.err;
+    block_file_ptr bf = create_resp.file_handle;
+    derror_f("check {}/{}", remote_dir, file_name);
+    if (err != ERR_OK || !bf) {
+        derror_f("create file({}) failed with error({})", remote_file_name, err.to_string());
+        return err;
+    }
+    return bf->exist();
 }
 
 } // namespace block_service

@@ -168,5 +168,22 @@ TEST_F(replica_learn_test, get_learn_start_decree) { test_get_learn_start_decree
 
 TEST_F(replica_learn_test, get_max_gced_decree_for_learn) { test_get_max_gced_decree_for_learn(); }
 
+TEST_F(replica_learn_test, upload_and_download_check_point)
+{
+    auto replica = create_duplicating_replica();
+    std::string base_dir = "/tmp/jiashuo";
+    dsn::replication::learn_state state;
+    dassert_f(dsn::utils::filesystem::get_subfiles("/home/mi/checkpoint", state.files, true),
+              "laji, init local sub file failed");
+    // replica->upload_checkpoint_to_remote(base_dir, state, "hdfs_tjwq");
+
+    for (auto &file : state.files) {
+        file = file.substr(base_dir.length() + 1);
+    }
+
+    replica->download_checkpoint_from_remote(
+        "/tmp/s_pegasus/learn/learn/3.3/checkpoint.4636819/", "", state, "hdfs_tjwq");
+}
+
 } // namespace replication
 } // namespace dsn

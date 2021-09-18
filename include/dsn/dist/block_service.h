@@ -328,6 +328,8 @@ public:
     virtual ~block_file() {}
     const std::string &file_name() const { return _name; }
 
+    virtual error_code exist() { return ERR_NOT_IMPLEMENTED; };
+
     /**
      * @brief get_size
      *    this api should never block, implementation should

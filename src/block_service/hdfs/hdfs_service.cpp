@@ -278,6 +278,15 @@ error_code hdfs_file_object::get_file_meta()
 
 hdfs_file_object::~hdfs_file_object() {}
 
+error_code hdfs_file_object::exist()
+{
+    if (hdfsExists(_service->get_fs(), file_name().c_str()) == 0) {
+        return ERR_OK;
+    } else {
+        return ERR_PATH_NOT_FOUND;
+    }
+}
+
 error_code hdfs_file_object::write_data_in_batches(const char *data,
                                                    const uint64_t data_size,
                                                    uint64_t &written_size)
