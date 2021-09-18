@@ -1189,7 +1189,7 @@ bool replica::prepare_cached_learn_state(const learn_request &request,
 }
 
 void replica::on_copy_remote_state_completed(
-    error_code err, size_t size, uint64_t copy_start_time, learn_request req, learn_response &&resp)
+    error_code err, size_t size, uint64_t copy_start_time, learn_request &&req, learn_response &&resp)
 {
     decree old_prepared = last_prepared_decree();
     decree old_committed = last_committed_decree();
