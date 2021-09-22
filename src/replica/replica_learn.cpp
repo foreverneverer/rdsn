@@ -91,16 +91,16 @@ void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
                                  remote_dir, local_dir, file, fs, upload_size);
                              if (err != ERR_OK) {
                                  derror_replica("jiashuo_debug: upload {}/{} => {}/{} failed",
-                                                _app->data_dir(),
+                                                local_dir,
                                                 file,
                                                 remote_dir,
                                                 file);
                              } else {
-                                 derror_replica("jiashuo_debug: upload {}/{} => {}/{} completed",
-                                                _app->data_dir(),
+                                /* derror_replica("jiashuo_debug: upload {}/{} => {}/{} completed",
+                                                local_dir,
                                                 file,
                                                 remote_dir,
-                                                file);
+                                                file);*/
                              }
                          });
     }
@@ -113,16 +113,16 @@ void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
         remote_dir, local_success_path, success_file, fs, success_file_size);
     if (err != ERR_OK) {
         derror_replica("jiashuo_debug: upload {}/{} => {}/{} failed",
-                       _app->data_dir(),
+                       local_dir,
                        success_file,
                        remote_dir,
                        success_file);
     } else {
-        derror_replica("jiashuo_debug: upload {}/{} => {}/{} completed",
-                       _app->data_dir(),
+       /* derror_replica("jiashuo_debug: upload {}/{} => {}/{} completed",
+                       local_dir,
                        success_file,
                        remote_dir,
-                       success_file);
+                       success_file);*/
     }
 }
 
@@ -159,11 +159,11 @@ void replica::download_checkpoint_from_remote(const std::string &remote_dir,
                                    _app->learn_dir(),
                                    file);
                 } else {
-                    derror_replica("jiashuo download success: {}/{}=>{}/{}",
+                    /*derror_replica("jiashuo download success: {}/{}=>{}/{}",
                                    remote_dir,
                                    file,
                                    _app->learn_dir(),
-                                   file);
+                                   file);*/
                 }
             });
     }
