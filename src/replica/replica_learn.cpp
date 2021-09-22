@@ -135,11 +135,11 @@ void replica::download_checkpoint_from_remote(const std::string &remote_dir,
         _stub->_block_service_manager.get_or_create_block_filesystem(provider_name);
     std::string success_file = "success";
     error_code exist = _stub->_block_service_manager.check_exist(remote_dir, success_file, fs);
-    while (exist != ERR_OK) {
+    if (exist != ERR_OK) {
         derror_replica(
             "jiashuo_debug: hasn't upload success {}/{}, {}", remote_dir, success_file, exist);
         sleep(60);
-        exist = _stub->_block_service_manager.check_exist(remote_dir, success_file, fs);
+        return;
     }
     if (!dsn::utils::filesystem::path_exists(_app->learn_dir())) {
         dsn::utils::filesystem::create_directory(_app->learn_dir());
