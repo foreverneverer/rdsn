@@ -1081,7 +1081,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                              ]() mutable {
                                  download_checkpoint_from_remote(resp_copy.base_local_dir,
                                                                  _app->learn_dir(),
-                                                                 resp_copy.state,
+                                                                 resp_copy.state.files,
                                                                  FLAGS_learn_checkpoint_provider);
                                  on_copy_remote_state_completed(
                                      ERR_OK,
