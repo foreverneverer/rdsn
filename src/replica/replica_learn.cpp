@@ -83,7 +83,7 @@ void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
 
     task_tracker tracker;
     for (const auto &file : state.files) {
-        tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES,
+        tasking::enqueue(LPC_UPLOAD_FILE,
                          &tracker,
                          [this, remote_dir, local_dir, file, fs]() mutable {
                              uint64_t upload_size = 0;
@@ -135,11 +135,11 @@ bool replica::download_checkpoint_from_remote(const std::string &remote_dir,
         _stub->_block_service_manager.get_or_create_block_filesystem(provider_name);
     std::string success_file = "success";
     error_code exist = _stub->_block_service_manager.check_exist(remote_dir, success_file, fs);
-    if (exist != ERR_OK) {
+    while (exist != ERR_OK) {
         derror_replica(
             "jiashuo_debug: hasn't upload success {}/{}, {}", remote_dir, success_file, exist);
         sleep(60);
-        return false;
+        exist = _stub->_block_service_manager.check_exist(remote_dir, success_file, fs);
     }
     if (!dsn::utils::filesystem::path_exists(_app->learn_dir())) {
         dsn::utils::filesystem::create_directory(_app->learn_dir());
@@ -148,7 +148,7 @@ bool replica::download_checkpoint_from_remote(const std::string &remote_dir,
     task_tracker tracker;
     for (auto &file : state.files) {
         tasking::enqueue(
-            LPC_COMMON_TASK, &tracker, [this, remote_dir, local_dir, file, fs]() mutable {
+            LPC_DOWNLOAD_FILE, &tracker, [this, remote_dir, local_dir, file, fs]() mutable {
                 uint64_t f_size = 0;
                 auto err = _stub->_block_service_manager.download_file(
                     remote_dir, local_dir, file, fs, f_size);
@@ -663,7 +663,7 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
                                                           _app_info.app_name,
                                                           get_gpid(),
                                                           checkpoint_timestamp);
-                    tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES, &_tracker, [
+                    tasking::enqueue(LPC_UPLOAD_FILE, &_tracker, [
                         this,
                         remote_dir_copy = response.base_local_dir,
                         local_dir_copy = local_dir,
@@ -1071,7 +1071,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                high_priority ? "high" : "low");
 
         if (FLAGS_learn_checkpoint_type == 1 && resp.type == learn_type::LT_APP) {
-            tasking::enqueue(LPC_REPLICATION_COPY_REMOTE_FILES,
+            tasking::enqueue(LPC_DOWNLOAD_FILE,
                              &_tracker,
                              [
                                this,
@@ -1079,13 +1079,10 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                                req_cap = std::move(req),
                                resp_copy = resp
                              ]() mutable {
-                                 bool complete = download_checkpoint_from_remote(resp_copy.base_local_dir,
+                                 download_checkpoint_from_remote(resp_copy.base_local_dir,
                                                                  _app->learn_dir(),
                                                                  resp_copy.state,
                                                                  FLAGS_learn_checkpoint_provider);
-                                 if (!complete) {
-                                     return;
-                                 }
                                  on_copy_remote_state_completed(
                                      ERR_OK,
                                      1000,
