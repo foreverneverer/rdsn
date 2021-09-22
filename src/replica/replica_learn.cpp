@@ -126,7 +126,7 @@ void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
     }
 }
 
-void replica::download_checkpoint_from_remote(const std::string &remote_dir,
+bool replica::download_checkpoint_from_remote(const std::string &remote_dir,
                                               const std::string &local_dir,
                                               const learn_state &state,
                                               const std::string &provider_name)
@@ -139,7 +139,7 @@ void replica::download_checkpoint_from_remote(const std::string &remote_dir,
         derror_replica(
             "jiashuo_debug: hasn't upload success {}/{}, {}", remote_dir, success_file, exist);
         sleep(60);
-        return;
+        return false;
     }
     if (!dsn::utils::filesystem::path_exists(_app->learn_dir())) {
         dsn::utils::filesystem::create_directory(_app->learn_dir());
@@ -168,6 +168,7 @@ void replica::download_checkpoint_from_remote(const std::string &remote_dir,
             });
     }
     tracker.wait_outstanding_tasks();
+    return true;
 }
 
 void replica::init_learn(uint64_t signature)
@@ -1078,10 +1079,13 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                                req_cap = std::move(req),
                                resp_copy = resp
                              ]() mutable {
-                                 download_checkpoint_from_remote(resp_copy.base_local_dir,
+                                 bool complete = download_checkpoint_from_remote(resp_copy.base_local_dir,
                                                                  _app->learn_dir(),
                                                                  resp_copy.state,
                                                                  FLAGS_learn_checkpoint_provider);
+                                 if (!complete) {
+                                     return;
+                                 }
                                  on_copy_remote_state_completed(
                                      ERR_OK,
                                      1000,
