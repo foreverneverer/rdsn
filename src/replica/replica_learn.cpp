@@ -70,7 +70,7 @@ DSN_DEFINE_string("replication",
 
 void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
                                           const std::string &local_dir,
-                                          dsn::replication::learn_state &state,
+                                          const std::vector<std::string> &files,
                                           const std::string &provider_name)
 {
     dist::block_service::block_filesystem *fs =
@@ -82,7 +82,7 @@ void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
     }
 
     task_tracker tracker;
-    for (const auto &file : state.files) {
+    for (const auto &file : files) {
         tasking::enqueue(LPC_UPLOAD_FILE,
                          &tracker,
                          [this, remote_dir, local_dir, file, fs]() mutable {
@@ -128,7 +128,7 @@ void replica::upload_checkpoint_to_remote(const std::string &remote_dir,
 
 bool replica::download_checkpoint_from_remote(const std::string &remote_dir,
                                               const std::string &local_dir,
-                                              const learn_state &state,
+                                              const std::vector<std::string> &files,
                                               const std::string &provider_name)
 {
     dist::block_service::block_filesystem *fs =
@@ -146,7 +146,7 @@ bool replica::download_checkpoint_from_remote(const std::string &remote_dir,
     }
 
     task_tracker tracker;
-    for (auto &file : state.files) {
+    for (const auto &file : files) {
         tasking::enqueue(
             LPC_DOWNLOAD_FILE, &tracker, [this, remote_dir, local_dir, file, fs]() mutable {
                 uint64_t f_size = 0;
@@ -667,11 +667,11 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
                         this,
                         remote_dir_copy = response.base_local_dir,
                         local_dir_copy = local_dir,
-                        state_copy = response.state
+                        files = response.state.files
                     ]() mutable {
                         upload_checkpoint_to_remote(remote_dir_copy,
                                                     local_dir_copy,
-                                                    state_copy,
+                                                    files,
                                                     FLAGS_learn_checkpoint_provider);
                     });
                 } else {

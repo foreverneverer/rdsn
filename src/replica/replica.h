@@ -109,11 +109,11 @@ class replica : public serverlet<replica>, public ref_counter, public replica_ba
 public:
     void upload_checkpoint_to_remote(const std::string &remote_dir,
                                      const std::string &local_dir,
-                                     learn_state &state,
+                                     const std::vector<std::string> &files,
                                      const std::string &provider_name);
     bool download_checkpoint_from_remote(const std::string &remote_dir,
                                          const std::string &local_dir,
-                                         const learn_state &state,
+                                         const std::vector<std::string> &files,
                                          const std::string &provider_name);
 
     ~replica(void);
