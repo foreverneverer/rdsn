@@ -1086,7 +1086,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                                      ERR_OK,
                                      1000,
                                      _potential_secondary_states.duration_ms(),
-                                     req_cap,
+                                    std::move(req_cap),
                                      std::move(resp_copy));
                              },
                              0);
