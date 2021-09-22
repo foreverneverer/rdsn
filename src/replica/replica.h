@@ -111,7 +111,7 @@ public:
                                      const std::string &local_dir,
                                      learn_state &state,
                                      const std::string &provider_name);
-    void download_checkpoint_from_remote(const std::string &remote_dir,
+    bool download_checkpoint_from_remote(const std::string &remote_dir,
                                          const std::string &local_dir,
                                          const learn_state &state,
                                          const std::string &provider_name);
