@@ -19,15 +19,22 @@
 #include <dsn/utility/synchronize.h>
 #include <dsn/utility/flags.h>
 #include <dsn/dist/fmt_logging.h>
+#include <dsn/perf_counter/perf_counters.h>
 
 namespace dsn {
 namespace utils {
 
 #define ADD_POINT(tracer)                                                                          \
-    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__))
+    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__), false)
 #define ADD_CUSTOM_POINT(tracer, message)                                                          \
     (tracer)->add_point(                                                                           \
-        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)))
+        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)), false)
+
+#define ADD_POINT_AND_REPORT(tracer)                                                               \
+    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__), true)
+#define ADD_CUSTOM_POINT_AND_REPORT(tracer, message)                                               \
+    (tracer)->add_point(                                                                           \
+        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)), true)
 
 /**
  * latency_tracer is a tool for tracking the time spent in each of the stages during request
@@ -76,13 +83,13 @@ public:
     //  threshold < 0: don't dump any trace points
     //  threshold = 0: dump all trace points
     //  threshold > 0: dump the trace point when time_used > threshold
-    latency_tracer(const std::string &name, bool is_sub = false, uint64_t threshold = 0);
+    latency_tracer(std::string name, bool is_sub = false, uint64_t threshold = 0);
 
     ~latency_tracer();
 
     // add a trace point to the tracer
     // -name: user specified name of the trace point
-    void add_point(const std::string &stage_name);
+    void add_point(const std::string &stage_name, bool is_report);
 
     // sub_tracer is used for tracking the request which may transfer the other type,
     // for example: rdsn "rpc_message" will be convert to "mutation", the "tracking
@@ -98,7 +105,12 @@ public:
 private:
     void dump_trace_points(/*out*/ std::string &traces);
 
-    utils::rw_lock_nr _lock;
+    void report_trace_point(const std::string &name, uint64_t ts);
+
+    perf_counter_ptr get_or_create_counter(const std::string &name);
+
+    utils::rw_lock_nr _point_lock;
+    utils::rw_lock_nr _counter_lock;
 
     std::string _name;
     const uint64_t _threshold;
