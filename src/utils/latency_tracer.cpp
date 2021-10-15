@@ -33,9 +33,38 @@ DSN_DEFINE_bool("replication",
                 false,
                 "whether open the latency tracer report perf counter");
 
-static const std::string kReportCounterName = "latency_tracer";
+const std::string kReportCounterName = "latency_tracer";
 utils::rw_lock_nr _counter_lock;
-static std::map<std::string, perf_counter_ptr> _counters_trace_latency;
+std::map<std::string, perf_counter_ptr> _counters_trace_latency;
+
+perf_counter_ptr get_trace_counter(const std::string &name)
+{
+    utils::auto_write_lock read(_counter_lock);
+    auto iter = _counters_trace_latency.find(name);
+    if (iter != _counters_trace_latency.end()) {
+        return iter->second;
+    }
+    return nullptr;
+}
+
+perf_counter_ptr init_trace_counter(const std::string &name)
+{
+    utils::auto_write_lock write(_counter_lock);
+    auto iter = _counters_trace_latency.find(name);
+    if (iter != _counters_trace_latency.end()) {
+        return iter->second;
+    }
+
+    auto perf_counter =
+        dsn::perf_counters::instance().get_app_counter(kReportCounterName.c_str(),
+                                                       name.c_str(),
+                                                       COUNTER_TYPE_NUMBER_PERCENTILES,
+                                                       name.c_str(),
+                                                       true);
+
+    _counters_trace_latency.emplace(name, perf_counter);
+    return perf_counter;
+}
 
 latency_tracer::latency_tracer(std::string name, bool is_sub, uint64_t threshold)
     : _name(std::move(name)), _threshold(threshold), _is_sub(is_sub), _start_time(dsn_now_ns())
@@ -79,7 +108,6 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     }
 
     utils::auto_read_lock read(_lock);
-
     uint64_t time_used = _points.rbegin()->first - _start_time;
 
     if (time_used < _threshold) {
@@ -118,41 +146,12 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
 
 void latency_tracer::report_trace_point(const std::string &name, uint64_t span)
 {
-    auto perf_counter = get_counter(name);
+    auto perf_counter = get_trace_counter(name);
     if (!perf_counter) {
-        dwarn_f("installed latency tracer counter({}) for it has not been ready");
-        perf_counter = init_counter(name);
+        dwarn_f("installed latency tracer counter({}) for it has not been ready", name);
+        perf_counter = init_trace_counter(name);
     }
     perf_counter->set(span);
-}
-
-perf_counter_ptr latency_tracer::get_counter(const std::string &name)
-{
-    utils::auto_read_lock read(_counter_lock);
-    auto iter = _counters_trace_latency.find(name);
-    if (iter != _counters_trace_latency.end()) {
-        return iter->second;
-    }
-    return nullptr;
-}
-
-perf_counter_ptr latency_tracer::init_counter(const std::string &name)
-{
-    utils::auto_write_lock write(_counter_lock);
-    auto iter = _counters_trace_latency.find(name);
-    if (iter != _counters_trace_latency.end()) {
-        return iter->second;
-    }
-
-    auto perf_counter =
-        dsn::perf_counters::instance().get_app_counter(kReportCounterName.c_str(),
-                                                       name.c_str(),
-                                                       COUNTER_TYPE_NUMBER_PERCENTILES,
-                                                       name.c_str(),
-                                                       true);
-
-    _counters_trace_latency.emplace(name, perf_counter);
-    return perf_counter;
 }
 
 } // namespace utils

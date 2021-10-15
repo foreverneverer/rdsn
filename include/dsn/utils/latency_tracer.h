@@ -102,9 +102,6 @@ private:
 
     static void report_trace_point(const std::string &name, uint64_t span);
 
-    static perf_counter_ptr get_counter(const std::string &name);
-    static perf_counter_ptr init_counter(const std::string &name);
-
     utils::rw_lock_nr _lock;
 
     std::string _name;
