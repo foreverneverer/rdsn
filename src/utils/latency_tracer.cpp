@@ -28,9 +28,13 @@ namespace dsn {
 namespace utils {
 
 DSN_DEFINE_bool("replication", enable_latency_tracer, false, "whether enable the latency tracer");
-DSN_DEFINE_bool("replication", open_latency_tracer_report, false, "whether open the latency tracer report perf counter");
+DSN_DEFINE_bool("replication",
+                open_latency_tracer_report,
+                false,
+                "whether open the latency tracer report perf counter");
 
 static const std::string kReportCounterName = "latency_tracer";
+utils::rw_lock_nr _counter_lock;
 static std::map<std::string, perf_counter_ptr> _counters_trace_latency;
 
 latency_tracer::latency_tracer(std::string name, bool is_sub, uint64_t threshold)
@@ -113,21 +117,22 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     _sub_tracer->dump_trace_points(traces);
 }
 
-//todo(jiashuo1): install all counter when first dump trace points
 perf_counter_ptr latency_tracer::get_or_create_counter(const std::string &name)
 {
-    utils::auto_read_lock counter(_counter_lock);
+    utils::auto_read_lock read(_counter_lock);
     auto iter = _counters_trace_latency.find(name);
     if (iter != _counters_trace_latency.end()) {
         return iter->second;
     }
 
+    utils::auto_write_lock write(_counter_lock);
     auto perf_counter =
         dsn::perf_counters::instance().get_app_counter(kReportCounterName.c_str(),
                                                        name.c_str(),
                                                        COUNTER_TYPE_NUMBER_PERCENTILES,
                                                        name.c_str(),
                                                        true);
+
     _counters_trace_latency.emplace(name, perf_counter);
     return perf_counter;
 }

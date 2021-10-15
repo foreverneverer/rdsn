@@ -102,10 +102,9 @@ private:
 
     void report_trace_point(const std::string &name, uint64_t ts);
 
-    perf_counter_ptr get_or_create_counter(const std::string &name);
+    static perf_counter_ptr get_or_create_counter(const std::string &name);
 
     utils::rw_lock_nr _point_lock;
-    utils::rw_lock_nr _counter_lock;
 
     std::string _name;
     const uint64_t _threshold;
