@@ -116,6 +116,7 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
 
     traces.append(fmt::format("\t***************[TRACE:{}]***************\n", _name));
     uint64_t previous_ts = _start_time;
+    std::string previous_point = "start";
     for (const auto &point : _points) {
         auto ts = point.first;
         auto name = point.second;
@@ -123,7 +124,8 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
         auto total_latency = point.first - _start_time;
 
         if (FLAGS_open_latency_tracer_report) {
-            report_trace_point(name, span_duration);
+            std::string counter_name = fmt::format("{}@{}", previous_point, name);
+            report_trace_point(counter_name, span_duration);
         }
 
         std::string trace = fmt::format("\tTRACE:name={:<70}, span={:>20}, total={:>20}, "
@@ -133,7 +135,8 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
                                         total_latency,
                                         ts);
         traces.append(trace);
-        previous_ts = point.first;
+        previous_ts = ts;
+        previous_point = name;
     }
 
     if (_sub_tracer == nullptr) {
