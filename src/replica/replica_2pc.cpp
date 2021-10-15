@@ -759,7 +759,7 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
 
 void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
 {
-    ADD_CUSTOM_POINT(mu->tracer, name());
+    ADD_POINT(mu->tracer);
     prepare_ack resp;
     resp.pid = get_gpid();
     resp.err = err;
