@@ -72,6 +72,7 @@ namespace utils {
  * "request.tracer" will record the time duration among all trace points.
 **/
 DSN_DECLARE_bool(enable_latency_tracer);
+DSN_DECLARE_bool(open_latency_tracer_report);
 
 class latency_tracer
 {
@@ -89,7 +90,7 @@ public:
 
     // add a trace point to the tracer
     // -name: user specified name of the trace point
-    void add_point(const std::string &stage_name, bool is_report);
+    void add_point(const std::string &stage_name);
 
     // sub_tracer is used for tracking the request which may transfer the other type,
     // for example: rdsn "rpc_message" will be convert to "mutation", the "tracking

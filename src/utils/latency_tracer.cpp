@@ -28,6 +28,7 @@ namespace dsn {
 namespace utils {
 
 DSN_DEFINE_bool("replication", enable_latency_tracer, false, "whether enable the latency tracer");
+DSN_DEFINE_bool("replication", open_latency_tracer_report, false, "whether open the latency tracer report perf counter");
 
 static const std::string kReportCounterName = "latency_tracer";
 static std::map<std::string, perf_counter_ptr> _counters_trace_latency;
@@ -47,7 +48,7 @@ latency_tracer::~latency_tracer()
     dump_trace_points(traces);
 }
 
-void latency_tracer::add_point(const std::string &stage_name, bool is_report)
+void latency_tracer::add_point(const std::string &stage_name)
 {
     if (!FLAGS_enable_latency_tracer) {
         return;
@@ -55,7 +56,7 @@ void latency_tracer::add_point(const std::string &stage_name, bool is_report)
 
     uint64_t ts = dsn_now_ns();
     utils::auto_write_lock write(_point_lock);
-    if (is_report) {
+    if (FLAGS_open_latency_tracer_report) {
         report_trace_point(stage_name, ts);
     }
     _points[ts] = stage_name;
@@ -112,6 +113,7 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     _sub_tracer->dump_trace_points(traces);
 }
 
+//todo(jiashuo1): install all counter when first dump trace points
 perf_counter_ptr latency_tracer::get_or_create_counter(const std::string &name)
 {
     utils::auto_read_lock counter(_counter_lock);
