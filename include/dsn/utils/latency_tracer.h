@@ -25,16 +25,10 @@ namespace dsn {
 namespace utils {
 
 #define ADD_POINT(tracer)                                                                          \
-    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__), false)
+    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__))
 #define ADD_CUSTOM_POINT(tracer, message)                                                          \
     (tracer)->add_point(                                                                           \
-        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)), false)
-
-#define ADD_POINT_AND_REPORT(tracer)                                                               \
-    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__), true)
-#define ADD_CUSTOM_POINT_AND_REPORT(tracer, message)                                               \
-    (tracer)->add_point(                                                                           \
-        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)), true)
+        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)))
 
 /**
  * latency_tracer is a tool for tracking the time spent in each of the stages during request
