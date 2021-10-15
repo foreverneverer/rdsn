@@ -115,7 +115,8 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     _sub_tracer->dump_trace_points(traces);
 }
 
-void latency_tracer::report_trace_point(const std::string &name, uint64_t span) {
+void latency_tracer::report_trace_point(const std::string &name, uint64_t span)
+{
     auto perf_counter = get_counter(name);
     if (!perf_counter) {
         perf_counter = init_counter(name);
