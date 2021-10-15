@@ -124,8 +124,9 @@ perf_counter_ptr latency_tracer::get_or_create_counter(const std::string &name)
     if (iter != _counters_trace_latency.end()) {
         return iter->second;
     }
-
     _counter_lock.unlock_read();
+
+    derror_f("latency tracer create the counter() for it hasn't not been installed");
     utils::auto_write_lock write(_counter_lock);
     auto perf_counter =
         dsn::perf_counters::instance().get_app_counter(kReportCounterName.c_str(),
