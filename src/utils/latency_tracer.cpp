@@ -60,9 +60,6 @@ void latency_tracer::add_point(const std::string &stage_name)
 
     uint64_t ts = dsn_now_ns();
     utils::auto_write_lock write(_point_lock);
-    if (FLAGS_open_latency_tracer_report) {
-        report_trace_point(stage_name, ts);
-    }
     _points[ts] = stage_name;
 }
 
@@ -73,13 +70,6 @@ void latency_tracer::set_sub_tracer(const std::shared_ptr<latency_tracer> &trace
     }
 
     _sub_tracer = tracer;
-}
-
-void latency_tracer::report_trace_point(const std::string &name, uint64_t ts)
-{
-    auto perf_counter = get_or_create_counter(name);
-    auto pre_stage_ts = _points.rbegin()->first;
-    perf_counter->set(ts - pre_stage_ts);
 }
 
 void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
@@ -97,16 +87,24 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     }
 
     traces.append(fmt::format("\t***************[TRACE:{}]***************\n", _name));
-    uint64_t previous_time = _start_time;
+    uint64_t previous_ts = _start_time;
     for (const auto &point : _points) {
+        auto ts = point.first;
+        auto name = point.second;
+        auto span_duration = point.first - previous_ts;
+        auto total_latency = point.first - _start_time;
+
         std::string trace = fmt::format("\tTRACE:name={:<70}, span={:>20}, total={:>20}, "
                                         "ts={:<20}\n",
-                                        point.second,
-                                        point.first - previous_time,
-                                        point.first - _start_time,
-                                        point.first);
+                                        name,
+                                        span_duration,
+                                        total_latency,
+                                        ts);
         traces.append(trace);
-        previous_time = point.first;
+        if (FLAGS_open_latency_tracer_report) {
+            report_trace_point(name, span_duration);
+        }
+        previous_ts = point.first;
     }
 
     if (_sub_tracer == nullptr) {
@@ -117,17 +115,32 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     _sub_tracer->dump_trace_points(traces);
 }
 
-perf_counter_ptr latency_tracer::get_or_create_counter(const std::string &name)
+void latency_tracer::report_trace_point(const std::string &name, uint64_t span) {
+    auto perf_counter = get_counter(name);
+    if (!perf_counter) {
+        perf_counter = init_counter(name);
+    }
+    perf_counter->set(span);
+}
+
+perf_counter_ptr latency_tracer::get_counter(const std::string &name)
 {
     utils::auto_read_lock read(_counter_lock);
     auto iter = _counters_trace_latency.find(name);
     if (iter != _counters_trace_latency.end()) {
         return iter->second;
     }
-    _counter_lock.unlock_read();
+    return nullptr;
+}
 
-    derror_f("latency tracer create the counter() for it hasn't not been installed");
+perf_counter_ptr latency_tracer::init_counter(const std::string &name)
+{
     utils::auto_write_lock write(_counter_lock);
+    auto iter = _counters_trace_latency.find(name);
+    if (iter != _counters_trace_latency.end()) {
+        return iter->second;
+    }
+
     auto perf_counter =
         dsn::perf_counters::instance().get_app_counter(kReportCounterName.c_str(),
                                                        name.c_str(),
