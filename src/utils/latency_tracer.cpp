@@ -33,7 +33,7 @@ DSN_DEFINE_bool("replication",
                 false,
                 "whether open the latency tracer report perf counter");
 
-const std::string kReportCounterName = "latency_tracer";
+const std::string kReportCounterName = "trace_latency";
 utils::rw_lock_nr _counter_lock;
 std::map<std::string, perf_counter_ptr> _counters_trace_latency;
 
