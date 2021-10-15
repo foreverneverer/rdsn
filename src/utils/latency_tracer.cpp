@@ -94,6 +94,10 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
         auto span_duration = point.first - previous_ts;
         auto total_latency = point.first - _start_time;
 
+        if (FLAGS_open_latency_tracer_report) {
+            report_trace_point(name, span_duration);
+        }
+
         std::string trace = fmt::format("\tTRACE:name={:<70}, span={:>20}, total={:>20}, "
                                         "ts={:<20}\n",
                                         name,
@@ -101,9 +105,6 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
                                         total_latency,
                                         ts);
         traces.append(trace);
-        if (FLAGS_open_latency_tracer_report) {
-            report_trace_point(name, span_duration);
-        }
         previous_ts = point.first;
     }
 
@@ -119,6 +120,7 @@ void latency_tracer::report_trace_point(const std::string &name, uint64_t span)
 {
     auto perf_counter = get_counter(name);
     if (!perf_counter) {
+        dwarn_f("installed latency tracer counter({}) for it has not been ready");
         perf_counter = init_counter(name);
     }
     perf_counter->set(span);
