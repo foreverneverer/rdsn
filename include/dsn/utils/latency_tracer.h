@@ -105,7 +105,7 @@ private:
     static perf_counter_ptr get_counter(const std::string &name);
     static perf_counter_ptr init_counter(const std::string &name);
 
-    utils::rw_lock_nr _point_lock;
+    utils::rw_lock_nr _lock;
 
     std::string _name;
     const uint64_t _threshold;

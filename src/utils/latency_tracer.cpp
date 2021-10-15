@@ -59,7 +59,7 @@ void latency_tracer::add_point(const std::string &stage_name)
     }
 
     uint64_t ts = dsn_now_ns();
-    utils::auto_write_lock write(_point_lock);
+    utils::auto_write_lock write(_lock);
     _points[ts] = stage_name;
 }
 
@@ -78,7 +78,7 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
         return;
     }
 
-    utils::auto_read_lock read(_point_lock);
+    utils::auto_read_lock read(_lock);
 
     uint64_t time_used = _points.rbegin()->first - _start_time;
 
