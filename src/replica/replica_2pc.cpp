@@ -237,6 +237,10 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     // remote prepare
     mu->set_prepare_ts();
     mu->set_left_secondary_ack_count((unsigned int)_primary_states.membership.secondaries.size());
+
+    mu->tracer->add_sub_tracer("prepare",
+                               "2secondary",
+                               std::make_shared<dsn::utils::latency_tracer>("2secondary", true, 1));
     for (auto it = _primary_states.membership.secondaries.begin();
          it != _primary_states.membership.secondaries.end();
          ++it) {
@@ -274,6 +278,10 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                 mu->data.header.log_offset);
         dassert(mu->log_task() == nullptr, "");
         int64_t pending_size;
+
+        mu->tracer->add_sub_tracer("prepare",
+                                   "append_slog",
+                                   std::make_shared<dsn::utils::latency_tracer>("append_slog", true, 1));
         mu->log_task() = _stub->_log->append(mu,
                                              LPC_WRITE_REPLICATION_LOG,
                                              &_tracker,
@@ -318,7 +326,7 @@ void replica::send_prepare_message(::dsn::rpc_address addr,
                                    bool pop_all_committed_mutations,
                                    int64_t learn_signature)
 {
-    ADD_CUSTOM_POINT(mu->tracer, addr.to_string());
+    ADD_CUSTOM_POINT(mu->tracer->_sub_tracers["prepare"]["2secondary"], addr.to_string());
     dsn::message_ex *msg = dsn::message_ex::create_request(
         RPC_PREPARE, timeout_milliseconds, get_gpid().thread_hash());
     replica_configuration rconfig;
@@ -535,7 +543,7 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
           size,
           err.to_string());
 
-    ADD_POINT(mu->tracer);
+    ADD_POINT(mu->tracer->_sub_tracers["prepare"]["append_slog"]);
 
     if (err == ERR_OK) {
         mu->set_logged();
@@ -601,7 +609,8 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
     mutation_ptr mu = pr.first;
     partition_status::type target_status = pr.second;
 
-    ADD_CUSTOM_POINT(mu->tracer, request->to_address.to_string());
+    ADD_CUSTOM_POINT(mu->tracer->_sub_tracers["prepare"]["2secondary"],
+                     request->to_address.to_string());
 
     // skip callback for old mutations
     if (partition_status::PS_PRIMARY != status() || mu->data.header.ballot < get_ballot() ||

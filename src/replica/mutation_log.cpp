@@ -54,7 +54,7 @@ namespace replication {
 
     _slock.lock();
 
-    ADD_POINT(mu->tracer);
+    ADD_POINT(mu->tracer->_sub_tracers["prepare"]["append_slog"]);
     // init pending buffer
     if (nullptr == _pending_write) {
         _pending_write = std::make_shared<log_appender>(mark_new_offset(0, true).second);
@@ -130,7 +130,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
                                                    std::shared_ptr<log_appender> &pending)
 {
     for (auto &mu : pending->mutations()) {
-        ADD_POINT(mu->tracer);
+        ADD_POINT(mu->tracer->_sub_tracers["prepare"]["append_slog"]);
     }
     lf->commit_log_blocks( // forces a new line for params
         *pending,
@@ -140,7 +140,7 @@ void mutation_log_shared::commit_pending_mutations(log_file_ptr &lf,
             dassert(_is_writing.load(std::memory_order_relaxed), "");
 
             for (auto &mu : pending->mutations()) {
-                ADD_CUSTOM_POINT(mu->tracer, "commit_pending_completed");
+                ADD_CUSTOM_POINT(mu->tracer->_sub_tracers["prepare"]["append_slog"],"commit_pending_completed");
             }
 
             for (auto &block : pending->all_blocks()) {

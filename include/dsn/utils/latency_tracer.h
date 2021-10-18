@@ -21,14 +21,29 @@
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/perf_counter/perf_counters.h>
 
+#include <utility>
+
 namespace dsn {
 namespace utils {
 
+struct stage
+{
+    std::string function_line;
+    std::string function_name;
+    std::string extern_info;
+
+    stage(std::string function_line, std::string function_name, std::string extern_info)
+        : function_line(std::move(function_line)),
+          function_name(std::move(function_name)),
+          extern_info(std::move(extern_info))
+    {
+    }
+};
+
 #define ADD_POINT(tracer)                                                                          \
-    (tracer)->add_point(fmt::format("{}:{}:{}", __FILENAME__, __LINE__, __FUNCTION__))
+    (tracer)->add_point(fmt::format("{}:{}", __FILENAME__, __LINE__), __FUNCTION__, "")
 #define ADD_CUSTOM_POINT(tracer, message)                                                          \
-    (tracer)->add_point(                                                                           \
-        fmt::format("{}:{}:{}[{}]", __FILENAME__, __LINE__, __FUNCTION__, (message)))
+    (tracer)->add_point(fmt::format("{}:{}", __FILENAME__, __LINE__), __FUNCTION__, (message))
 
 /**
  * latency_tracer is a tool for tracking the time spent in each of the stages during request
@@ -78,13 +93,15 @@ public:
     //  threshold < 0: don't dump any trace points
     //  threshold = 0: dump all trace points
     //  threshold > 0: dump the trace point when time_used > threshold
-    latency_tracer(std::string name, bool is_sub = false, uint64_t threshold = 0);
+    explicit latency_tracer(std::string name, bool is_sub = false, uint64_t threshold = 0);
 
     ~latency_tracer();
 
     // add a trace point to the tracer
     // -name: user specified name of the trace point
-    void add_point(const std::string &stage_name);
+    void add_point(const std::string &function_line,
+                   const std::string &function_name,
+                   const std::string &extern_info);
 
     // sub_tracer is used for tracking the request which may transfer the other type,
     // for example: rdsn "rpc_message" will be convert to "mutation", the "tracking
@@ -93,23 +110,31 @@ public:
     // stageA[rpc_message]--stageB[rpc_message]--
     //                                          |-->stageC[mutation]
     // stageA[rpc_message]--stageB[rpc_message]--
-    void set_sub_tracer(const std::shared_ptr<latency_tracer> &tracer);
+    void add_sub_tracer(const std::string &root,
+                        const std::string &name,
+                        const std::shared_ptr<latency_tracer> &tracer);
 
     void set_name(const std::string &name) { _name = name; }
+
+    void set_parent_name(const std::string &name) { _parent_name = name; }
+
+    std::map<std::string, std::map<std::string, std::shared_ptr<latency_tracer>>> _sub_tracers;
 
 private:
     void dump_trace_points(/*out*/ std::string &traces);
 
     static void report_trace_point(const std::string &name, uint64_t span);
 
-    utils::rw_lock_nr _lock;
-
+    std::string _parent_name;
     std::string _name;
     const uint64_t _threshold;
     bool _is_sub;
     const uint64_t _start_time;
-    std::map<int64_t, std::string> _points;
-    std::shared_ptr<latency_tracer> _sub_tracer;
+
+    utils::rw_lock_nr _point_lock;
+    std::map<int64_t, stage> _points;
+
+    utils::rw_lock_nr _sub_lock;
 
     friend class latency_tracer_test;
 };
