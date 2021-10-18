@@ -139,10 +139,9 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     }
 
     if (_sub_tracer == nullptr) {
-        if (time_used < _threshold) {
-            return;
+        if (time_used >= _threshold) {
+            dwarn_f("TRACE:the traces as fallow:\n{}", traces);
         }
-        dwarn_f("TRACE:the traces as fallow:\n{}", traces);
         return;
     }
 
