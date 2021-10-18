@@ -120,8 +120,8 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
         auto total_latency = point.first - _start_time;
 
         if (FLAGS_open_latency_tracer_report) {
-            std::string counter_name = fmt::format("{}@{}", previous_point, name);
-            report_trace_point(counter_name, span_duration);
+            std::string counter_name = fmt::format("start@{}", name);
+            report_trace_point(counter_name, total_latency);
         }
 
         if (time_used >= _threshold) {
