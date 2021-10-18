@@ -110,10 +110,6 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     utils::auto_read_lock read(_lock);
     uint64_t time_used = _points.rbegin()->first - _start_time;
 
-    if (time_used < _threshold) {
-        return;
-    }
-
     traces.append(fmt::format("\t***************[TRACE:{}]***************\n", _name));
     uint64_t previous_ts = _start_time;
     std::string previous_point = "start";
@@ -128,18 +124,21 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
             report_trace_point(counter_name, span_duration);
         }
 
-        std::string trace = fmt::format("\tTRACE:name={:<70}, span={:>20}, total={:>20}, "
-                                        "ts={:<20}\n",
-                                        name,
-                                        span_duration,
-                                        total_latency,
-                                        ts);
-        traces.append(trace);
+        if (time_used >= _threshold) {
+            std::string trace = fmt::format("\tTRACE:name={:<70}, span={:>20}, total={:>20}, "
+                                            "ts={:<20}\n",
+                                            name,
+                                            span_duration,
+                                            total_latency,
+                                            ts);
+            traces.append(trace);
+        }
+
         previous_ts = ts;
         previous_point = name;
     }
 
-    if (_sub_tracer == nullptr) {
+    if (_sub_tracer == nullptr && time_used >= _threshold) {
         dwarn_f("TRACE:the traces as fallow:\n{}", traces);
         return;
     }

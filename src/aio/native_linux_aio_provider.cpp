@@ -31,6 +31,8 @@
 #include <dsn/c/api_utilities.h>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/fail_point.h>
+#include <dsn/utils/latency_tracer.h>
+#include <dsn/dist/replication/replication.codes.h>
 
 namespace dsn {
 
@@ -134,8 +136,19 @@ void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk)
         return;
     }
 
-    tasking::enqueue(
-        aio_tsk->code(), aio_tsk->tracker(), [=]() { aio_internal(aio_tsk); }, aio_tsk->hash());
+    tasking::enqueue(aio_tsk->code(),
+                     aio_tsk->tracker(),
+                     [=]() {
+                         if (aio_tsk->code() == LPC_WRITE_REPLICATION_LOG_SHARED) {
+                             auto tracer = std::make_unique<dsn::utils::latency_tracer>(
+                                 "slog", false, 10000000);
+                             aio_internal(aio_tsk);
+                             ADD_CUSTOM_POINT(tracer, "[completed]");
+                         } else {
+                             aio_internal(aio_tsk);
+                         }
+                     },
+                     aio_tsk->hash());
 }
 
 error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
