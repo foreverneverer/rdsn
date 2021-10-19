@@ -21,7 +21,6 @@
 #include <dsn/utility/flags.h>
 
 #include <utility>
-#include <dsn/utility/singleton.h>
 #include "lockp.std.h"
 #include "shared_io_service.h"
 

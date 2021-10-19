@@ -389,6 +389,8 @@ void replica::on_prepare(dsn::message_ex *request)
 
     mu->tracer->set_type("secondary");
     mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
+    mu->tracer->set_start_time(
+        std::min(mu->tracer->start_time(), (uint64_t)mu->data.header.prepare_ts));
     ADD_POINT(mu->tracer);
 
     decree decree = mu->data.header.decree;

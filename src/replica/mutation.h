@@ -120,7 +120,11 @@ public:
     int clear_prepare_or_commit_tasks();
     void wait_log_task() const;
     uint64_t prepare_ts_ms() const { return _prepare_ts_ms; }
-    void set_prepare_ts() { _prepare_ts_ms = dsn_now_ms(); }
+    void set_prepare_ts()
+    {
+        _prepare_ts_ms = dsn_now_ms();
+        data.header.prepare_ts = _prepare_ts_ms;
+    }
 
     // >= 1 MB
     bool is_full() const { return _appro_data_bytes >= 1024 * 1024; }

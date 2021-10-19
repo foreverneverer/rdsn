@@ -116,9 +116,13 @@ public:
 
     void set_parent_point_name(const std::string &name) { _parent_point_name = name; }
 
+    void set_start_time(uint64_t start_time) { _start_time = start_time; }
+
     std::string name() { return _name; }
 
     std::string type() { return _type; }
+
+    uint64_t start_time() { return _start_time; }
 
 private:
     void dump_trace_points(/*out*/ std::string &traces);
