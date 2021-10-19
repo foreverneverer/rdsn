@@ -162,7 +162,6 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
             enum_to_string(status()));
 
     mu->tracer->set_type("primary");
-    mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
     ADD_POINT(mu->tracer);
 
     error_code err = ERR_OK;
@@ -182,6 +181,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
         mu->set_id(get_ballot(), mu->data.header.decree);
     }
 
+    mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
     dlog(level,
          "%s: mutation %s init_prepare, mutation_tid=%" PRIu64,
          name(),
