@@ -80,10 +80,8 @@ latency_tracer::latency_tracer(
     } else {
         std::string code_name(dsn::task_code(_task_code).to_string());
         std::string section_name = std::string("task.") + code_name;
-        dsn_config_get_value_bool(section_name.c_str(),
-                                  "is_profile",
-                                  _enable_profile,
-                                  "whether to profile this kind of task");
+        _enable_profile = dsn_config_get_value_bool(
+            section_name.c_str(), "is_profile", false, "whether to profile this kind of task");
     }
 }
 
@@ -99,7 +97,7 @@ latency_tracer::~latency_tracer()
 
 void latency_tracer::add_point(const std::string &stage_name)
 {
-    if (!FLAGS_enable_latency_tracer && _enable_profile) {
+    if (!FLAGS_enable_latency_tracer || !_enable_profile) {
         return;
     }
 
@@ -110,7 +108,7 @@ void latency_tracer::add_point(const std::string &stage_name)
 
 void latency_tracer::add_sub_tracer(const std::shared_ptr<latency_tracer> &tracer)
 {
-    if (!FLAGS_enable_latency_tracer && _enable_profile) {
+    if (!FLAGS_enable_latency_tracer || !_enable_profile) {
         return;
     }
 
