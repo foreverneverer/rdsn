@@ -389,8 +389,9 @@ void replica::on_prepare(dsn::message_ex *request)
 
     mu->tracer->set_type("secondary");
     mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
-    mu->tracer->set_start_time(
-        std::min(mu->tracer->start_time(), (uint64_t)mu->data.header.prepare_ts));
+    ADD_EXTERN_POINT(mu->tracer,
+                     std::min(mu->tracer->pre_time(), (uint64_t)mu->data.header.prepare_ts),
+                     "remote_send");
     ADD_POINT(mu->tracer);
 
     decree decree = mu->data.header.decree;
@@ -609,7 +610,8 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
     mutation_ptr mu = pr.first;
     partition_status::type target_status = pr.second;
 
-    ADD_POINT(mu->tracer->get_sub_tracer(request->to_address.to_string()));
+    auto tracer = mu->tracer->get_sub_tracer(request->to_address.to_string());
+    ADD_POINT(tracer);
 
     // skip callback for old mutations
     if (partition_status::PS_PRIMARY != status() || mu->data.header.ballot < get_ballot() ||
@@ -635,6 +637,8 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
         ::dsn::unmarshall(reply, resp);
     }
 
+    ADD_EXTERN_POINT(tracer, std::min(tracer->pre_time(), (uint64_t)resp.ack_ts), "remote_replay"));
+
     if (resp.err == ERR_OK) {
         dinfo("%s: mutation %s on_prepare_reply from %s, appro_data_bytes = %d, "
               "target_status = %s, err = %s",
@@ -645,7 +649,7 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
               enum_to_string(target_status),
               resp.err.to_string());
     } else {
-        ADD_CUSTOM_POINT(mu->tracer, fmt::format("error:{}", request->to_address.to_string()));
+        ADD_POINT(mu->tracer->get_sub_tracer(request->to_address.to_string()));
         derror("%s: mutation %s on_prepare_reply from %s, appro_data_bytes = %d, "
                "target_status = %s, err = %s",
                name(),
@@ -773,6 +777,7 @@ void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
     resp.err = err;
     resp.ballot = get_ballot();
     resp.decree = mu->data.header.decree;
+    resp.__set_ack_ts(dsn_now_ns());
 
     // for partition_status::PS_POTENTIAL_SECONDARY ONLY
     resp.last_committed_decree_in_app = _app->last_committed_decree();

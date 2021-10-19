@@ -115,6 +115,7 @@ struct prepare_ack
     4:i64                 decree;
     5:i64                 last_committed_decree_in_app;
     6:i64                 last_committed_decree_in_prepare_list;
+    7:optional i64      ack_ts;         
 }
 
 enum learn_type

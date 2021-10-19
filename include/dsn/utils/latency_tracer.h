@@ -39,6 +39,14 @@ namespace utils {
                 fmt::format("{}:{}:{}_{}", __FILENAME__, __LINE__, __FUNCTION__, (message)));      \
     } while (0)
 
+#define ADD_EXTERN_POINT(tracer, ts, message)                                                      \
+    do {                                                                                           \
+        if ((tracer))                                                                              \
+            (tracer)->add_point(                                                                   \
+                fmt::format("{}:{}:{}_{}", __FILENAME__, __LINE__, __FUNCTION__, (message)),       \
+                (ts));                                                                             \
+    } while (0)
+
 /**
  * latency_tracer is a tool for tracking the time spent in each of the stages during request
  * execution. It can help users to figure out where the latency bottleneck is located. User needs to
@@ -99,6 +107,8 @@ public:
     // -name: user specified name of the trace point
     void add_point(const std::string &stage_name);
 
+    void add_point(const std::string &stage_name, uint64_t ts);
+
     // sub_tracer is used for tracking the request which may transfer the other type,
     // for example: rdsn "rpc_message" will be convert to "mutation", the "tracking
     // responsibility" is also passed on the "mutation":
@@ -124,6 +134,8 @@ public:
 
     uint64_t start_time() { return _start_time; }
 
+    uint64_t pre_time() { return _start_time; }
+
 private:
     void dump_trace_points(/*out*/ std::string &traces);
 
@@ -134,6 +146,7 @@ private:
     std::string _type;
     uint64_t _threshold;
     uint64_t _start_time;
+    uint64_t _pre_time;
 
     dsn::task_code _task_code;
 
