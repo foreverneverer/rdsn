@@ -33,8 +33,11 @@ DSN_DEFINE_bool("replication",
                 open_latency_tracer_report,
                 false,
                 "whether open the latency tracer report perf counter");
+DSN_DEFINE_string("replication",
+                  latency_tracer_counter_name_prefix,
+                  "trace_latency",
+                  "perf counter common name prefix");
 
-const std::string kReportCounterName = "trace_latency";
 utils::rw_lock_nr _counter_lock;
 std::map<std::string, perf_counter_ptr> _counters_trace_latency;
 
@@ -57,7 +60,7 @@ perf_counter_ptr init_trace_counter(const std::string &name)
     }
 
     auto perf_counter =
-        dsn::perf_counters::instance().get_app_counter(kReportCounterName.c_str(),
+        dsn::perf_counters::instance().get_app_counter(FLAGS_latency_tracer_counter_name_prefix,
                                                        name.c_str(),
                                                        COUNTER_TYPE_NUMBER_PERCENTILES,
                                                        name.c_str(),
