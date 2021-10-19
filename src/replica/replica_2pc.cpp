@@ -637,7 +637,7 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
         ::dsn::unmarshall(reply, resp);
     }
 
-    ADD_EXTERN_POINT(tracer, std::min(tracer->pre_time(), (uint64_t)resp.ack_ts), "remote_replay"));
+    ADD_EXTERN_POINT(tracer, std::min(tracer->pre_time(), (uint64_t)resp.ack_ts), "remote_replay");
 
     if (resp.err == ERR_OK) {
         dinfo("%s: mutation %s on_prepare_reply from %s, appro_data_bytes = %d, "
