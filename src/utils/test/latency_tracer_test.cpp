@@ -41,35 +41,36 @@ public:
 
     void init_trace_points()
     {
-        _tracer1 = std::make_shared<latency_tracer>("name1");
+        _tracer1 = std::make_shared<latency_tracer>(false, "name1", 0);
         for (int i = 0; i < _tracer1_stage_count; i++) {
             ADD_CUSTOM_POINT(_tracer1, fmt::format("stage{}", i));
         }
 
-        _tracer2 = std::make_shared<latency_tracer>("name2");
+        _tracer2 = std::make_shared<latency_tracer>(false, "name2", 0);
 
         for (int i = 0; i < _tracer2_stage_count; i++) {
             ADD_CUSTOM_POINT(_tracer2, fmt::format("stage{}", i));
         }
 
-        _sub_tracer = std::make_shared<latency_tracer>("sub", true);
+        _sub_tracer = std::make_shared<latency_tracer>(true, "sub", 0);
+        _sub_tracer->set_parent_point_name("test");
 
-        _tracer1->set_sub_tracer(_sub_tracer);
-        _tracer2->set_sub_tracer(_sub_tracer);
+        _tracer1->add_sub_tracer(_sub_tracer);
+        _tracer2->add_sub_tracer(_sub_tracer);
 
         for (int i = 0; i < _sub_tracer_stage_count; i++) {
             ADD_CUSTOM_POINT(_sub_tracer, fmt::format("stage{}", i));
         }
     }
 
-    std::map<int64_t, std::string> get_points(std::shared_ptr<latency_tracer> tracer)
+    std::map<int64_t, std::string> get_points(const std::shared_ptr<latency_tracer> &tracer)
     {
         return tracer->_points;
     }
 
-    std::shared_ptr<latency_tracer> get_sub_tracer(std::shared_ptr<latency_tracer> tracer)
+    std::shared_ptr<latency_tracer> get_sub_tracer(const std::shared_ptr<latency_tracer> &tracer)
     {
-        return tracer->_sub_tracer;
+        return tracer->_sub_tracers["test"];
     }
 };
 
