@@ -31,7 +31,6 @@
 #include <dsn/c/api_utilities.h>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/fail_point.h>
-#include <dsn/dist/replication/replication.codes.h>
 
 namespace dsn {
 
@@ -135,23 +134,14 @@ void native_linux_aio_provider::submit_aio_task(aio_task *aio_tsk)
         return;
     }
 
-    aio_tsk->tracer = std::make_shared<dsn::utils::latency_tracer>("slog", false, 100000000);
-    tasking::enqueue(aio_tsk->code(),
-                     aio_tsk->tracker(),
-                     [=]() {
-                         if (aio_tsk->code() == LPC_WRITE_REPLICATION_LOG_SHARED) {
-                             ADD_CUSTOM_POINT(aio_tsk->tracer, "[start_execute]");
-                             aio_internal(aio_tsk);
-                             ADD_CUSTOM_POINT(aio_tsk->tracer, "[execute_completed]");
-                         } else {
-                             aio_internal(aio_tsk);
-                         }
-                     },
-                     aio_tsk->hash());
+    ADD_POINT(aio_tsk->tracer);
+    tasking::enqueue(
+        aio_tsk->code(), aio_tsk->tracker(), [=]() { aio_internal(aio_tsk); }, aio_tsk->hash());
 }
 
 error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
 {
+    ADD_POINT(aio_tsk->tracer);
     aio_context *aio_ctx = aio_tsk->get_aio_context();
     error_code err = ERR_UNKNOWN;
     uint32_t processed_bytes = 0;
@@ -165,6 +155,7 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
     default:
         return err;
     }
+    ADD_CUSTOM_POINT(aio_tsk->tracer, "completed");
 
     complete_io(aio_tsk, err, processed_bytes);
     return err;

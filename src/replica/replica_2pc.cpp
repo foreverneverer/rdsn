@@ -161,6 +161,8 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
             "invalid partition_status, status = %s",
             enum_to_string(status()));
 
+    mu->tracer->set_type("primary");
+    mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
     ADD_POINT(mu->tracer);
 
     error_code err = ERR_OK;
@@ -180,7 +182,6 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
         mu->set_id(get_ballot(), mu->data.header.decree);
     }
 
-    mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
     dlog(level,
          "%s: mutation %s init_prepare, mutation_tid=%" PRIu64,
          name(),
@@ -318,7 +319,12 @@ void replica::send_prepare_message(::dsn::rpc_address addr,
                                    bool pop_all_committed_mutations,
                                    int64_t learn_signature)
 {
-    ADD_CUSTOM_POINT(mu->tracer, addr.to_string());
+    auto send_prepare_tracer =
+        std::make_shared<dsn::utils::latency_tracer>(true, addr.to_string(), 0);
+    send_prepare_tracer->set_type("primary");
+    send_prepare_tracer->set_parent_point_name("prepare");
+    mu->tracer->add_sub_tracer(send_prepare_tracer);
+    ADD_POINT(send_prepare_tracer);
     dsn::message_ex *msg = dsn::message_ex::create_request(
         RPC_PREPARE, timeout_milliseconds, get_gpid().thread_hash());
     replica_configuration rconfig;
@@ -361,7 +367,6 @@ void replica::do_possible_commit_on_primary(mutation_ptr &mu)
             "invalid partition_status, status = %s",
             enum_to_string(status()));
 
-    ADD_POINT(mu->tracer);
     if (mu->is_ready_for_commit()) {
         _prepare_list->commit(mu->data.header.decree, COMMIT_ALL_READY);
     }
@@ -382,12 +387,13 @@ void replica::on_prepare(dsn::message_ex *request)
         rconfig.split_sync_to_child = false;
     }
 
+    mu->tracer->set_type("secondary");
+    mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
     ADD_POINT(mu->tracer);
 
     decree decree = mu->data.header.decree;
 
     dinfo("%s: mutation %s on_prepare", name(), mu->name());
-    mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
 
     dassert(mu->data.header.pid == rconfig.pid,
             "(%d.%d) VS (%d.%d)",
@@ -601,7 +607,7 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
     mutation_ptr mu = pr.first;
     partition_status::type target_status = pr.second;
 
-    ADD_CUSTOM_POINT(mu->tracer, request->to_address.to_string());
+    ADD_POINT(mu->tracer->get_sub_tracer(request->to_address.to_string()));
 
     // skip callback for old mutations
     if (partition_status::PS_PRIMARY != status() || mu->data.header.ballot < get_ballot() ||
