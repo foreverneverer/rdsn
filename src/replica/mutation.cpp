@@ -274,6 +274,7 @@ void mutation::write_to(binary_writer &writer, dsn::message_ex * /*to*/) const
     writer.write_pod(header.log_offset);
     writer.write_pod(header.last_committed_decree);
     writer.write_pod(header.timestamp);
+    writer.write_pod(header.prepare_ts);
 }
 
 /*static*/ void mutation::read_mutation_header(binary_reader &reader, mutation_header &header)

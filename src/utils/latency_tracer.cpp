@@ -73,9 +73,9 @@ latency_tracer::latency_tracer(
     bool is_sub, std::string name, uint64_t threshold, const dsn::task_code &code, bool profile)
     : _is_sub(is_sub),
       _name(std::move(name)),
+      _type("init"),
       _threshold(threshold),
       _start_time(dsn_now_ns()),
-      _pre_time(_start_time),
       _task_code(code)
 {
     if (profile) {
@@ -118,7 +118,6 @@ void latency_tracer::add_point(const std::string &stage_name, uint64_t ts)
 
     utils::auto_write_lock write(_point_lock);
     _points.emplace(ts, stage_name);
-    _pre_time = ts;
 }
 
 void latency_tracer::add_sub_tracer(const std::shared_ptr<latency_tracer> &tracer)
@@ -150,17 +149,18 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     utils::auto_read_lock point_lock(_point_lock);
     utils::auto_read_lock tracer_lock(_sub_lock);
 
-    uint64_t time_used = _points.rbegin()->first - _start_time;
+    uint64_t start_time = _points.begin()->first;
+    uint64_t time_used = _points.rbegin()->first - start_time;
     std::string header_format = _is_sub ? "          " : "***************";
     traces.append(
-        fmt::format("\t{}[TRACE:[{}]{}]{}\n", header_format, _type, _name, header_format));
+        fmt::format("\t{}[TRACE:[{}.{}]{}]{}\n", header_format, _type, dsn::task_code(_task_code).to_string(), _name, header_format));
     uint64_t previous_point_ts = _points.begin()->first;
     std::string previous_point_name = _points.begin()->second;
     for (const auto &point : _points) {
         auto cur_point_ts = point.first;
         auto cur_point_name = point.second;
         auto span_duration = point.first - previous_point_ts;
-        auto total_latency = point.first - _start_time;
+        auto total_latency = point.first - start_time;
 
         if (FLAGS_open_latency_tracer_report) {
             std::string counter_name =

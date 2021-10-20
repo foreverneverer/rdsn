@@ -134,8 +134,6 @@ public:
 
     uint64_t start_time() { return _start_time; }
 
-    uint64_t pre_time() { return _start_time; }
-
 private:
     void dump_trace_points(/*out*/ std::string &traces);
 
@@ -146,7 +144,6 @@ private:
     std::string _type;
     uint64_t _threshold;
     uint64_t _start_time;
-    uint64_t _pre_time;
 
     dsn::task_code _task_code;
 
