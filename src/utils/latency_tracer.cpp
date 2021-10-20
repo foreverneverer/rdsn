@@ -152,11 +152,18 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     uint64_t start_time = _points.begin()->first;
     uint64_t time_used = _points.rbegin()->first - start_time;
     std::string header_format = _is_sub ? "          " : "***************";
-    traces.append(
-        fmt::format("\t{}[TRACE:[{}.{}]{}]{}\n", header_format, _type, dsn::task_code(_task_code).to_string(), _name, header_format));
+    traces.append(fmt::format("\t{}[TRACE:[{}.{}]{}]{}\n",
+                              header_format,
+                              _type,
+                              dsn::task_code(_task_code).to_string(),
+                              _name,
+                              header_format));
     uint64_t previous_point_ts = _points.begin()->first;
     std::string previous_point_name = _points.begin()->second;
     for (const auto &point : _points) {
+        if (point.first == start_time) {
+            continue;
+        }
         auto cur_point_ts = point.first;
         auto cur_point_name = point.second;
         auto span_duration = point.first - previous_point_ts;
