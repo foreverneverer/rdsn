@@ -633,14 +633,8 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
         ::dsn::unmarshall(reply, resp);
     }
 
-    uint64_t remote_rec_prepare_ts =
-        tracer && resp.rec_ts > tracer->last_time() ? resp.rec_ts : tracer->last_time() + 1;
-    ADD_EXTERN_POINT(tracer, remote_rec_prepare_ts, "remote_rec_prepare");
-
-    uint64_t remote_rep_prepare_ts =
-        tracer && resp.ack_ts > tracer->last_time() ? resp.ack_ts : tracer->last_time() + 1;
-    ADD_EXTERN_POINT(tracer, remote_rep_prepare_ts, "remote_reply_prepare");
-
+    ADD_EXTERN_POINT(tracer, resp.rec_ts, "remote_rec_prepare");
+    ADD_EXTERN_POINT(tracer, resp.ack_ts, "remote_reply_prepare");
     ADD_POINT(tracer);
 
     if (resp.err == ERR_OK) {
