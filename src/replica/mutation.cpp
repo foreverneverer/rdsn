@@ -316,6 +316,7 @@ void mutation::write_to(binary_writer &writer, dsn::message_ex * /*to*/) const
     } else {
         dassert(false, "invalid mutation log version: 0x%" PRIx64, version);
     }
+    reader.read_pod(header.prepare_ts);
 }
 
 int mutation::clear_prepare_or_commit_tasks()

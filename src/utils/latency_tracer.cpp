@@ -87,7 +87,7 @@ latency_tracer::latency_tracer(
             section_name.c_str(), "is_profile", false, "whether to profile this kind of task");
     }
 
-    add_point("init", _start_time);
+    add_point("local_init_tracer", _start_time);
 }
 
 latency_tracer::~latency_tracer()
