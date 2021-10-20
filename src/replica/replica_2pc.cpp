@@ -239,7 +239,6 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     mu->set_prepare_ts();
     mu->data.header.__set_prepare_ts(dsn_now_ns());
     mu->set_left_secondary_ack_count((unsigned int)_primary_states.membership.secondaries.size());
-    derror_replica("local {} send at {}", mu->name(), mu->data.header.prepare_ts);
     for (auto it = _primary_states.membership.secondaries.begin();
          it != _primary_states.membership.secondaries.end();
          ++it) {
@@ -391,7 +390,6 @@ void replica::on_prepare(dsn::message_ex *request)
 
     mu->tracer->set_type("secondary");
     mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
-    derror_replica("remote {} send at {}", mu->name(), mu->data.header.prepare_ts);
     ADD_EXTERN_POINT(mu->tracer, mu->data.header.prepare_ts, "remote_send");
     ADD_POINT(mu->tracer);
 
@@ -638,7 +636,6 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
         ::dsn::unmarshall(reply, resp);
     }
 
-    derror_replica("remote {} replay at {}", mu->name(), resp.ack_ts);
     ADD_EXTERN_POINT(tracer, resp.ack_ts, "remote_replay");
 
     if (resp.err == ERR_OK) {
@@ -780,8 +777,6 @@ void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
     resp.ballot = get_ballot();
     resp.decree = mu->data.header.decree;
     resp.__set_ack_ts(dsn_now_ns());
-
-    derror_replica("local {} replay at {}", mu->name(), resp.ack_ts);
 
     // for partition_status::PS_POTENTIAL_SECONDARY ONLY
     resp.last_committed_decree_in_app = _app->last_committed_decree();
