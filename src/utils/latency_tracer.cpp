@@ -86,6 +86,8 @@ latency_tracer::latency_tracer(
         _enable_profile = dsn_config_get_value_bool(
             section_name.c_str(), "is_profile", false, "whether to profile this kind of task");
     }
+
+    add_point("init", _start_time);
 }
 
 latency_tracer::~latency_tracer()
@@ -152,8 +154,8 @@ void latency_tracer::dump_trace_points(/*out*/ std::string &traces)
     std::string header_format = _is_sub ? "          " : "***************";
     traces.append(
         fmt::format("\t{}[TRACE:[{}]{}]{}\n", header_format, _type, _name, header_format));
-    uint64_t previous_point_ts = _start_time;
-    std::string previous_point_name = "start";
+    uint64_t previous_point_ts = _points.begin()->first;
+    std::string previous_point_name = _points.begin()->second;
     for (const auto &point : _points) {
         auto cur_point_ts = point.first;
         auto cur_point_name = point.second;
