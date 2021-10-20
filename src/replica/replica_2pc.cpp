@@ -390,7 +390,11 @@ void replica::on_prepare(dsn::message_ex *request)
 
     mu->tracer->set_type("secondary");
     mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
-    ADD_EXTERN_POINT(mu->tracer, mu->data.header.prepare_ts, "remote_send");
+
+    uint64_t remote_send_prepare_ts = mu->data.header.prepare_ts < mu->tracer->pre_time()
+                                          ? mu->data.header.prepare_ts
+                                          : mu->tracer->pre_time() - 1;
+    ADD_EXTERN_POINT(mu->tracer, remote_send_prepare_ts, "remote_send");
     ADD_POINT(mu->tracer);
 
     decree decree = mu->data.header.decree;
@@ -636,7 +640,9 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
         ::dsn::unmarshall(reply, resp);
     }
 
-    ADD_EXTERN_POINT(tracer, resp.ack_ts, "remote_replay");
+    uint64_t remote_ack_prepare_ts =
+        resp.ack_ts < tracer->pre_time() ? resp.ack_ts : tracer->pre_time() - 1;
+    ADD_EXTERN_POINT(tracer, remote_ack_prepare_ts, "remote_replay");
 
     if (resp.err == ERR_OK) {
         dinfo("%s: mutation %s on_prepare_reply from %s, appro_data_bytes = %d, "

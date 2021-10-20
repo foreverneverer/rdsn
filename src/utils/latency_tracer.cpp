@@ -76,6 +76,7 @@ latency_tracer::latency_tracer(
       _type("init"),
       _threshold(threshold),
       _start_time(dsn_now_ns()),
+      _pre_time(_start_time),
       _task_code(code)
 {
     if (profile) {
@@ -118,6 +119,7 @@ void latency_tracer::add_point(const std::string &stage_name, uint64_t ts)
 
     utils::auto_write_lock write(_point_lock);
     _points.emplace(ts, stage_name);
+    _pre_time = ts;
 }
 
 void latency_tracer::add_sub_tracer(const std::shared_ptr<latency_tracer> &tracer)
