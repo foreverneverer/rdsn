@@ -76,7 +76,6 @@ latency_tracer::latency_tracer(
       _type("init"),
       _threshold(threshold),
       _start_time(dsn_now_ns()),
-      _pre_time(_start_time),
       _task_code(code)
 {
     if (profile) {
