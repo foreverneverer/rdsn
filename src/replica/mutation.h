@@ -123,7 +123,6 @@ public:
     void set_prepare_ts()
     {
         _prepare_ts_ms = dsn_now_ms();
-        data.header.__set_prepare_ts(_prepare_ts_ms);
     }
 
     // >= 1 MB
