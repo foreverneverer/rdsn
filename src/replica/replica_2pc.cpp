@@ -237,7 +237,6 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
 
     // remote prepare
     mu->set_prepare_ts();
-    mu->data.header.__set_prepare_ts(dsn_now_ns());
     mu->set_left_secondary_ack_count((unsigned int)_primary_states.membership.secondaries.size());
     for (auto it = _primary_states.membership.secondaries.begin();
          it != _primary_states.membership.secondaries.end();
@@ -390,11 +389,6 @@ void replica::on_prepare(dsn::message_ex *request)
 
     mu->tracer->set_type("secondary");
     mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
-
-    uint64_t remote_send_prepare_ts = mu->data.header.prepare_ts < mu->tracer->pre_time()
-                                          ? mu->data.header.prepare_ts
-                                          : mu->tracer->pre_time() - 1;
-    ADD_EXTERN_POINT(mu->tracer, remote_send_prepare_ts, "remote_send");
     ADD_POINT(mu->tracer);
 
     decree decree = mu->data.header.decree;
@@ -614,7 +608,6 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
     partition_status::type target_status = pr.second;
 
     auto tracer = mu->tracer->get_sub_tracer(request->to_address.to_string());
-    ADD_POINT(tracer);
 
     // skip callback for old mutations
     if (partition_status::PS_PRIMARY != status() || mu->data.header.ballot < get_ballot() ||
@@ -640,8 +633,15 @@ void replica::on_prepare_reply(std::pair<mutation_ptr, partition_status::type> p
         ::dsn::unmarshall(reply, resp);
     }
 
-    uint64_t remote_ack_prepare_ts = tracer && resp.ack_ts < tracer->pre_time() ? resp.ack_ts : tracer->pre_time() - 1;
-    ADD_EXTERN_POINT(tracer, remote_ack_prepare_ts, "remote_replay");
+    uint64_t remote_rec_prepare_ts =
+        tracer && resp.rec_ts > tracer->last_time() ? resp.rec_ts : tracer->last_time() + 1;
+    ADD_EXTERN_POINT(tracer, remote_rec_prepare_ts, "remote_rec_prepare");
+
+    uint64_t remote_rep_prepare_ts =
+        tracer && resp.ack_ts > tracer->last_time() ? resp.ack_ts : tracer->last_time() + 1;
+    ADD_EXTERN_POINT(tracer, remote_rep_prepare_ts, "remote_reply_prepare");
+
+    ADD_POINT(tracer);
 
     if (resp.err == ERR_OK) {
         dinfo("%s: mutation %s on_prepare_reply from %s, appro_data_bytes = %d, "
@@ -781,6 +781,8 @@ void replica::ack_prepare_message(error_code err, mutation_ptr &mu)
     resp.err = err;
     resp.ballot = get_ballot();
     resp.decree = mu->data.header.decree;
+
+    resp.__set_rec_ts(mu->tracer->start_time());
     resp.__set_ack_ts(dsn_now_ns());
 
     // for partition_status::PS_POTENTIAL_SECONDARY ONLY

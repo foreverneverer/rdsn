@@ -54,8 +54,7 @@ struct mutation_header
     3:i64                  decree;
     4:i64                  log_offset;
     5:i64                  last_committed_decree;
-    6:i64                  timestamp;
-    7:optional i64      prepare_ts;            
+    6:i64                  timestamp;        
 }
 
 struct mutation_update
@@ -115,7 +114,8 @@ struct prepare_ack
     4:i64                 decree;
     5:i64                 last_committed_decree_in_app;
     6:i64                 last_committed_decree_in_prepare_list;
-    7:optional i64      ack_ts;         
+    7:optional i64      rec_ts;      
+    8:optional i64      ack_ts;         
 }
 
 enum learn_type

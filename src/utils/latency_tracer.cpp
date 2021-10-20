@@ -119,7 +119,6 @@ void latency_tracer::add_point(const std::string &stage_name, uint64_t ts)
 
     utils::auto_write_lock write(_point_lock);
     _points.emplace(ts, stage_name);
-    _pre_time = ts;
 }
 
 void latency_tracer::add_sub_tracer(const std::shared_ptr<latency_tracer> &tracer)
