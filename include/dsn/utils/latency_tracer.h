@@ -136,10 +136,11 @@ public:
 
     uint64_t last_time() { return _last_time; }
 
+    // todo(jiashuo1) only test, it should be private
+    static void report_trace_point(const std::string &name, uint64_t span);
+
 private:
     void dump_trace_points(/*out*/ std::string &traces);
-
-    static void report_trace_point(const std::string &name, uint64_t span);
 
     bool _is_sub;
     std::string _name;

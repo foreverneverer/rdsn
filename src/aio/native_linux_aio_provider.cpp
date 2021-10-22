@@ -34,9 +34,6 @@
 
 namespace dsn {
 
-auto perf_counter = dsn::perf_counters::instance().get_app_counter(
-    "latency_tracer_aio", "aio_length", COUNTER_TYPE_NUMBER_PERCENTILES, "no_description", true);
-
 native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_provider(disk) {}
 
 native_linux_aio_provider::~native_linux_aio_provider() {}
@@ -159,7 +156,8 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk)
         return err;
     }
     ADD_CUSTOM_POINT(aio_tsk->tracer, "completed");
-    perf_counter->set(processed_bytes);
+    dsn::utils::latency_tracer::report_trace_point(
+        fmt::format("[{}]aio_length", aio_tsk->tracer->type()), processed_bytes);
 
     complete_io(aio_tsk, err, processed_bytes);
     return err;
