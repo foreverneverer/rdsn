@@ -564,6 +564,9 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
             // always ack
             ack_prepare_message(err, mu);
             // all mutations with lower decree must be ready
+            if (status() == partition_status::PS_POTENTIAL_SECONDARY) {
+                derror_replica("jiashuo_debug=now potential is commit to {}", dir());
+            }
             _prepare_list->commit(mu->data.header.last_committed_decree, COMMIT_TO_DECREE_HARD);
             break;
         case partition_status::PS_PARTITION_SPLIT:
