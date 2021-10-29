@@ -56,7 +56,7 @@ error_code replica::initialize_on_new()
         return ERR_FILE_OPERATION_FAILED;
     }
 
-    derror_replica("jiashuo_debug=initialize_on_new {}", dir());
+    derror_replica("jiashuo_debug=initialize_on_new and create the dir {}", dir());
 
     replica_app_info info((app_info *)&_app_info);
     std::string path = utils::filesystem::path_combine(_dir, ".app-info");
