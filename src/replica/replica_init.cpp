@@ -56,6 +56,8 @@ error_code replica::initialize_on_new()
         return ERR_FILE_OPERATION_FAILED;
     }
 
+    derror_replica("jiashuo_debug=initialize_on_new {}", dir());
+
     replica_app_info info((app_info *)&_app_info);
     std::string path = utils::filesystem::path_combine(_dir, ".app-info");
     auto err = info.store(path.c_str());
@@ -74,6 +76,7 @@ error_code replica::initialize_on_new()
                                   bool restore_if_necessary,
                                   const std::string &parent_dir)
 {
+
     std::string dir;
     if (parent_dir.empty()) {
         dir = stub->get_replica_dir(app.app_type.c_str(), gpid);
@@ -81,6 +84,7 @@ error_code replica::initialize_on_new()
         dir = stub->get_child_dir(app.app_type.c_str(), gpid, parent_dir);
     }
     replica *rep = new replica(stub, gpid, app, dir.c_str(), restore_if_necessary);
+    derror_f("jiashuo_debug=newer {}", dir);
     error_code err;
     if (restore_if_necessary && (err = rep->restore_checkpoint()) != dsn::ERR_OK) {
         derror("try to restore replica %s failed, error(%s)", rep->name(), err.to_string());
@@ -214,6 +218,7 @@ error_code replica::init_app_and_prepare_list(bool create_new)
     _app.reset(replication_app_base::new_storage_instance(_app_info.app_type, this));
     dassert(nullptr == _private_log, "private log must not be initialized yet");
 
+    derror_replica("jiashuo_debug=init_app_and_prepare_list {}", dir());
     if (create_new) {
         err = _app->open_new_internal(this, _stub->_log->on_partition_reset(get_gpid(), 0), 0);
         // two case:

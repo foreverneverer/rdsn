@@ -366,6 +366,7 @@ error_code replication_app_base::open_new_internal(replica *r,
                                                    int64_t shared_log_start,
                                                    int64_t private_log_start)
 {
+    derror_replica("jiashuo_debug=open_new_internal {}", data_dir());
     dsn::utils::filesystem::remove_path(_dir_data);
     dsn::utils::filesystem::create_directory(_dir_data);
 
