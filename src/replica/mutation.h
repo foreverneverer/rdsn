@@ -153,6 +153,8 @@ public:
     void set_is_sync_to_child(bool sync_to_child) { _is_sync_to_child = sync_to_child; }
     bool is_sync_to_child() { return _is_sync_to_child; }
 
+    void append_log(const std::string &log) { trace_log = fmt::format("{}\n{}", trace_log, log); }
+
 private:
     union
     {
@@ -183,6 +185,8 @@ private:
     uint64_t _tid;          // trace id, unique in process
     static std::atomic<uint64_t> s_tid;
     bool _is_sync_to_child; // for partition split
+
+    std::string trace_log = "jiashuo_debug:";
 };
 
 class replica;

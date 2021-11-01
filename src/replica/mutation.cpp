@@ -97,6 +97,8 @@ mutation::~mutation()
     for (auto &request : _prepare_requests) {
         request->release_ref();
     }
+
+    derror_f(trace_log);
 }
 
 void mutation::set_id(ballot b, decree c)

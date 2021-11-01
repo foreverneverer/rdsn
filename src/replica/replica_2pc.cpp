@@ -237,6 +237,14 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     // remote prepare
     mu->set_prepare_ts();
     mu->set_left_secondary_ack_count((unsigned int)_primary_states.membership.secondaries.size());
+
+    mu->append_log(
+        fmt::format("{}[{}] | is_ready={}, start send prepre to all secondary: s={}, p={}",
+                    mu->name(),
+                    enum_to_string(status()),
+                    mu->is_ready_for_commit(),
+                    (unsigned int)_primary_states.membership.secondaries.size(),
+                    (unsigned int)_primary_states.learners.size()));
     for (auto it = _primary_states.membership.secondaries.begin();
          it != _primary_states.membership.secondaries.end();
          ++it) {
@@ -251,6 +259,11 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     for (auto it = _primary_states.learners.begin(); it != _primary_states.learners.end(); ++it) {
         if (it->second.prepare_start_decree != invalid_decree &&
             mu->data.header.decree >= it->second.prepare_start_decree) {
+            mu->append_log(fmt::format("{}[{}] | [ready={}]send to {}",
+                                       mu->name(),
+                                       enum_to_string(status()),
+                                       mu->is_ready_for_commit(),
+                                       it->first.to_string()));
             send_prepare_message(it->first,
                                  partition_status::PS_POTENTIAL_SECONDARY,
                                  mu,
@@ -258,6 +271,14 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                                  pop_all_committed_mutations,
                                  it->second.signature);
             count++;
+        } else {
+            mu->append_log(fmt::format("{}[{}] | [{}]break to {}[invalid={} or larger start={}]",
+                                       mu->name(),
+                                       enum_to_string(status()),
+                                       mu->is_ready_for_commit(),
+                                       it->first.to_string(),
+                                       it->second.prepare_start_decree != invalid_decree,
+                                       mu->data.header.decree >= it->second.prepare_start_decree));
         }
     }
     mu->set_left_potential_secondary_ack_count(count);
@@ -361,6 +382,10 @@ void replica::do_possible_commit_on_primary(mutation_ptr &mu)
             "invalid partition_status, status = %s",
             enum_to_string(status()));
 
+    mu->append_log(fmt::format("{}[{}] | try commit, ready={}",
+                               mu->name(),
+                               enum_to_string(status()),
+                               mu->is_ready_for_commit()));
     ADD_POINT(mu->tracer);
     if (mu->is_ready_for_commit()) {
         _prepare_list->commit(mu->data.header.decree, COMMIT_ALL_READY);
@@ -388,6 +413,11 @@ void replica::on_prepare(dsn::message_ex *request)
 
     dinfo("%s: mutation %s on_prepare", name(), mu->name());
     mu->tracer->set_name(fmt::format("mutation[{}]", mu->name()));
+
+    mu->append_log(fmt::format("{}[{}] | receive log, is ready={}",
+                               mu->name(),
+                               enum_to_string(status()),
+                               mu->is_ready_for_commit()));
 
     dassert(mu->data.header.pid == rconfig.pid,
             "(%d.%d) VS (%d.%d)",
@@ -567,6 +597,10 @@ void replica::on_append_log_completed(mutation_ptr &mu, error_code err, size_t s
             if (status() == partition_status::PS_POTENTIAL_SECONDARY) {
                 derror_replica("jiashuo_debug=now potential is commit to {}", dir());
             }
+            mu->append_log(fmt::format("{}[{}] | commit the log, ready={}",
+                                       mu->name(),
+                                       enum_to_string(status()),
+                                       mu->is_ready_for_commit()));
             _prepare_list->commit(mu->data.header.last_committed_decree, COMMIT_TO_DECREE_HARD);
             break;
         case partition_status::PS_PARTITION_SPLIT:
