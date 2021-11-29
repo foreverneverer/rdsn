@@ -115,60 +115,7 @@ decree replica::get_learn_start_decree(const learn_request &request) // on prima
 {
     decree local_committed_decree = last_committed_decree();
     dcheck_le_replica(request.last_committed_decree_in_app, local_committed_decree);
-
-    decree learn_start_decree_no_dup = request.last_committed_decree_in_app + 1;
-    if (!is_duplicating()) {
-        // fast path for no duplication case: only learn those that the learner is not having.
-        return learn_start_decree_no_dup;
-    }
-
-    decree min_confirmed_decree = _duplication_mgr->min_confirmed_decree();
-
-    // Learner should include the mutations not confirmed by meta server
-    // so as to prevent data loss during duplication. For example, when
-    // the confirmed+1 decree has been missing from plog, the learner
-    // needs to learn back from it.
-    //
-    //                confirmed but missing
-    //                    |
-    // learner's plog: ======[--------------]
-    //                       |              |
-    //                      gced           committed
-    //
-    // In the above case, primary should return logs started from confirmed+1.
-
-    decree learn_start_decree_for_dup = learn_start_decree_no_dup;
-    if (min_confirmed_decree >= 0) {
-        learn_start_decree_for_dup = min_confirmed_decree + 1;
-    } else {
-        // if the confirmed_decree is unsure, copy all the logs
-        // TODO(wutao1): can we reduce the copy size?
-        decree local_gced = max_gced_decree_no_lock();
-        if (local_gced == invalid_decree) {
-            // abnormal case
-            dwarn_replica("no plog to be learned for duplication, continue as normal");
-        } else {
-            learn_start_decree_for_dup = local_gced + 1;
-        }
-    }
-
-    decree learn_start_decree = learn_start_decree_no_dup;
-    if (learn_start_decree_for_dup <= request.max_gced_decree ||
-        request.max_gced_decree == invalid_decree) {
-        // `request.max_gced_decree == invalid_decree` indicates the learner has no log,
-        // see replica::get_max_gced_decree_for_learn for details.
-        if (learn_start_decree_for_dup < learn_start_decree_no_dup) {
-            learn_start_decree = learn_start_decree_for_dup;
-            ddebug_replica("learn_start_decree steps back to {} to ensure learner having enough "
-                           "logs for duplication [confirmed_decree={}, learner_gced_decree={}]",
-                           learn_start_decree,
-                           min_confirmed_decree,
-                           request.max_gced_decree);
-        }
-    }
-    dcheck_le_replica(learn_start_decree, local_committed_decree + 1);
-    dcheck_gt_replica(learn_start_decree, 0); // learn_start_decree can never be invalid_decree
-    return learn_start_decree;
+    return request.last_committed_decree_in_app + 1;
 }
 
 void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &request)
@@ -234,19 +181,9 @@ void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &reques
         } else {
             ::dsn::error_code err = _app->get_checkpoint(
                 learn_start_decree, request.app_specific_learn_request, response.state);
-
-            if (err != ERR_OK) {
-                response.err = ERR_GET_LEARN_STATE_FAILED;
-                derror("%s: on_learn[%016" PRIx64
-                       "]: learner = %s, get app checkpoint failed, error = %s",
-                       name(),
-                       request.signature,
-                       request.learner.to_string(),
-                       err.to_string());
-            } else {
-                response.base_local_dir = _app->data_dir();
-                response.__set_replica_disk_tag(get_replica_disk_tag());
-            }
+            dassert_replica(err == ERR_OK, "checkpoint failed");
+            response.base_local_dir = _app->data_dir();
+            response.__set_replica_disk_tag(get_replica_disk_tag());
         }
     } else {
         derror_replica("start cache, so break");
@@ -270,16 +207,6 @@ void replica::on_cluster_learn_reply(error_code err, learn_request &&req, learn_
     _checker.only_one_thread_access();
     dassert_replica(err == ERR_OK, "rpc failed");
     dassert_replica(resp.err == ERR_OK, "result failed");
-    _potential_secondary_states.learning_copy_buffer_size += resp.state.meta.length();
-    if (resp.type == learn_type::LT_APP) {
-        if (++_stub->_learn_app_concurrent_count > _options->learn_app_max_concurrent_count) {
-            --_stub->_learn_app_concurrent_count;
-            _potential_secondary_states.learning_round_is_running = false;
-            return;
-        } else {
-            _potential_secondary_states.learn_app_concurrent_count_increased = true;
-        }
-    }
 
 
     if (resp.prepare_start_decree != invalid_decree) {
@@ -389,17 +316,10 @@ void replica::on_copy_remote_cluster_state_completed(error_code err,
                                                      learn_request &&req,
                                                      learn_response &&resp)
 {
-    decree old_prepared = last_prepared_decree();
-    decree old_committed = last_committed_decree();
-    decree old_app_committed = _app->last_committed_decree();
-    decree old_app_durable = _app->last_durable_decree();
-
-
     if (resp.type == learn_type::LT_APP) {
         --_stub->_learn_app_concurrent_count;
         _potential_secondary_states.learn_app_concurrent_count_increased = false;
     }
-
 
     if (err != ERR_OK) {
         // do nothing
