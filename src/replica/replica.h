@@ -296,6 +296,28 @@ private:
     void notify_learn_completion();
     error_code apply_learned_state_from_private_log(learn_state &state);
 
+    // cluster learning
+    void init_cluster_learn(uint64_t signature);
+    void on_cluster_learn_reply(error_code err, learn_request &&req, learn_response &&resp);
+    void on_copy_remote_cluster_state_completed(error_code err,
+                                                size_t size,
+                                                uint64_t copy_start_time,
+                                                learn_request &&req,
+                                                learn_response &&resp);
+    void on_learn_remote_cluster_state_completed(error_code err);
+    void handle_cluster_learning_error(error_code err, bool is_local_error);
+    error_code handle_cluster_learning_succeeded_on_primary(::dsn::rpc_address node,
+                                                            uint64_t learn_signature);
+    void notify_cluster_learn_completion();
+    error_code apply_cluster_learned_state_from_private_log(learn_state &state);
+    void on_cluster_learn(dsn::message_ex *msg, const learn_request &request);
+    void on_cluster_learn_completion_notification(const group_check_response &report,
+                                                  /*out*/ learn_notify_response &response);
+    void on_cluster_learn_completion_notification_reply(error_code err,
+                                                        group_check_response &&report,
+                                                        learn_notify_response &&resp);
+    void on_add_slave_learner(const group_check_request &request);
+
     // Prepares in-memory mutations for the replica's learning.
     // Returns false if there's no delta data in cache (aka prepare-list).
     bool prepare_cached_learn_state(const learn_request &request,
