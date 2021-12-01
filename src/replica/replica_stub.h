@@ -227,6 +227,9 @@ public:
 
     void on_add_new_disk(add_new_disk_rpc rpc);
 
+    // cluster learn
+    void on_add_slave_learner(const group_check_request &request);
+
 private:
     enum replica_node_state
     {
@@ -378,12 +381,15 @@ private:
 #endif
     dsn_handle_t _max_concurrent_bulk_load_downloading_count_command;
 
+    dsn_handle_t _test_add_slave_learner_command;
+
     bool _deny_client;
     bool _verbose_client_log;
     bool _verbose_commit_log;
     bool _release_tcmalloc_memory;
     int32_t _mem_release_max_reserved_mem_percentage;
     int32_t _max_concurrent_bulk_load_downloading_count;
+    std::string learnee_info;
 
     // we limit LT_APP max concurrent count, because nfs service implementation is
     // too simple, it do not support priority.
@@ -501,6 +507,7 @@ private:
     perf_counter_wrapper _counter_replicas_splitting_recent_split_succ_count;
 
     dsn::task_tracker _tracker;
+    void on_cluster_learn(message_ex *msg);
 };
 } // namespace replication
 } // namespace dsn

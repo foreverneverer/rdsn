@@ -1253,6 +1253,21 @@ void replica_stub::on_learn(dsn::message_ex *msg)
     }
 }
 
+void replica_stub::on_cluster_learn(dsn::message_ex *msg)
+{
+    learn_request request;
+    ::dsn::unmarshall(msg, request);
+
+    replica_ptr rep = get_replica(request.pid);
+    if (rep != nullptr) {
+        rep->on_cluster_learn(msg, request);
+    } else {
+        learn_response response;
+        response.err = ERR_OBJECT_NOT_FOUND;
+        reply(msg, response);
+    }
+}
+
 void replica_stub::on_copy_checkpoint(copy_checkpoint_rpc rpc)
 {
     const replica_configuration &request = rpc.request();
@@ -1306,6 +1321,17 @@ void replica_stub::on_add_learner(const group_check_request &request)
         std::shared_ptr<group_check_request> req(new group_check_request);
         *req = request;
         begin_open_replica(request.app, request.config.pid, req, nullptr);
+    }
+}
+
+void replica_stub::on_add_slave_learner(const group_check_request &request)
+{
+    auto local = dsn::gpid(2, 0);
+    replica_ptr rep = get_replica(local);
+    if (rep != nullptr) {
+        rep->on_add_slave_learner(request);
+    } else {
+       derror_f("node={}, remote_gpid={} failed, because the {} is null", request.node.to_string(), request.config.pid, rep->get_gpid());
     }
 }
 
@@ -2217,6 +2243,8 @@ void replica_stub::open_service()
                                          "LearnNotify",
                                          &replica_stub::on_learn_completion_notification);
     register_rpc_handler(RPC_LEARN_ADD_LEARNER, "LearnAdd", &replica_stub::on_add_learner);
+    register_rpc_handler(RPC_LEARN_ADD_SLAVE_LEARNER, "add_slave_learn", &replica_stub::on_add_slave_learner);
+    register_rpc_handler(RPC_CLUSTER_LEARN, "on_cluster_learn", &replica_stub::on_cluster_learn);
     register_rpc_handler(RPC_REMOVE_REPLICA, "remove", &replica_stub::on_remove);
     register_rpc_handler_with_rpc_holder(
         RPC_GROUP_CHECK, "GroupCheck", &replica_stub::on_group_check);
@@ -2427,6 +2455,58 @@ void replica_stub::register_ctrl_command()
                     }
                     return result;
                 });
+
+        // just test
+      _test_add_slave_learner_command =
+          dsn::command_manager::instance().register_command(
+              {"_test_add_slave_learner_command"},
+              "_test_add_slave_learner_command [num | DEFAULT]",
+              "_test_add_slave_learner_command",
+              [this](const std::vector<std::string> &args) {
+                std::string result("OK");
+                if (args.empty()) {
+                    result = "_test_add_slave_learner_command = " + learnee_info;
+                    return result;
+                }
+
+                group_check_request request;
+                std::vector<std::string> config;
+                static const std::string invalid_arguments("invalid arguments");
+
+                dsn::utils::split_args(args[0].c_str(), config, ',');
+                if (config.empty()) {
+                    return invalid_arguments;
+                }
+
+                std::string remote_primary_addrs = config[0];
+                std::vector<std::string> ipport;
+                dsn::utils::split_args(remote_primary_addrs.c_str(), ipport, ':');
+                if (ipport.empty()) {
+                    return invalid_arguments;
+                }
+                uint32_t port = 0;
+                if (!dsn::buf2uint32(ipport[1], port)) {
+                    return invalid_arguments;
+                }
+                request.node = dsn::rpc_address(ipport[0].c_str(), port);
+
+                std::string remote_primary_pid = config[1];
+                std::vector<std::string> gpid;
+                dsn::utils::split_args(remote_primary_pid.c_str(), gpid, '.');
+                uint app_id = 0;
+                uint part_id = 0;
+                if (!dsn::buf2uint32(gpid[0], app_id)) {
+                    return invalid_arguments;
+                }
+                if (!dsn::buf2uint32(gpid[1], part_id)) {
+                    return invalid_arguments;
+                }
+                request.config.pid = dsn::gpid(app_id, part_id);
+
+                learnee_info = fmt::format("node={}, gpid={}", request.node.to_string(), request.config.pid.to_string());
+                on_add_slave_learner(request);
+                return result;
+              });
     });
 }
 
@@ -2563,6 +2643,7 @@ void replica_stub::close()
     UNREGISTER_VALID_HANDLER(_release_all_reserved_memory_command);
 #endif
     UNREGISTER_VALID_HANDLER(_max_concurrent_bulk_load_downloading_count_command);
+     UNREGISTER_VALID_HANDLER(_test_add_slave_learner_command);
 
     _kill_partition_command = nullptr;
     _deny_client_command = nullptr;

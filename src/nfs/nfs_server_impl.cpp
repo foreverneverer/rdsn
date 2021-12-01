@@ -36,6 +36,7 @@
 #include <sys/stat.h>
 #include <dsn/utility/filesystem.h>
 #include <dsn/tool-api/async_calls.h>
+#include <dsn/dist/fmt_logging.h>
 
 #include "nfs_server_impl.h"
 
@@ -80,6 +81,7 @@ void nfs_service_impl::on_copy(const ::dsn::service::copy_request &request,
 
     std::string file_path =
         dsn::utils::filesystem::path_combine(request.source_dir, request.file_name);
+    derror_f("receive copy file request {} => {}", file_path, request.dst_dir);
     disk_file *hfile;
 
     {
@@ -177,7 +179,7 @@ void nfs_service_impl::on_get_file_size(
     ::dsn::rpc_replier<::dsn::service::get_file_size_response> &reply)
 {
     // dinfo(">>> on call RPC_NFS_GET_FILE_SIZE end, exec RPC_NFS_GET_FILE_SIZE");
-
+    derror_f("receive get file info request {} => {}", request.source_dir, request.dst_dir);
     get_file_size_response resp;
     error_code err = ERR_OK;
     std::vector<std::string> file_list;
