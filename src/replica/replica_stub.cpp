@@ -1304,6 +1304,10 @@ void replica_stub::on_add_learner(const group_check_request &request)
               request.config.primary.to_string());
         return;
     }
+    derror_f("receive add learner {}={}, dup={}",
+             request.config.primary.to_string(),
+             request.config.pid.to_string(),
+             request.app.duplicating);
 
     ddebug("%s@%s: received add learner, primary = %s, ballot = %" PRId64
            ", status = %s, last_committed_decree = %" PRId64,
@@ -1331,7 +1335,10 @@ void replica_stub::on_add_slave_learner(const group_check_request &request)
     if (rep != nullptr) {
         rep->on_add_slave_learner(request);
     } else {
-       derror_f("node={}, remote_gpid={} failed, because the {} is null", request.node.to_string(), request.config.pid, rep->get_gpid());
+        derror_f("node={}, remote_gpid={} failed, because the {} is null",
+                 request.node.to_string(),
+                 request.config.pid,
+                 rep->get_gpid());
     }
 }
 
@@ -2243,7 +2250,8 @@ void replica_stub::open_service()
                                          "LearnNotify",
                                          &replica_stub::on_learn_completion_notification);
     register_rpc_handler(RPC_LEARN_ADD_LEARNER, "LearnAdd", &replica_stub::on_add_learner);
-    register_rpc_handler(RPC_LEARN_ADD_SLAVE_LEARNER, "add_slave_learn", &replica_stub::on_add_slave_learner);
+    register_rpc_handler(
+        RPC_LEARN_ADD_SLAVE_LEARNER, "add_slave_learn", &replica_stub::on_add_slave_learner);
     register_rpc_handler(RPC_CLUSTER_LEARN, "on_cluster_learn", &replica_stub::on_cluster_learn);
     register_rpc_handler(RPC_REMOVE_REPLICA, "remove", &replica_stub::on_remove);
     register_rpc_handler_with_rpc_holder(
@@ -2457,12 +2465,11 @@ void replica_stub::register_ctrl_command()
                 });
 
         // just test
-      _test_add_slave_learner_command =
-          dsn::command_manager::instance().register_command(
-              {"_test_add_slave_learner_command"},
-              "_test_add_slave_learner_command [num | DEFAULT]",
-              "_test_add_slave_learner_command",
-              [this](const std::vector<std::string> &args) {
+        _test_add_slave_learner_command = dsn::command_manager::instance().register_command(
+            {"_test_add_slave_learner_command"},
+            "_test_add_slave_learner_command [num | DEFAULT]",
+            "_test_add_slave_learner_command",
+            [this](const std::vector<std::string> &args) {
                 std::string result("OK");
                 if (args.empty()) {
                     result = "_test_add_slave_learner_command = " + learnee_info;
@@ -2503,10 +2510,11 @@ void replica_stub::register_ctrl_command()
                 }
                 request.config.pid = dsn::gpid(app_id, part_id);
 
-                learnee_info = fmt::format("node={}, gpid={}", request.node.to_string(), request.config.pid.to_string());
+                learnee_info = fmt::format(
+                    "node={}, gpid={}", request.node.to_string(), request.config.pid.to_string());
                 on_add_slave_learner(request);
                 return result;
-              });
+            });
     });
 }
 
@@ -2643,7 +2651,7 @@ void replica_stub::close()
     UNREGISTER_VALID_HANDLER(_release_all_reserved_memory_command);
 #endif
     UNREGISTER_VALID_HANDLER(_max_concurrent_bulk_load_downloading_count_command);
-     UNREGISTER_VALID_HANDLER(_test_add_slave_learner_command);
+    UNREGISTER_VALID_HANDLER(_test_add_slave_learner_command);
 
     _kill_partition_command = nullptr;
     _deny_client_command = nullptr;

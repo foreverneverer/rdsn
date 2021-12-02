@@ -49,9 +49,10 @@ namespace replication {
 void replica::init_learn(uint64_t signature)
 {
     _checker.only_one_thread_access();
+    derror_replica("now is duplicating = {}, init learn", _duplicating);
 
     if (status() != partition_status::PS_POTENTIAL_SECONDARY) {
-        dwarn(
+        derror(
             "%s: state is not potential secondary but %s, skip learning with signature[%016" PRIx64
             "]",
             name(),
@@ -61,25 +62,25 @@ void replica::init_learn(uint64_t signature)
     }
 
     if (signature == invalid_signature) {
-        dwarn("%s: invalid learning signature, skip", name());
+        derror("%s: invalid learning signature, skip", name());
         return;
     }
 
     // at most one learning task running
     if (_potential_secondary_states.learning_round_is_running) {
-        dwarn("%s: previous learning is still running, skip learning with signature [%016" PRIx64
-              "]",
-              name(),
-              signature);
+        derror("%s: previous learning is still running, skip learning with signature [%016" PRIx64
+               "]",
+               name(),
+               signature);
         return;
     }
 
     if (signature < _potential_secondary_states.learning_version) {
-        dwarn("%s: learning request is out-dated, therefore skipped: [%016" PRIx64
-              "] vs [%016" PRIx64 "]",
-              name(),
-              signature,
-              _potential_secondary_states.learning_version);
+        derror("%s: learning request is out-dated, therefore skipped: [%016" PRIx64
+               "] vs [%016" PRIx64 "]",
+               name(),
+               signature,
+               _potential_secondary_states.learning_version);
         return;
     }
 
@@ -87,11 +88,11 @@ void replica::init_learn(uint64_t signature)
     // be cautious: primary should not issue signatures frequently to avoid learning abort
     if (signature != _potential_secondary_states.learning_version) {
         if (!_potential_secondary_states.cleanup(false)) {
-            dwarn("%s: previous learning with signature[%016" PRIx64
-                  "] is still in-process, skip init new learning with signature [%016" PRIx64 "]",
-                  name(),
-                  _potential_secondary_states.learning_version,
-                  signature);
+            derror("%s: previous learning with signature[%016" PRIx64
+                   "] is still in-process, skip init new learning with signature [%016" PRIx64 "]",
+                   name(),
+                   _potential_secondary_states.learning_version,
+                   signature);
             return;
         }
 
@@ -158,7 +159,15 @@ void replica::init_learn(uint64_t signature)
                 }
 
                 // convert to success if app state and prepare list is connected
-                _potential_secondary_states.learning_status = learner_status::LearningSucceeded;
+                if (!_duplicating) {
+                    derror_replica("change to succeed");
+                    _potential_secondary_states.learning_status = learner_status::LearningSucceeded;
+                } else {
+                    _potential_secondary_states.learning_status =
+                        learner_status::LearningWithoutPrepare;
+                    derror_replica("start next loop learn");
+                    init_learn(_potential_secondary_states.learning_version);
+                }
                 // fall through to success
             }
 
@@ -179,15 +188,15 @@ void replica::init_learn(uint64_t signature)
 
     if (_app->last_committed_decree() == 0 &&
         _stub->_learn_app_concurrent_count.load() >= _options->learn_app_max_concurrent_count) {
-        dwarn("%s: init_learn[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
-              "ms, need to learn app because app_committed_decree = 0, but "
-              "learn_app_concurrent_count(%d) >= learn_app_max_concurrent_count(%d), skip",
-              name(),
-              _potential_secondary_states.learning_version,
-              _config.primary.to_string(),
-              _potential_secondary_states.duration_ms(),
-              _stub->_learn_app_concurrent_count.load(),
-              _options->learn_app_max_concurrent_count);
+        derror("%s: init_learn[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
+               "ms, need to learn app because app_committed_decree = 0, but "
+               "learn_app_concurrent_count(%d) >= learn_app_max_concurrent_count(%d), skip",
+               name(),
+               _potential_secondary_states.learning_version,
+               _config.primary.to_string(),
+               _potential_secondary_states.duration_ms(),
+               _stub->_learn_app_concurrent_count.load(),
+               _options->learn_app_max_concurrent_count);
         return;
     }
 
@@ -203,7 +212,7 @@ void replica::init_learn(uint64_t signature)
     request.signature = _potential_secondary_states.learning_version;
     _app->prepare_get_checkpoint(request.app_specific_learn_request);
 
-    ddebug("%s: init_learn[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
+    derror("%s: init_learn[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
            " ms, max_gced_decree = %" PRId64 ", local_committed_decree = %" PRId64 ", "
            "app_committed_decree = %" PRId64 ", app_durable_decree = %" PRId64
            ", current_learning_status = %s, total_copy_file_count = %" PRIu64
@@ -1480,7 +1489,7 @@ void replica::on_learn_completion_notification_reply(error_code err,
 
 void replica::on_add_learner(const group_check_request &request)
 {
-    ddebug_replica("process add learner, primary = {}, ballot ={}, status ={}, "
+    derror_replica("process add learner, primary = {}, ballot ={}, status ={}, "
                    "last_committed_decree = {}, duplicating = {}",
                    request.config.primary.to_string(),
                    request.config.ballot,
@@ -1489,15 +1498,23 @@ void replica::on_add_learner(const group_check_request &request)
                    request.app.duplicating);
 
     if (request.config.ballot < get_ballot()) {
-        dwarn_replica("on_add_learner ballot is old, skipped");
+        derror_replica("on_add_learner ballot is old, skipped");
         return;
     }
 
+    derror_replica("request.config.ballot[{}] > get_ballot()[{}], "
+                   "is_same_ballot_status_change_allowed(status()[{}], request.config.status[{}]) = {}",
+                   request.config.ballot,
+                   get_ballot(),
+                   status(),
+                   request.config.status,
+                   is_same_ballot_status_change_allowed(status(), request.config.status));
+
     if (request.config.ballot > get_ballot() ||
         is_same_ballot_status_change_allowed(status(), request.config.status)) {
+        derror_replica("try init");
         if (!update_local_configuration(request.config, true))
             return;
-
         dassert_replica(partition_status::PS_POTENTIAL_SECONDARY == status(),
                         "invalid partition_status, status = {}",
                         enum_to_string(status()));

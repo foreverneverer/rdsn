@@ -129,7 +129,8 @@ nfs_client_impl::~nfs_client_impl()
 void nfs_client_impl::begin_remote_copy(std::shared_ptr<remote_copy_request> &rci,
                                         aio_task *nfs_task)
 {
-    derror_f("send copy request {}: {} => {}", rci->source.to_string(), rci->source_dir, rci->dest_dir);
+    derror_f(
+        "send copy request {}: {} => {}", rci->source.to_string(), rci->source_dir, rci->dest_dir);
     user_request_ptr req(new user_request());
     req->high_priority = rci->high_priority;
     req->file_size_req.source = rci->source;
@@ -163,7 +164,7 @@ void nfs_client_impl::end_get_file_size(::dsn::error_code err,
         return;
     }
 
-    for(const auto& file : resp.file_list) {
+    for (const auto &file : resp.file_list) {
         derror_f("get remote file info: {}", file);
     }
 
@@ -286,7 +287,9 @@ void nfs_client_impl::continue_copy()
                                                1.5 *
 
                                                    (FLAGS_max_copy_rate_megabytes_per_disk << 20));
-                derror_f("copy file: {} => {}", ureq->file_size_req.source_dir, ureq->file_size_req.dst_dir);
+                derror_f("copy file: {} => {}",
+                         ureq->file_size_req.source_dir,
+                         ureq->file_size_req.dst_dir);
                 copy_request copy_req;
                 copy_req.source = ureq->file_size_req.source;
                 copy_req.file_name = req->file_ctx->file_name;

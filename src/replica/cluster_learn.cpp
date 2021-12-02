@@ -46,13 +46,50 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_cluster_learn(uint64_t signature, const dsn::rpc_address& remote, dsn::gpid pid)
+void replica::init_cluster_learn(uint64_t signature, const dsn::rpc_address &remote, dsn::gpid pid)
 {
     derror_replica("receive add learner cmd request: {}, {}", remote.to_string(), pid.to_string());
+
+    {
+        if (!_duplicating) {
+            _duplicating = true;
+            derror_replica("start send: {}", _primary_states.membership.secondaries.size());
+            for (auto &secondary : _primary_states.membership.secondaries) {
+                remote_learner_state state;
+                state.prepare_start_decree = invalid_decree;
+                state.timeout_task = nullptr; // TODO: add timer for learner task
+
+                auto it = _primary_states.learners.find(secondary);
+                if (it != _primary_states.learners.end()) {
+                    state.signature = it->second.signature;
+                } else {
+                    state.signature = ++_primary_states.next_learning_version;
+                    _primary_states.learners[secondary] = state;
+                    _primary_states.statuses[secondary] = partition_status::PS_POTENTIAL_SECONDARY;
+                }
+
+                group_check_request request;
+                request.app = _app_info;
+                request.app.__set_duplicating(_duplicating);
+                request.node = secondary;
+                _primary_states.get_replica_config(
+                    partition_status::PS_POTENTIAL_SECONDARY, request.config, state.signature);
+                request.last_committed_decree = last_committed_decree();
+
+                derror_replica("send replica add learner: {}, {}",
+                               secondary.to_string(),
+                               request.config.pid.to_string());
+                rpc::call_one_way_typed(
+                    secondary, RPC_LEARN_ADD_LEARNER, request, get_gpid().thread_hash());
+            }
+            derror_replica("sleep 120s for replica learn");
+            sleep(120);
+        }
+    }
+
     _potential_secondary_states.learning_version = signature;
     _potential_secondary_states.learning_start_ts_ns = dsn_now_ns();
     _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
-    _potential_secondary_states.learning_round_is_running = true;
 
     learn_request request;
     request.pid = pid;
@@ -63,22 +100,51 @@ void replica::init_cluster_learn(uint64_t signature, const dsn::rpc_address& rem
     request.signature = _potential_secondary_states.learning_version;
     _app->prepare_get_checkpoint(request.app_specific_learn_request);
 
-
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CLUSTER_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
-    _potential_secondary_states.learning_task = rpc::call(
-        remote,
-        msg,
-        &_tracker,
-        [ this, learnee = remote, req_cap = request ](error_code err, learn_response && resp) mutable {
-            on_cluster_learn_reply(err, std::move(learnee), std::move(req_cap), std::move(resp));
-        });
+    _potential_secondary_states.learning_task = rpc::call(remote, msg, &_tracker, [
+        this,
+        learnee = remote,
+        req_cap = request
+    ](error_code err, learn_response && resp) mutable {
+        if (err != ERR_OK) {
+            for (auto &secondary : _primary_states.membership.secondaries) {
+                remote_learner_state state;
+                state.prepare_start_decree = invalid_decree;
+                state.timeout_task = nullptr; // TODO: add timer for learner task
+
+                auto it = _primary_states.learners.find(secondary);
+                if (it != _primary_states.learners.end()) {
+                    state.signature = it->second.signature;
+                } else {
+                    state.signature = ++_primary_states.next_learning_version;
+                    _primary_states.learners[secondary] = state;
+                    _primary_states.statuses[secondary] = partition_status::PS_POTENTIAL_SECONDARY;
+                }
+
+                group_check_request request;
+                request.app = _app_info;
+                request.app.__set_duplicating(false);
+                request.node = secondary;
+                _primary_states.get_replica_config(
+                    partition_status::PS_POTENTIAL_SECONDARY, request.config, state.signature);
+                request.last_committed_decree = last_committed_decree();
+
+                rpc::call_one_way_typed(
+                    secondary, RPC_LEARN_ADD_LEARNER, request, get_gpid().thread_hash());
+            }
+        }
+
+        on_cluster_learn_reply(err, learnee, std::move(req_cap), std::move(resp));
+    });
 }
 
 void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &request)
 {
-    derror_replica("receive slave learn request: {}, {}", request.pid.to_string(), request.learner.to_string());
+    derror_replica("receive slave learn request: {}, {}",
+                   request.pid.to_string(),
+                   request.learner.to_string());
     learn_response response;
     remote_learner_state learner_state;
     learner_state.prepare_start_decree = invalid_decree;
@@ -145,9 +211,13 @@ void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &reques
     }
 }
 
-void replica::on_cluster_learn_reply(error_code err, dsn::rpc_address learnee, learn_request &&req, learn_response &&resp)
+void replica::on_cluster_learn_reply(error_code err,
+                                     dsn::rpc_address learnee,
+                                     learn_request &&req,
+                                     learn_response &&resp)
 {
-    derror_replica("receive master response: {}, {}, {}", err.to_string(), resp.err, resp.base_local_dir);
+    derror_replica(
+        "receive master response: {}, {}, {}", err.to_string(), resp.err, resp.base_local_dir);
     if (err != ERR_OK) {
         return;
     }
@@ -155,7 +225,6 @@ void replica::on_cluster_learn_reply(error_code err, dsn::rpc_address learnee, l
     if (resp.err != ERR_OK) {
         return;
     }
-
 
     if (resp.prepare_start_decree != invalid_decree) {
         derror_replica("start copy cache and end the cluster learn");
@@ -191,7 +260,7 @@ void replica::on_cluster_learn_reply(error_code err, dsn::rpc_address learnee, l
                     err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
             });
     } else {
-       dassert_replica(resp.state.files.size(), "must lager than 0");
+        dassert_replica(resp.state.files.size(), "must lager than 0");
     }
 }
 
@@ -236,8 +305,20 @@ void replica::on_copy_remote_cluster_state_completed(error_code err,
         // apply app learning
         if (resp.type == learn_type::LT_APP) {
             err = _app->apply_checkpoint(replication_app_base::chkpt_apply_mode::learn, lstate);
+            if (err == ERR_OK) {
+                derror_replica("applay checkpoint ok");
+            }
+            if (err != ERR_OK) {
+                derror_replica("applay checkpoint err: {}", err);
+            }
         } else {
             err = apply_cluster_learned_state_from_private_log(lstate);
+            if (err == ERR_OK) {
+                derror_replica("applay log ok");
+            }
+            if (err != ERR_OK) {
+                derror_replica("applay log err: {}", err);
+            }
         }
         // reset prepare list to make it catch with app
         _prepare_list->reset(_app->last_committed_decree());
@@ -248,12 +329,16 @@ void replica::on_copy_remote_cluster_state_completed(error_code err,
         _app->last_committed_decree() + 1 >=
             _potential_secondary_states.learning_start_prepare_decree &&
         _app->last_committed_decree() > _app->last_durable_decree()) {
+        derror_replica("start background_sync_checkpoint ok");
         err = background_sync_checkpoint();
         if (err == ERR_OK) {
+            derror_replica("sync checkpoint ok");
             dassert(_app->last_committed_decree() == _app->last_durable_decree(),
                     "%" PRId64 " VS %" PRId64 "",
                     _app->last_committed_decree(),
                     _app->last_durable_decree());
+        } else {
+            derror_replica("sync checkpoint error");
         }
     }
 }

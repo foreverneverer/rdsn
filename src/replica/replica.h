@@ -297,8 +297,11 @@ private:
     error_code apply_learned_state_from_private_log(learn_state &state);
 
     // cluster learning
-    void init_cluster_learn(uint64_t signature, const dsn::rpc_address& remote, dsn::gpid pid);
-    void on_cluster_learn_reply(error_code err, dsn::rpc_address learnee, learn_request &&req, learn_response &&resp);
+    void init_cluster_learn(uint64_t signature, const dsn::rpc_address &remote, dsn::gpid pid);
+    void on_cluster_learn_reply(error_code err,
+                                dsn::rpc_address learnee,
+                                learn_request &&req,
+                                learn_response &&resp);
     void on_copy_remote_cluster_state_completed(error_code err,
                                                 size_t size,
                                                 uint64_t copy_start_time,

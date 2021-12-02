@@ -160,6 +160,10 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     dassert(partition_status::PS_PRIMARY == status(),
             "invalid partition_status, status = %s",
             enum_to_string(status()));
+    if (_duplicating) {
+        derror_replica("now is duplicating, ignored the prepare request");
+        return;
+    }
 
     mu->_tracer->set_description("primary");
     ADD_POINT(mu->_tracer);
@@ -319,6 +323,11 @@ void replica::send_prepare_message(::dsn::rpc_address addr,
                                    bool pop_all_committed_mutations,
                                    int64_t learn_signature)
 {
+    if (_duplicating) {
+        derror_replica("now is duplicating, ignored the send_prepare_message");
+        return;
+    }
+
     mu->_tracer->add_sub_tracer(addr.to_string());
     ADD_POINT(mu->_tracer->sub_tracer(addr.to_string()));
 
@@ -372,6 +381,10 @@ void replica::do_possible_commit_on_primary(mutation_ptr &mu)
 void replica::on_prepare(dsn::message_ex *request)
 {
     _checker.only_one_thread_access();
+    if (_duplicating) {
+        derror_replica("now is duplicating, ignored the on prepare request");
+        return;
+    }
 
     replica_configuration rconfig;
     mutation_ptr mu;
