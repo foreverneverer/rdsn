@@ -358,3 +358,15 @@ struct ddd_diagnose_response
     1:dsn.error_code           err;
     2:list<ddd_partition_info> partitions;
 }
+
+struct configuration_create_dup_app_request
+{
+    1:string                   app_name;
+    2:string       meta_list;
+}
+
+struct configuration_create_dup_app_response
+{
+    1:dsn.error_code   err;
+    2:string              hint_msg;
+}

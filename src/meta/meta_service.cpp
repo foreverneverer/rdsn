@@ -1191,5 +1191,9 @@ void meta_service::on_query_backup_status(query_backup_status_rpc rpc)
     _backup_handler->query_backup_status(std::move(rpc));
 }
 
+void meta_service::on_create_dup_app(const configuration_create_dup_app_request &request) {
+
+}
+
 } // namespace replication
 } // namespace dsn

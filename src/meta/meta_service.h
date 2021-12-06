@@ -285,6 +285,9 @@ private:
     dsn::task_tracker _tracker;
 
     std::unique_ptr<security::access_controller> _access_controller;
+
+    //
+    void on_create_dup_app(const configuration_create_dup_app_request &request);
 };
 
 } // namespace replication
