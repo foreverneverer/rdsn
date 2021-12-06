@@ -52,11 +52,13 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
     if (!running) {
         running = true;
     } else {
-        while (!ok) {
+        if (!ok) {
             derror_replica("is runnning");
-            sleep(10);
+            return;
         }
-        tasking::enqueue(RPC_LEARN_ADD_LEARNER,
+        derror_replica("start add let another secondary copy own file={}",
+                       proposal.node.to_string());
+        tasking::enqueue(LPC_LEARN_ADD_LEARNER,
                          &_tracker,
                          [&]() { add_potential_secondary(proposal); },
                          get_gpid().thread_hash());
@@ -76,10 +78,17 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
 
     std::vector<rpc_address> remote_meta_list = _stub->_duplication_apps[_app_info.app_name];
     if (remote_meta_list.empty()) {
+        derror_replica("mete_list empty");
         return;
     }
     auto pconfig = _stub->query_duplication_app_info(_app_info.app_name, remote_meta_list);
+    if (pconfig.empty()) {
+        derror_replica("pconfig empty");
+        return;
+    }
+
     auto remote_primary = pconfig.at(proposal.config.pid.get_partition_index()).primary;
+    derror_replica("start copy file: {}", remote_primary);
 
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CLUSTER_LEARN, 0, get_gpid().thread_hash());
@@ -89,7 +98,8 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
               &_tracker,
               [ this, proposal_cp = proposal, learnee = remote_primary, req_cap = request ](
                   error_code err, learn_response && resp) mutable {
-                  on_cluster_learn_reply(err, learnee, proposal_cp, std::move(req_cap), std::move(resp));
+                  on_cluster_learn_reply(
+                      err, learnee, proposal_cp, std::move(req_cap), std::move(resp));
               });
 }
 
@@ -214,7 +224,9 @@ void replica::on_cluster_learn_reply(error_code err,
                 on_copy_remote_cluster_state_completed(
                     err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
                 ok = true;
-                tasking::enqueue(RPC_LEARN_ADD_LEARNER,
+                derror_replica("start add let secondary copy own file={}",
+                               proposal_cp.node.to_string());
+                tasking::enqueue(LPC_LEARN_ADD_LEARNER,
                                  &_tracker,
                                  [&]() { add_potential_secondary(proposal_cp); },
                                  get_gpid().thread_hash());

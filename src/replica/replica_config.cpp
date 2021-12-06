@@ -87,8 +87,8 @@ void replica::on_config_proposal(configuration_update_request &proposal)
         break;
     case config_type::CT_ADD_SECONDARY:
     case config_type::CT_ADD_SECONDARY_FOR_LB:
-        if (proposal.info.duplicating) {
-            derror_replica("start duplication");
+        if (proposal.info.duplicating && proposal.config.pid.get_partition_index() == 0) {
+            derror_replica("start duplication, {}", proposal.config.pid.to_string());
             tasking::enqueue(
                 LPC_INIT_CLUSTER_LEARN, &_tracker, [&]() { init_cluster_learn(proposal); }, 0);
         } else {
