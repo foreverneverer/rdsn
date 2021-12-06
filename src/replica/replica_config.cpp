@@ -87,11 +87,24 @@ void replica::on_config_proposal(configuration_update_request &proposal)
         break;
     case config_type::CT_ADD_SECONDARY:
     case config_type::CT_ADD_SECONDARY_FOR_LB:
+        derror_replica("try duplicationXXXXXXXXXXXXXXXXXXXXX, {}", proposal.config.pid.to_string());
         if (proposal.info.duplicating && proposal.config.pid.get_partition_index() == 0) {
-            derror_replica("start duplication, {}", proposal.config.pid.to_string());
-            tasking::enqueue(
-                LPC_INIT_CLUSTER_LEARN, &_tracker, [&]() { init_cluster_learn(proposal); }, 0);
+            if (!running) {
+                derror_replica("start duplicationXXXXXXXXXXXXXXXXXXXXX, {}", proposal.config.pid.to_string());
+                gpid pid = proposal.config.pid;
+                tasking::enqueue(
+                    LPC_INIT_CLUSTER_LEARN, &_tracker, [=]() { init_cluster_learn(pid); }, 0);
+                running = true;
+            } else {
+                derror_replica("duplicationXXXXXXXXXXXXXXXXXXXXX, is runnning {}, sec={}", proposal.config.pid.to_string(), secondary_learn);
+                if (secondary_learn) {
+                    derror_replica("duplicationXXXXXXXXXXXXXXXXXXXXX, is runnning and start replica learn {}", proposal.config.pid.to_string());
+                    add_potential_secondary(proposal);
+                }
+            }
         } else {
+            proposal.info.__set_duplicating(false);
+            _app_info.__set_duplicating(false);
             add_potential_secondary(proposal);
         }
         break;

@@ -1304,10 +1304,6 @@ void replica_stub::on_add_learner(const group_check_request &request)
               request.config.primary.to_string());
         return;
     }
-    derror_f("receive add learner {}={}, dup={}",
-             request.config.primary.to_string(),
-             request.config.pid.to_string(),
-             request.app.duplicating);
 
     ddebug("%s@%s: received add learner, primary = %s, ballot = %" PRId64
            ", status = %s, last_committed_decree = %" PRId64,
@@ -1328,13 +1324,16 @@ void replica_stub::on_add_learner(const group_check_request &request)
     }
 }
 
-void replica_stub::on_add_duplication_app(const configuration_create_dup_app_request &request)
+void replica_stub::on_add_duplication_app(create_dup_app rpc)
 {
+    const auto &request = rpc.request();
+    auto &resp = rpc.response();
     // todo(jiashuo) need thread safe
     zauto_write_lock l(_duplication_apps_lock);
     derror_f("on_add_duplication_app");
     _duplicating = true;
     _duplication_apps.emplace(request.app_name, request.meta_list);
+    resp.err = ERR_OK;
 }
 
 std::vector<partition_configuration>
@@ -2279,9 +2278,6 @@ void replica_stub::open_service()
                                          "LearnNotify",
                                          &replica_stub::on_learn_completion_notification);
     register_rpc_handler(RPC_LEARN_ADD_LEARNER, "LearnAdd", &replica_stub::on_add_learner);
-    register_rpc_handler(RPC_LEARN_ADD_DUPLICATION_LEARNER,
-                         "add_slave_learn",
-                         &replica_stub::on_add_duplication_app);
     register_rpc_handler(RPC_CLUSTER_LEARN, "on_cluster_learn", &replica_stub::on_cluster_learn);
     register_rpc_handler(RPC_REMOVE_REPLICA, "remove", &replica_stub::on_remove);
     register_rpc_handler_with_rpc_holder(
@@ -2311,6 +2307,9 @@ void replica_stub::open_service()
         RPC_DETECT_HOTKEY, "detect_hotkey", &replica_stub::on_detect_hotkey);
     register_rpc_handler_with_rpc_holder(
         RPC_ADD_NEW_DISK, "add_new_disk", &replica_stub::on_add_new_disk);
+    register_rpc_handler_with_rpc_holder(RPC_LEARN_ADD_DUPLICATION_LEARNER,
+                         "add_slave_learn",
+                         &replica_stub::on_add_duplication_app);
 
     register_ctrl_command();
 }

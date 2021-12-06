@@ -159,15 +159,8 @@ void replica::init_learn(uint64_t signature)
                 }
 
                 // convert to success if app state and prepare list is connected
-                if (!_duplicating) {
-                    derror_replica("change to succeed");
-                    _potential_secondary_states.learning_status = learner_status::LearningSucceeded;
-                } else {
-                    _potential_secondary_states.learning_status =
-                        learner_status::LearningWithoutPrepare;
-                    derror_replica("start next loop learn");
-                    init_learn(_potential_secondary_states.learning_version);
-                }
+                derror_replica("change to succeed");
+                _potential_secondary_states.learning_status = learner_status::LearningSucceeded;
                 // fall through to success
             }
 
@@ -1332,12 +1325,13 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
     }
     count++;
 
-    if (_stub->_duplicating) {
+    if (_stub->_duplicating && get_gpid().get_partition_index() == 0) {
         if (count == 2) {
             // todo
+            running = false;
             derror_replica("hhhhhhhhhhoooooook");
         }
-        // return ERR_OK;
+        return ERR_OK;
     }
 
     upgrade_to_secondary_on_primary(node);
@@ -1493,7 +1487,8 @@ void replica::on_learn_completion_notification_reply(error_code err,
         }
     } else {
         _stub->_counter_replicas_learning_recent_learn_succ_count->increment();
-        if (_stub->_duplicating) {
+        if (_stub->_duplicating && get_gpid().get_partition_index() == 0) {
+            derror_replica("loop to start");
             _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
         }
     }

@@ -1231,6 +1231,7 @@ void meta_service::on_query_backup_status(query_backup_status_rpc rpc)
 
 void meta_service::on_create_dup_app(const configuration_create_dup_app_request &request)
 {
+    bool ok = true;
     for (const auto &replica_server : _alive_set) {
         dsn::message_ex *msg =
             dsn::message_ex::create_request(RPC_LEARN_ADD_DUPLICATION_LEARNER, 0, 0);
@@ -1239,17 +1240,23 @@ void meta_service::on_create_dup_app(const configuration_create_dup_app_request 
             rpc::call(replica_server,
                       msg,
                       &_tracker,
-                      [req_cap = request](error_code err,
+                      [&ok, replica_server_cp = replica_server, req_cap = request](error_code err,
                                           configuration_create_dup_app_response && resp) mutable {
                           if (err != ERR_OK) {
-                              derror_f("failed={}", err.to_string());
+                              ok = false;
+                              derror_f("failed={}, {}", err.to_string(), replica_server_cp.to_string());
                           } else {
                               derror_f("ok={}", resp.err.to_string());
                           }
                       });
         task->wait();
     }
-    get_server_state()->create_dup_app(request.app_name);
+    if (ok) {
+        derror_f("create dup app: {}", request.app_name);
+        get_server_state()->create_dup_app(request.app_name);
+    } else {
+        derror_f("create dup app faild: {}", request.app_name);
+    }
 }
 
 // todo

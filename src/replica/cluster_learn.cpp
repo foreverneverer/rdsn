@@ -46,29 +46,16 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_cluster_learn(configuration_update_request &proposal)
+void replica::init_cluster_learn(const dsn::gpid &gpid)
 {
+    derror_replica("start copy");
+    derror_replica("start copy {}", gpid.to_string());
     // TODO(jiashuo) need use own _potential_secondary_states
-    if (!running) {
-        running = true;
-    } else {
-        if (!ok) {
-            derror_replica("is runnning");
-            return;
-        }
-        derror_replica("start add let another secondary copy own file={}",
-                       proposal.node.to_string());
-        tasking::enqueue(LPC_LEARN_ADD_LEARNER,
-                         &_tracker,
-                         [&]() { add_potential_secondary(proposal); },
-                         get_gpid().thread_hash());
-        return;
-    }
     _potential_secondary_states.learning_start_ts_ns = dsn_now_ns();
     _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
 
     learn_request request;
-    request.pid = proposal.config.pid;
+    request.pid = gpid;
     request.__set_max_gced_decree(get_max_gced_decree_for_learn());
     request.last_committed_decree_in_app = _app->last_committed_decree();
     request.last_committed_decree_in_prepare_list = _prepare_list->last_committed_decree();
@@ -87,8 +74,8 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
         return;
     }
 
-    auto remote_primary = pconfig.at(proposal.config.pid.get_partition_index()).primary;
-    derror_replica("start copy file: {}", remote_primary);
+    auto remote_primary = pconfig.at(gpid.get_partition_index()).primary;
+    derror_replica("start copy file: {}", remote_primary.to_string());
 
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CLUSTER_LEARN, 0, get_gpid().thread_hash());
@@ -96,10 +83,10 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
     rpc::call(remote_primary,
               msg,
               &_tracker,
-              [ this, proposal_cp = proposal, learnee = remote_primary, req_cap = request ](
+              [ this,learnee = remote_primary, req_cap = request ](
                   error_code err, learn_response && resp) mutable {
                   on_cluster_learn_reply(
-                      err, learnee, proposal_cp, std::move(req_cap), std::move(resp));
+                      err, learnee, std::move(req_cap), std::move(resp));
               });
 }
 
@@ -176,7 +163,6 @@ void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &reques
 
 void replica::on_cluster_learn_reply(error_code err,
                                      dsn::rpc_address learnee,
-                                     configuration_update_request &proposal,
                                      learn_request &&req,
                                      learn_response &&resp)
 {
@@ -216,20 +202,12 @@ void replica::on_cluster_learn_reply(error_code err,
             &_tracker,
             [
               this,
-              proposal_cp = proposal,
               copy_start = _potential_secondary_states.duration_ms(),
               req_cap = req,
               resp_copy = resp
             ](error_code err, size_t sz) mutable {
                 on_copy_remote_cluster_state_completed(
                     err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
-                ok = true;
-                derror_replica("start add let secondary copy own file={}",
-                               proposal_cp.node.to_string());
-                tasking::enqueue(LPC_LEARN_ADD_LEARNER,
-                                 &_tracker,
-                                 [&]() { add_potential_secondary(proposal_cp); },
-                                 get_gpid().thread_hash());
             });
     } else {
         dassert_replica(resp.state.files.size(), "must lager than 0");
@@ -309,10 +287,15 @@ void replica::on_copy_remote_cluster_state_completed(error_code err,
                     "%" PRId64 " VS %" PRId64 "",
                     _app->last_committed_decree(),
                     _app->last_durable_decree());
+            secondary_learn = true;
+            derror_replica("wait add secondary copy own file={}", secondary_learn);
         } else {
             derror_replica("sync checkpoint error");
         }
     }
+
+    secondary_learn = true;
+    derror_replica("wait add secondary copy own file={}", secondary_learn);
 }
 
 // in non-replication thread

@@ -297,13 +297,13 @@ private:
     error_code apply_learned_state_from_private_log(learn_state &state);
 
     // cluster learning
-    bool running;
-    bool ok;
+    bool running = false;
+    bool secondary_learn = false;
     int count = 0;
-    void init_cluster_learn(configuration_update_request &proposal);
+    configuration_update_request dup_proposal;
+    void init_cluster_learn(const dsn::gpid &gpid);
     void on_cluster_learn_reply(error_code err,
                                 dsn::rpc_address learnee,
-                                configuration_update_request &proposal,
                                 learn_request &&req,
                                 learn_response &&resp);
     void on_copy_remote_cluster_state_completed(error_code err,
