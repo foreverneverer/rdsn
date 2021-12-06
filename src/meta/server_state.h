@@ -344,6 +344,9 @@ private:
     perf_counter_wrapper _recent_update_config_count;
     perf_counter_wrapper _recent_partition_change_unwritable_count;
     perf_counter_wrapper _recent_partition_change_writable_count;
+
+public:
+    void create_dup_app(const std::string &app_name);
 };
 
 } // namespace replication

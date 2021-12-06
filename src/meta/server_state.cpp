@@ -2864,5 +2864,25 @@ void server_state::clear_app_envs(const app_env_rpc &env_rpc)
                    new_envs.c_str());
         });
 }
+
+void server_state::create_dup_app(const std::string &app_name)
+{
+    app_info info;
+    info.app_id = next_app_id();
+    info.app_name = app_name;
+    info.app_type = "pegasus";
+    info.is_stateful = true;
+    info.max_replica_count = 3;
+    info.partition_count = 8;
+    info.status = app_status::AS_CREATING;
+    info.create_second = dsn_now_ms() / 1000;
+    info.init_partition_count = 8;
+    info.__set_duplicating(true);
+
+    std::shared_ptr<app_state> app = app_state::create(info);
+    _all_apps.emplace(app->app_id, app);
+    _exist_apps.emplace(app_name, app);
+    do_app_create(app);
+}
 } // namespace replication
 } // namespace dsn

@@ -361,8 +361,8 @@ struct ddd_diagnose_response
 
 struct configuration_create_dup_app_request
 {
-    1:string                   app_name;
-    2:string       meta_list;
+    1:string app_name;
+    2:list<dsn.rpc_address>       meta_list;
 }
 
 struct configuration_create_dup_app_response

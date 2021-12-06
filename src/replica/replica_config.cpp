@@ -87,7 +87,13 @@ void replica::on_config_proposal(configuration_update_request &proposal)
         break;
     case config_type::CT_ADD_SECONDARY:
     case config_type::CT_ADD_SECONDARY_FOR_LB:
-        add_potential_secondary(proposal);
+        if (proposal.info.duplicating) {
+            derror_replica("start duplication");
+            tasking::enqueue(
+                LPC_INIT_CLUSTER_LEARN, &_tracker, [&]() { init_cluster_learn(proposal); }, 0);
+        } else {
+            add_potential_secondary(proposal);
+        }
         break;
     case config_type::CT_DOWNGRADE_TO_SECONDARY:
         downgrade_to_secondary_on_primary(proposal);
@@ -138,6 +144,10 @@ void replica::assign_primary(configuration_update_request &proposal)
 // run on primary to send ADD_LEARNER request to candidate replica server
 void replica::add_potential_secondary(configuration_update_request &proposal)
 {
+    if (proposal.info.duplicating) {
+        derror_replica("send add learner for dup: {}", proposal.node.to_string());
+    }
+
     if (status() != partition_status::PS_PRIMARY) {
         dwarn("%s: ignore add secondary proposal for invalid state, state = %s",
               name(),

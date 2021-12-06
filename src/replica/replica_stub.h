@@ -228,7 +228,7 @@ public:
     void on_add_new_disk(add_new_disk_rpc rpc);
 
     // cluster learn
-    void on_add_slave_learner(const group_check_request &request);
+    void on_add_duplication_app(const configuration_create_dup_app_request &request);
 
 private:
     enum replica_node_state
@@ -507,7 +507,15 @@ private:
     perf_counter_wrapper _counter_replicas_splitting_recent_split_succ_count;
 
     dsn::task_tracker _tracker;
+
+public:
+    bool _duplicating;
+    mutable zrwlock_nr _duplication_apps_lock;
+    std::map<std::string, std::vector<rpc_address>> _duplication_apps;
     void on_cluster_learn(message_ex *msg);
+    std::vector<partition_configuration>
+    query_duplication_app_info(const std::string &app_name,
+                               const std::vector<rpc_address> &meta_list);
 };
 } // namespace replication
 } // namespace dsn

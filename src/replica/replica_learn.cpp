@@ -1330,6 +1330,15 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
                it->second.signature);
         return ERR_INVALID_STATE;
     }
+    count++;
+
+    if (_stub->_duplicating) {
+        if (count == 2) {
+            // todo
+            derror_replica("hhhhhhhhhhoooooook");
+        }
+        // return ERR_OK;
+    }
 
     upgrade_to_secondary_on_primary(node);
     return ERR_OK;
@@ -1484,6 +1493,9 @@ void replica::on_learn_completion_notification_reply(error_code err,
         }
     } else {
         _stub->_counter_replicas_learning_recent_learn_succ_count->increment();
+        if (_stub->_duplicating) {
+            _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
+        }
     }
 }
 
@@ -1502,13 +1514,14 @@ void replica::on_add_learner(const group_check_request &request)
         return;
     }
 
-    derror_replica("request.config.ballot[{}] > get_ballot()[{}], "
-                   "is_same_ballot_status_change_allowed(status()[{}], request.config.status[{}]) = {}",
-                   request.config.ballot,
-                   get_ballot(),
-                   status(),
-                   request.config.status,
-                   is_same_ballot_status_change_allowed(status(), request.config.status));
+    derror_replica(
+        "request.config.ballot[{}] > get_ballot()[{}], "
+        "is_same_ballot_status_change_allowed(status()[{}], request.config.status[{}]) = {}",
+        request.config.ballot,
+        get_ballot(),
+        status(),
+        request.config.status,
+        is_same_ballot_status_change_allowed(status(), request.config.status));
 
     if (request.config.ballot > get_ballot() ||
         is_same_ballot_status_change_allowed(status(), request.config.status)) {

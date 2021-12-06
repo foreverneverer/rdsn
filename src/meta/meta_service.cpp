@@ -286,6 +286,44 @@ void meta_service::register_ctrl_commands()
                 }
                 return result;
             });
+
+    // just test
+    _test_add_slave_learner_command = dsn::command_manager::instance().register_command(
+        {"_test_add_slave_learner_command"},
+        "_test_add_slave_learner_command [num | DEFAULT]",
+        "_test_add_slave_learner_command",
+        [this](const std::vector<std::string> &args) {
+            std::string result("OK");
+            if (args.empty()) {
+                result = "test_add_slave_learner_command = " + duplication_info;
+                return result;
+            }
+
+            configuration_create_dup_app_request request;
+            std::vector<std::string> config;
+            static const std::string invalid_arguments("invalid arguments");
+
+            dsn::utils::split_args(args[0].c_str(), config, ',');
+            if (config.empty()) {
+                return invalid_arguments;
+            }
+
+            std::string remote_meta_addrs = config[0];
+            std::vector<std::string> ipport;
+            dsn::utils::split_args(remote_meta_addrs.c_str(), ipport, ':');
+            if (ipport.empty()) {
+                return invalid_arguments;
+            }
+            uint32_t port = 0;
+            if (!dsn::buf2uint32(ipport[1], port)) {
+                return invalid_arguments;
+            }
+            request.meta_list.emplace_back(dsn::rpc_address(ipport[0].c_str(), port));
+            request.app_name = config[1];
+            on_create_dup_app(request);
+            duplication_info = args[0];
+            return result;
+        });
 }
 
 void meta_service::unregister_ctrl_commands()
@@ -1191,8 +1229,39 @@ void meta_service::on_query_backup_status(query_backup_status_rpc rpc)
     _backup_handler->query_backup_status(std::move(rpc));
 }
 
-void meta_service::on_create_dup_app(const configuration_create_dup_app_request &request) {
+void meta_service::on_create_dup_app(const configuration_create_dup_app_request &request)
+{
+    for (const auto &replica_server : _alive_set) {
+        dsn::message_ex *msg =
+            dsn::message_ex::create_request(RPC_LEARN_ADD_DUPLICATION_LEARNER, 0, 0);
+        dsn::marshall(msg, request);
+        auto task =
+            rpc::call(replica_server,
+                      msg,
+                      &_tracker,
+                      [req_cap = request](error_code err,
+                                          configuration_create_dup_app_response && resp) mutable {
+                          if (err != ERR_OK) {
+                              derror_f("failed={}", err.to_string());
+                          } else {
+                              derror_f("ok={}", resp.err.to_string());
+                          }
+                      });
+        task->wait();
+    }
+    get_server_state()->create_dup_app(request.app_name);
+}
 
+// todo
+void meta_service::check_dup_request_to_remote_meta(
+    const configuration_create_dup_app_request &request)
+{
+}
+
+// todo
+void meta_service::on_check_dup_request_reply_from_remote_meta(
+    const configuration_create_dup_app_response &resp)
+{
 }
 
 } // namespace replication

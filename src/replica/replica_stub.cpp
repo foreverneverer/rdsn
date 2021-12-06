@@ -1328,18 +1328,47 @@ void replica_stub::on_add_learner(const group_check_request &request)
     }
 }
 
-void replica_stub::on_add_slave_learner(const group_check_request &request)
+void replica_stub::on_add_duplication_app(const configuration_create_dup_app_request &request)
 {
-    auto local = dsn::gpid(2, 0);
-    replica_ptr rep = get_replica(local);
-    if (rep != nullptr) {
-        rep->on_add_slave_learner(request);
-    } else {
-        derror_f("node={}, remote_gpid={} failed, because the {} is null",
-                 request.node.to_string(),
-                 request.config.pid,
-                 rep->get_gpid());
+    // todo(jiashuo) need thread safe
+    zauto_write_lock l(_duplication_apps_lock);
+    derror_f("on_add_duplication_app");
+    _duplicating = true;
+    _duplication_apps.emplace(request.app_name, request.meta_list);
+}
+
+std::vector<partition_configuration>
+replica_stub::query_duplication_app_info(const std::string &app_name,
+                                         const std::vector<rpc_address> &meta_list)
+{
+    // todo refactor for meta use the function
+    std::vector<partition_configuration> configurations;
+    for (const auto &meta : meta_list) {
+        configuration_query_by_index_request meta_config_request;
+        meta_config_request.app_name = app_name;
+        dsn::message_ex *msg =
+            dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX, 0, 0);
+        dsn::marshall(msg, meta_config_request);
+        auto task = rpc::call(meta, msg, &_tracker, [
+            &configurations,
+            req_cap = meta_config_request
+        ](error_code err, configuration_query_by_index_response && resp) mutable {
+            if (err != ERR_OK) {
+                derror_f("failed:{}", err.to_string());
+            } else {
+                if (resp.err != ERR_OK) {
+                    derror_f("failed: {}", resp.err.to_string());
+                } else {
+                    configurations = resp.partitions;
+                }
+            }
+        });
+        task->wait();
+        if (!configurations.empty()) {
+            return configurations;
+        }
     }
+    return configurations;
 }
 
 void replica_stub::on_remove(const replica_configuration &request)
@@ -2250,8 +2279,9 @@ void replica_stub::open_service()
                                          "LearnNotify",
                                          &replica_stub::on_learn_completion_notification);
     register_rpc_handler(RPC_LEARN_ADD_LEARNER, "LearnAdd", &replica_stub::on_add_learner);
-    register_rpc_handler(
-        RPC_LEARN_ADD_SLAVE_LEARNER, "add_slave_learn", &replica_stub::on_add_slave_learner);
+    register_rpc_handler(RPC_LEARN_ADD_DUPLICATION_LEARNER,
+                         "add_slave_learn",
+                         &replica_stub::on_add_duplication_app);
     register_rpc_handler(RPC_CLUSTER_LEARN, "on_cluster_learn", &replica_stub::on_cluster_learn);
     register_rpc_handler(RPC_REMOVE_REPLICA, "remove", &replica_stub::on_remove);
     register_rpc_handler_with_rpc_holder(
@@ -2463,58 +2493,6 @@ void replica_stub::register_ctrl_command()
                     }
                     return result;
                 });
-
-        // just test
-        _test_add_slave_learner_command = dsn::command_manager::instance().register_command(
-            {"_test_add_slave_learner_command"},
-            "_test_add_slave_learner_command [num | DEFAULT]",
-            "_test_add_slave_learner_command",
-            [this](const std::vector<std::string> &args) {
-                std::string result("OK");
-                if (args.empty()) {
-                    result = "_test_add_slave_learner_command = " + learnee_info;
-                    return result;
-                }
-
-                group_check_request request;
-                std::vector<std::string> config;
-                static const std::string invalid_arguments("invalid arguments");
-
-                dsn::utils::split_args(args[0].c_str(), config, ',');
-                if (config.empty()) {
-                    return invalid_arguments;
-                }
-
-                std::string remote_primary_addrs = config[0];
-                std::vector<std::string> ipport;
-                dsn::utils::split_args(remote_primary_addrs.c_str(), ipport, ':');
-                if (ipport.empty()) {
-                    return invalid_arguments;
-                }
-                uint32_t port = 0;
-                if (!dsn::buf2uint32(ipport[1], port)) {
-                    return invalid_arguments;
-                }
-                request.node = dsn::rpc_address(ipport[0].c_str(), port);
-
-                std::string remote_primary_pid = config[1];
-                std::vector<std::string> gpid;
-                dsn::utils::split_args(remote_primary_pid.c_str(), gpid, '.');
-                uint app_id = 0;
-                uint part_id = 0;
-                if (!dsn::buf2uint32(gpid[0], app_id)) {
-                    return invalid_arguments;
-                }
-                if (!dsn::buf2uint32(gpid[1], part_id)) {
-                    return invalid_arguments;
-                }
-                request.config.pid = dsn::gpid(app_id, part_id);
-
-                learnee_info = fmt::format(
-                    "node={}, gpid={}", request.node.to_string(), request.config.pid.to_string());
-                on_add_slave_learner(request);
-                return result;
-            });
     });
 }
 

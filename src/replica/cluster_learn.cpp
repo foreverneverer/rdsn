@@ -46,53 +46,27 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_cluster_learn(uint64_t signature, const dsn::rpc_address &remote, dsn::gpid pid)
+void replica::init_cluster_learn(configuration_update_request &proposal)
 {
-    derror_replica("receive add learner cmd request: {}, {}", remote.to_string(), pid.to_string());
-
-    {
-        if (!_duplicating) {
-            _duplicating = true;
-            derror_replica("start send: {}", _primary_states.membership.secondaries.size());
-            for (auto &secondary : _primary_states.membership.secondaries) {
-                remote_learner_state state;
-                state.prepare_start_decree = invalid_decree;
-                state.timeout_task = nullptr; // TODO: add timer for learner task
-
-                auto it = _primary_states.learners.find(secondary);
-                if (it != _primary_states.learners.end()) {
-                    state.signature = it->second.signature;
-                } else {
-                    state.signature = ++_primary_states.next_learning_version;
-                    _primary_states.learners[secondary] = state;
-                    _primary_states.statuses[secondary] = partition_status::PS_POTENTIAL_SECONDARY;
-                }
-
-                group_check_request request;
-                request.app = _app_info;
-                request.app.__set_duplicating(_duplicating);
-                request.node = secondary;
-                _primary_states.get_replica_config(
-                    partition_status::PS_POTENTIAL_SECONDARY, request.config, state.signature);
-                request.last_committed_decree = last_committed_decree();
-
-                derror_replica("send replica add learner: {}, {}",
-                               secondary.to_string(),
-                               request.config.pid.to_string());
-                rpc::call_one_way_typed(
-                    secondary, RPC_LEARN_ADD_LEARNER, request, get_gpid().thread_hash());
-            }
-            derror_replica("sleep 120s for replica learn");
-            sleep(120);
+    // TODO(jiashuo) need use own _potential_secondary_states
+    if (!running) {
+        running = true;
+    } else {
+        while (!ok) {
+            derror_replica("is runnning");
+            sleep(10);
         }
+        tasking::enqueue(RPC_LEARN_ADD_LEARNER,
+                         &_tracker,
+                         [&]() { add_potential_secondary(proposal); },
+                         get_gpid().thread_hash());
+        return;
     }
-
-    _potential_secondary_states.learning_version = signature;
     _potential_secondary_states.learning_start_ts_ns = dsn_now_ns();
     _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
 
     learn_request request;
-    request.pid = pid;
+    request.pid = proposal.config.pid;
     request.__set_max_gced_decree(get_max_gced_decree_for_learn());
     request.last_committed_decree_in_app = _app->last_committed_decree();
     request.last_committed_decree_in_prepare_list = _prepare_list->last_committed_decree();
@@ -100,44 +74,23 @@ void replica::init_cluster_learn(uint64_t signature, const dsn::rpc_address &rem
     request.signature = _potential_secondary_states.learning_version;
     _app->prepare_get_checkpoint(request.app_specific_learn_request);
 
+    std::vector<rpc_address> remote_meta_list = _stub->_duplication_apps[_app_info.app_name];
+    if (remote_meta_list.empty()) {
+        return;
+    }
+    auto pconfig = _stub->query_duplication_app_info(_app_info.app_name, remote_meta_list);
+    auto remote_primary = pconfig.at(proposal.config.pid.get_partition_index()).primary;
+
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CLUSTER_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
-    _potential_secondary_states.learning_task = rpc::call(remote, msg, &_tracker, [
-        this,
-        learnee = remote,
-        req_cap = request
-    ](error_code err, learn_response && resp) mutable {
-        if (err != ERR_OK) {
-            for (auto &secondary : _primary_states.membership.secondaries) {
-                remote_learner_state state;
-                state.prepare_start_decree = invalid_decree;
-                state.timeout_task = nullptr; // TODO: add timer for learner task
-
-                auto it = _primary_states.learners.find(secondary);
-                if (it != _primary_states.learners.end()) {
-                    state.signature = it->second.signature;
-                } else {
-                    state.signature = ++_primary_states.next_learning_version;
-                    _primary_states.learners[secondary] = state;
-                    _primary_states.statuses[secondary] = partition_status::PS_POTENTIAL_SECONDARY;
-                }
-
-                group_check_request request;
-                request.app = _app_info;
-                request.app.__set_duplicating(false);
-                request.node = secondary;
-                _primary_states.get_replica_config(
-                    partition_status::PS_POTENTIAL_SECONDARY, request.config, state.signature);
-                request.last_committed_decree = last_committed_decree();
-
-                rpc::call_one_way_typed(
-                    secondary, RPC_LEARN_ADD_LEARNER, request, get_gpid().thread_hash());
-            }
-        }
-
-        on_cluster_learn_reply(err, learnee, std::move(req_cap), std::move(resp));
-    });
+    rpc::call(remote_primary,
+              msg,
+              &_tracker,
+              [ this, proposal_cp = proposal, learnee = remote_primary, req_cap = request ](
+                  error_code err, learn_response && resp) mutable {
+                  on_cluster_learn_reply(err, learnee, proposal_cp, std::move(req_cap), std::move(resp));
+              });
 }
 
 void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &request)
@@ -213,6 +166,7 @@ void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &reques
 
 void replica::on_cluster_learn_reply(error_code err,
                                      dsn::rpc_address learnee,
+                                     configuration_update_request &proposal,
                                      learn_request &&req,
                                      learn_response &&resp)
 {
@@ -252,12 +206,18 @@ void replica::on_cluster_learn_reply(error_code err,
             &_tracker,
             [
               this,
+              proposal_cp = proposal,
               copy_start = _potential_secondary_states.duration_ms(),
               req_cap = req,
               resp_copy = resp
             ](error_code err, size_t sz) mutable {
                 on_copy_remote_cluster_state_completed(
                     err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
+                ok = true;
+                tasking::enqueue(RPC_LEARN_ADD_LEARNER,
+                                 &_tracker,
+                                 [&]() { add_potential_secondary(proposal_cp); },
+                                 get_gpid().thread_hash());
             });
     } else {
         dassert_replica(resp.state.files.size(), "must lager than 0");
@@ -341,11 +301,6 @@ void replica::on_copy_remote_cluster_state_completed(error_code err,
             derror_replica("sync checkpoint error");
         }
     }
-}
-
-void replica::on_add_slave_learner(const group_check_request &request)
-{
-    init_cluster_learn(request.config.learner_signature, request.node, request.config.pid);
 }
 
 // in non-replication thread
