@@ -46,6 +46,7 @@
 namespace dsn {
 namespace replication {
 
+// learner
 void replica::on_add_cluster_learner(configuration_update_request &proposal)
 {
     if (_app_duplication_status == app_duplication_status::DuplicationIdle ||
