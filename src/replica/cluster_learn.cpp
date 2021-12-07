@@ -46,8 +46,33 @@
 namespace dsn {
 namespace replication {
 
-// learner
 void replica::on_add_cluster_learner(configuration_update_request &proposal)
+{
+    if (_app_duplication_status == app_duplication_status::DuplicationIdle ||
+        _app_duplication_status == app_duplication_status::ReplicaLearningSucceeded) {
+        derror_replica("{} duplication status is {}, start new cluster learn work",
+                       proposal.info.app_name,
+                       cluster_learn_status());
+        _app_duplication_status = app_duplication_status::ClusterLearning;
+        init_cluster_learn(proposal);
+    } else if (_app_duplication_status == app_duplication_status::ClusterLearning ||
+               _app_duplication_status == app_duplication_status::ReplicaLearning) {
+        derror_replica("{} duplication status is {}, skip the proposal",
+                       proposal.info.app_name,
+                       cluster_learn_status());
+        return;
+    } else if (_app_duplication_status == app_duplication_status::ClusterLearningSucceeded) {
+        derror_replica("{} duplication status is {}, step to next stage {}",
+                       proposal.info.app_name,
+                       cluster_learn_status(),
+                       enum_to_string(app_duplication_status::ReplicaLearning));
+        _app_duplication_status = app_duplication_status::ReplicaLearning;
+        add_potential_secondary(proposal);
+    }
+}
+
+// learner
+void replica::init_cluster_learn(configuration_update_request &proposal)
 {
     _checker.only_one_thread_access();
 
@@ -55,8 +80,9 @@ void replica::on_add_cluster_learner(configuration_update_request &proposal)
               "app_duplication_status must be at {}",
               app_duplication_status::ClusterLearning);
     dassert_f(status() == partition_status::PS_PRIMARY,
-              "replica must be at {}",
+              "replica must be at {} when start cluster learning",
               partition_status::PS_PRIMARY);
+    dassert_f(proposal.info.duplicating, "app must be at duplicating when start cluster learning");
 
     derror_replica("process add cluster learner, remote = {},"
                    "last_committed_decree = {} vs {}, duplicating = {}",
@@ -66,12 +92,12 @@ void replica::on_add_cluster_learner(configuration_update_request &proposal)
                    proposal.info.duplicating);
 
     _duplicating = proposal.info.duplicating;
-    _duplication_replica_node = proposal.duplication_config.primary;
+    _duplication_remote_node = proposal.duplication_config.primary;
     init_learn(_potential_secondary_states.learning_version);
 }
 
 // learner
-bool replica::is_cluster_primary_learner()
+bool replica::is_cluster_learner_with_primary_status() const
 {
     return _duplicating && status() == partition_status::PS_PRIMARY;
 }
@@ -82,6 +108,7 @@ std::string replica::cluster_learn_status()
     return fmt::format("[{}]{}", _duplicating, enum_to_string(_app_duplication_status));
 }
 
+// learner
 void replica::add_duplication_learner(const rpc_address &learner, uint64_t signature)
 {
     auto it = _primary_states.learners.find(learner);

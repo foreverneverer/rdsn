@@ -53,7 +53,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
     _checker.only_one_thread_access();
 
     if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
-        !is_cluster_primary_learner()) { // todo 需要支持Primary
+        !is_cluster_learner_with_primary_status()) { // todo 需要支持Primary
         derror_replica("state is not potential secondary or duplicating but "
                        "replica_learn={}，cluster_learn={}, skip "
                        "learning with signature",
@@ -63,7 +63,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
         return;
     }
 
-    if (is_cluster_primary_learner() &&
+    if (is_cluster_learner_with_primary_status() &&
         _potential_secondary_states.learning_status >= learner_status::LearningWithPrepare) {
         derror_replica("app duplication is {}, step to next stage {} for learning status is {}",
                        cluster_learn_status(),
@@ -235,9 +235,9 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
            _potential_secondary_states.learning_copy_file_size,
            _potential_secondary_states.learning_copy_buffer_size);
 
-    auto remote_primary = _duplication_replica_node == dsn::rpc_address::s_invalid_address
+    auto remote_primary = _duplication_remote_node == dsn::rpc_address::s_invalid_address
                               ? _config.primary
-                              : _duplication_replica_node;
+                              : _duplication_remote_node;
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
     _potential_secondary_states.learning_task = rpc::call(
@@ -580,7 +580,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
     _checker.only_one_thread_access();
 
     dassert_replica(partition_status::PS_POTENTIAL_SECONDARY == status() ||
-                        is_cluster_primary_learner(), // todo 同上文，需要支持Primary
+                        is_cluster_learner_with_primary_status(), // todo 同上文，需要支持Primary
                     "invalid partition status, status = {}, duplication status = {}",
                     enum_to_string(status()),
                     cluster_learn_status());
@@ -651,7 +651,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
 
     // todo 添加校验函数is_learner()
     if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
-        !is_cluster_primary_learner()) { // todo 同上文，需要支持Primary
+        !is_cluster_learner_with_primary_status()) { // todo 同上文，需要支持Primary
         derror_replica("on_learn_reply[{}]: learnee = {}, current_status = {}, duplication status "
                        "= {}, stop learning",
                        req.signature,
@@ -1272,7 +1272,7 @@ void replica::on_learn_remote_state_completed(error_code err)
     _checker.only_one_thread_access();
 
     if (partition_status::PS_POTENTIAL_SECONDARY != status() ||
-        !is_cluster_primary_learner()) { // todo 同上
+        !is_cluster_learner_with_primary_status()) { // todo 同上
         dwarn("%s: on_learn_remote_state_completed[%016" PRIx64
               "]: learnee = %s, learn_duration = %" PRIu64 " ms, err = %s, "
               "the learner status is not PS_POTENTIAL_SECONDARY, but %s, ignore",
@@ -1355,7 +1355,7 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
         return ERR_INVALID_STATE;
     }
 
-    if (is_cluster_primary_learner() &&
+    if (is_cluster_learner_with_primary_status() &&
         ++_secondary_learner_completed_count == _primary_states.membership.secondaries.size()) {
         derror_replica("app duplication status is {}, step next to stage {} for all secondaries "
                        "have learned completed");

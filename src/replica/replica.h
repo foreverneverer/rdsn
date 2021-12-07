@@ -613,10 +613,11 @@ private:
     disk_status::type _disk_status{disk_status::NORMAL};
 
     int _secondary_learner_completed_count = 0;
-    rpc_address _duplication_replica_node = rpc_address::s_invalid_address;
+    rpc_address _duplication_remote_node = rpc_address::s_invalid_address;
     app_duplication_status::type _app_duplication_status{app_duplication_status::DuplicationIdle};
     void on_add_cluster_learner(configuration_update_request &proposal);
-    bool is_cluster_primary_learner();
+    void init_cluster_learn(configuration_update_request &proposal);
+    bool is_cluster_learner_with_primary_status() const;
     std::string cluster_learn_status();
     void add_duplication_learner(const rpc_address &learner, uint64_t signature);
 };

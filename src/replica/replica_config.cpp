@@ -88,32 +88,12 @@ void replica::on_config_proposal(configuration_update_request &proposal)
     case config_type::CT_ADD_SECONDARY:
     case config_type::CT_ADD_SECONDARY_FOR_LB:
         if (proposal.info.duplicating) {
-            derror_replica("app[{}] need learn remote cluster replica[{}.{}] data",
-                           proposal.info.app_name,
-                           proposal.duplication_config.primary,
-                           proposal.duplication_config.pid);
-            if (_app_duplication_status == app_duplication_status::DuplicationIdle ||
-                _app_duplication_status == app_duplication_status::ReplicaLearningSucceeded) {
-                derror_replica("{} duplication status is {}, start new cluster learn work",
-                               proposal.info.app_name,
-                               cluster_learn_status());
-                _app_duplication_status = app_duplication_status::ClusterLearning;
-                on_add_cluster_learner(proposal);
-            } else if (_app_duplication_status == app_duplication_status::ClusterLearning ||
-                       _app_duplication_status == app_duplication_status::ReplicaLearning) {
-                derror_replica("{} duplication status is {}, skip the proposal",
-                               proposal.info.app_name,
-                               cluster_learn_status());
-                return;
-            } else if (_app_duplication_status ==
-                       app_duplication_status::ClusterLearningSucceeded) {
-                derror_replica("{} duplication status is {}, step to next stage {}",
-                               proposal.info.app_name,
-                               cluster_learn_status(),
-                               enum_to_string(app_duplication_status::ReplicaLearning));
-                _app_duplication_status = app_duplication_status::ReplicaLearning;
-                add_potential_secondary(proposal);
-            }
+            derror_replica(
+                "app[{}] is duplicating and need learn remote cluster replica[{}.{}] firstly",
+                proposal.info.app_name,
+                proposal.duplication_config.primary,
+                proposal.duplication_config.pid);
+            on_add_cluster_learner(proposal);
         } else {
             add_potential_secondary(proposal);
         }
