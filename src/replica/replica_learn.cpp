@@ -46,12 +46,12 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_learn(uint64_t signature)
+void replica::init_learn(uint64_t signature)// todo 需要支持传递目标地址
 {
     _checker.only_one_thread_access();
     derror_replica("now is duplicating = {}, init learn", _duplicating);
 
-    if (status() != partition_status::PS_POTENTIAL_SECONDARY) {
+    if (status() != partition_status::PS_POTENTIAL_SECONDARY) {// todo 需要支持Primary
         derror(
             "%s: state is not potential secondary but %s, skip learning with signature[%016" PRIx64
             "]",
@@ -67,7 +67,7 @@ void replica::init_learn(uint64_t signature)
     }
 
     // at most one learning task running
-    if (_potential_secondary_states.learning_round_is_running) {
+    if (_potential_secondary_states.learning_round_is_running) {// todo _potential_secondary_statesz需要改名learner_states
         derror("%s: previous learning is still running, skip learning with signature [%016" PRIx64
                "]",
                name(),
@@ -167,7 +167,7 @@ void replica::init_learn(uint64_t signature)
         // app state and prepare list is connected
         case learner_status::LearningSucceeded: {
             check_state_completeness();
-            notify_learn_completion();
+            notify_learn_completion();// TODO 集群间同步完成不需要通告，而是直接返回，置集群间同步状态置位IDLE，等待下一轮,
             return;
         } break;
         case learner_status::LearningWithoutPrepare:
@@ -226,7 +226,7 @@ void replica::init_learn(uint64_t signature)
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
     _potential_secondary_states.learning_task = rpc::call(
-        _config.primary,
+        _config.primary,// TODO 这里根据是集群间Learn还是集群内Learn传递相应地址
         msg,
         &_tracker,
         [ this, req_cap = std::move(request) ](error_code err, learn_response && resp) mutable {
@@ -341,7 +341,7 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
     // but just set state to partition_status::PS_POTENTIAL_SECONDARY
     _primary_states.get_replica_config(partition_status::PS_POTENTIAL_SECONDARY, response.config);
 
-    auto it = _primary_states.learners.find(request.learner);
+    auto it = _primary_states.learners.find(request.learner);//todo 这里需要保证已经添加了热备集群的分片到learners
     if (it == _primary_states.learners.end()) {
         response.config.status = partition_status::PS_INACTIVE;
         response.err = ERR_OBJECT_NOT_FOUND;
@@ -558,7 +558,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
 {
     _checker.only_one_thread_access();
 
-    dassert(partition_status::PS_POTENTIAL_SECONDARY == status(),
+    dassert(partition_status::PS_POTENTIAL_SECONDARY == status(),// todo 同上文，需要支持Primary
             "invalid partition status, status = %s",
             enum_to_string(status()));
     dassert(req.signature == (int64_t)_potential_secondary_states.learning_version,
@@ -625,7 +625,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         dassert(ret, "");
     }
 
-    if (status() != partition_status::PS_POTENTIAL_SECONDARY) {
+    if (status() != partition_status::PS_POTENTIAL_SECONDARY) {// todo 同上文，需要支持Primary
         derror("%s: on_learn_reply[%016" PRIx64
                "]: learnee = %s, current_status = %s, stop learning",
                name(),
@@ -872,7 +872,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 "state is incomplete");
 
         // go to next stage
-        _potential_secondary_states.learning_status = learner_status::LearningWithPrepare;
+        _potential_secondary_states.learning_status = learner_status::LearningWithPrepare;// todo 处理完就返回，不再循环init_learn
         _potential_secondary_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
@@ -1244,7 +1244,7 @@ void replica::on_learn_remote_state_completed(error_code err)
 {
     _checker.only_one_thread_access();
 
-    if (partition_status::PS_POTENTIAL_SECONDARY != status()) {
+    if (partition_status::PS_POTENTIAL_SECONDARY != status()) {// todo 同上
         dwarn("%s: on_learn_remote_state_completed[%016" PRIx64
               "]: learnee = %s, learn_duration = %" PRIu64 " ms, err = %s, "
               "the learner status is not PS_POTENTIAL_SECONDARY, but %s, ignore",
@@ -1277,7 +1277,7 @@ void replica::on_learn_remote_state_completed(error_code err)
         handle_learning_error(err, true);
     } else {
         // continue
-        init_learn(_potential_secondary_states.learning_version);
+        init_learn(_potential_secondary_states.learning_version);// todo 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
     }
 }
 
@@ -1334,7 +1334,7 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
         return ERR_OK;
     }
 
-    upgrade_to_secondary_on_primary(node);
+    upgrade_to_secondary_on_primary(node);// todo 不需要上报
     return ERR_OK;
 }
 
@@ -1489,7 +1489,7 @@ void replica::on_learn_completion_notification_reply(error_code err,
         _stub->_counter_replicas_learning_recent_learn_succ_count->increment();
         if (_stub->_duplicating && get_gpid().get_partition_index() == 0) {
             derror_replica("loop to start");
-            _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
+            _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare; // todo： 错误，由于不再通告，所以不会执行该代码，需要删除
         }
     }
 }
