@@ -66,7 +66,8 @@ void replica::on_add_cluster_learner(configuration_update_request &proposal)
                    proposal.info.duplicating);
 
     _duplicating = proposal.info.duplicating;
-    init_learn(_potential_secondary_states.learning_version, proposal.duplication_config.primary);
+    _duplication_replica_node = proposal.duplication_config.primary;
+    init_learn(_potential_secondary_states.learning_version);
 }
 
 // learner

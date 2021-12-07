@@ -282,8 +282,7 @@ private:
 
     /////////////////////////////////////////////////////////////////
     // learning
-    void init_learn(uint64_t signature,
-                    const dsn::rpc_address &remote = dsn::rpc_address::s_invalid_address);
+    void init_learn(uint64_t signature);
     void on_learn_reply(error_code err, learn_request &&req, learn_response &&resp);
     void on_copy_remote_state_completed(error_code err,
                                         size_t size,
@@ -298,7 +297,6 @@ private:
     error_code apply_learned_state_from_private_log(learn_state &state);
 
     // cluster learning
-    configuration_update_request dup_proposal;
     void init_cluster_learn(const dsn::gpid &gpid);
     void on_cluster_learn_reply(error_code err,
                                 dsn::rpc_address learnee,
@@ -615,12 +613,12 @@ private:
     disk_status::type _disk_status{disk_status::NORMAL};
 
     int _secondary_learner_completed_count = 0;
+    rpc_address _duplication_replica_node = rpc_address::s_invalid_address;
     app_duplication_status::type _app_duplication_status{app_duplication_status::DuplicationIdle};
     void on_add_cluster_learner(configuration_update_request &proposal);
     bool is_cluster_primary_learner();
     std::string cluster_learn_status();
     void add_duplication_learner(const rpc_address &learner, uint64_t signature);
-    bool is_cluster_secondary_learner();
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication

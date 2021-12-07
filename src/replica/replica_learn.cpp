@@ -46,11 +46,9 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_learn(
-    uint64_t signature,
-    const dsn::rpc_address &remote) // todo 需要支持传递目标地址
-                                    // 更新：已经支持，但是循环调用如何传递这个值
-                                    // 更新：目标地址应该是全局变量
+void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地址
+// 更新：已经支持，但是循环调用如何传递这个值
+// 更新：目标地址应该是全局变量
 {
     _checker.only_one_thread_access();
 
@@ -237,7 +235,9 @@ void replica::init_learn(
            _potential_secondary_states.learning_copy_file_size,
            _potential_secondary_states.learning_copy_buffer_size);
 
-    auto remote_primary = remote == dsn::rpc_address::s_invalid_address ? _config.primary : remote;
+    auto remote_primary = _duplication_replica_node == dsn::rpc_address::s_invalid_address
+                              ? _config.primary
+                              : _duplication_replica_node;
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
     _potential_secondary_states.learning_task = rpc::call(
@@ -898,9 +898,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 "state is incomplete");
 
         // go to next stage
-        _potential_secondary_states.learning_status = learner_status::
-            LearningWithPrepare; // todo
-                                 // 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断
+        _potential_secondary_states.learning_status = learner_status::LearningWithPrepare; // todo
+        // 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断
         _potential_secondary_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
