@@ -1236,19 +1236,18 @@ void meta_service::on_create_dup_app(const configuration_create_dup_app_request 
         dsn::message_ex *msg =
             dsn::message_ex::create_request(RPC_LEARN_ADD_DUPLICATION_LEARNER, 0, 0);
         dsn::marshall(msg, request);
-        auto task =
-            rpc::call(replica_server,
-                      msg,
-                      &_tracker,
-                      [&ok, replica_server_cp = replica_server, req_cap = request](error_code err,
-                                          configuration_create_dup_app_response && resp) mutable {
-                          if (err != ERR_OK) {
-                              ok = false;
-                              derror_f("failed={}, {}", err.to_string(), replica_server_cp.to_string());
-                          } else {
-                              derror_f("ok={}", resp.err.to_string());
-                          }
-                      });
+        auto task = rpc::call(replica_server, msg, &_tracker, [
+            &ok,
+            replica_server_cp = replica_server,
+            req_cap = request
+        ](error_code err, configuration_create_dup_app_response && resp) mutable {
+            if (err != ERR_OK) {
+                ok = false;
+                derror_f("failed={}, {}", err.to_string(), replica_server_cp.to_string());
+            } else {
+                derror_f("ok={}", resp.err.to_string());
+            }
+        });
         task->wait();
     }
     if (ok) {

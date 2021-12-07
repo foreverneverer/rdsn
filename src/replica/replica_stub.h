@@ -63,7 +63,8 @@ typedef rpc_holder<update_child_group_partition_count_request,
 typedef rpc_holder<group_bulk_load_request, group_bulk_load_response> group_bulk_load_rpc;
 typedef rpc_holder<detect_hotkey_request, detect_hotkey_response> detect_hotkey_rpc;
 typedef rpc_holder<add_new_disk_request, add_new_disk_response> add_new_disk_rpc;
-typedef rpc_holder<configuration_create_dup_app_request, configuration_create_dup_app_response> create_dup_app;
+typedef rpc_holder<configuration_create_dup_app_request, configuration_create_dup_app_response>
+    create_dup_app;
 
 class mutation_log;
 namespace test {
@@ -510,10 +511,9 @@ private:
     dsn::task_tracker _tracker;
 
 public:
-    bool _duplicating;
     mutable zrwlock_nr _duplication_apps_lock;
     std::map<std::string, std::vector<rpc_address>> _duplication_apps;
-    void on_cluster_learn(message_ex *msg);
+
     std::vector<partition_configuration>
     query_duplication_app_info(const std::string &app_name,
                                const std::vector<rpc_address> &meta_list);

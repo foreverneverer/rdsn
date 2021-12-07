@@ -87,6 +87,7 @@ struct configuration_update_request
     // the `meta_split_status` will be set
     // only used when on_config_sync
     6:optional metadata.split_status    meta_split_status;
+    7:optional dsn.layer2.partition_configuration  duplication_config
 }
 
 // meta server (config mgr) => primary | secondary (downgrade) (w/ new config)
@@ -362,7 +363,8 @@ struct ddd_diagnose_response
 struct configuration_create_dup_app_request
 {
     1:string app_name;
-    2:list<dsn.rpc_address>       meta_list;
+    2:string cluster_name;
+    3:list<dsn.rpc_address>       meta_list;
 }
 
 struct configuration_create_dup_app_response

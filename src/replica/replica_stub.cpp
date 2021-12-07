@@ -1328,46 +1328,12 @@ void replica_stub::on_add_duplication_app(create_dup_app rpc)
 {
     const auto &request = rpc.request();
     auto &resp = rpc.response();
-    // todo(jiashuo) need thread safe
+    derror_f("add remote duplication app: remote_cluster={}, remote_app={}",
+             request.cluster_name,
+             request.app_name);
     zauto_write_lock l(_duplication_apps_lock);
-    derror_f("on_add_duplication_app");
-    _duplicating = true;
     _duplication_apps.emplace(request.app_name, request.meta_list);
     resp.err = ERR_OK;
-}
-
-std::vector<partition_configuration>
-replica_stub::query_duplication_app_info(const std::string &app_name,
-                                         const std::vector<rpc_address> &meta_list)
-{
-    // todo refactor for meta use the function
-    std::vector<partition_configuration> configurations;
-    for (const auto &meta : meta_list) {
-        configuration_query_by_index_request meta_config_request;
-        meta_config_request.app_name = app_name;
-        dsn::message_ex *msg =
-            dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX, 0, 0);
-        dsn::marshall(msg, meta_config_request);
-        auto task = rpc::call(meta, msg, &_tracker, [
-            &configurations,
-            req_cap = meta_config_request
-        ](error_code err, configuration_query_by_index_response && resp) mutable {
-            if (err != ERR_OK) {
-                derror_f("failed:{}", err.to_string());
-            } else {
-                if (resp.err != ERR_OK) {
-                    derror_f("failed: {}", resp.err.to_string());
-                } else {
-                    configurations = resp.partitions;
-                }
-            }
-        });
-        task->wait();
-        if (!configurations.empty()) {
-            return configurations;
-        }
-    }
-    return configurations;
 }
 
 void replica_stub::on_remove(const replica_configuration &request)
@@ -2308,8 +2274,8 @@ void replica_stub::open_service()
     register_rpc_handler_with_rpc_holder(
         RPC_ADD_NEW_DISK, "add_new_disk", &replica_stub::on_add_new_disk);
     register_rpc_handler_with_rpc_holder(RPC_LEARN_ADD_DUPLICATION_LEARNER,
-                         "add_slave_learn",
-                         &replica_stub::on_add_duplication_app);
+                                         "add_slave_learn",
+                                         &replica_stub::on_add_duplication_app);
 
     register_ctrl_command();
 }

@@ -129,6 +129,15 @@ enum disk_migration_status
     CLOSED
 }
 
+enum app_duplication_status
+{
+    DuplicationIdle,
+    ClusterLearning,
+    ClusterLearningSucceeded,
+    ReplicaLearning,
+    ReplicaLearningSucceeded,
+}
+
 enum hotkey_type
 {
     READ,

@@ -122,4 +122,15 @@ ENUM_BEGIN2(replication::disk_status::type, disk_status, replication::disk_statu
 ENUM_REG(replication::disk_status::NORMAL)
 ENUM_REG(replication::disk_status::SPACE_INSUFFICIENT)
 ENUM_END2(replication::disk_status::type, disk_status)
+
+ENUM_BEGIN2(replication::app_duplication_status::type,
+            app_duplication_status,
+            replication::app_duplication_status::DuplicationIdle)
+ENUM_REG(replication::app_duplication_status::DuplicationIdle)
+ENUM_REG(replication::app_duplication_status::ClusterLearning)
+ENUM_REG(replication::app_duplication_status::ClusterLearningSucceed)
+ENUM_REG(replication::app_duplication_status::ReplicaLearning)
+ENUM_REG(replication::app_duplication_status::ReplicaLearningSucceed)
+ENUM_END2(replication::app_duplication_status::type, app_duplication_status)
+
 } // namespace dsn
