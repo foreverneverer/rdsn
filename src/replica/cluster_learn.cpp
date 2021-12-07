@@ -81,19 +81,19 @@ std::string replica::cluster_learn_status()
     return fmt::format("[{}]{}", _duplicating, enum_to_string(_app_duplication_status));
 }
 
-void replica::add_duplication_learner(const rpc_address& learner, uint64_t signature) {
+void replica::add_duplication_learner(const rpc_address &learner, uint64_t signature)
+{
     auto it = _primary_states.learners.find(learner);
     if (it == _primary_states.learners.end()) {
         remote_learner_state state;
         state.prepare_start_decree = invalid_decree;
         state.timeout_task = nullptr; // TODO: add timer for learner task
 
-        state.signature = signature;// TODO 这里的校验可能会有一些问题
+        state.signature = signature; // TODO 这里的校验可能会有一些问题
         _primary_states.learners[learner] = state;
         _primary_states.statuses[learner] = partition_status::PS_PRIMARY;
     }
 }
-
 
 } // namespace replication
 } // namespace dsn

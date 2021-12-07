@@ -298,9 +298,6 @@ private:
     error_code apply_learned_state_from_private_log(learn_state &state);
 
     // cluster learning
-    bool running = false;
-    bool secondary_learn = false;
-    int count = 0;
     configuration_update_request dup_proposal;
     void init_cluster_learn(const dsn::gpid &gpid);
     void on_cluster_learn_reply(error_code err,
@@ -622,7 +619,7 @@ private:
     void on_add_cluster_learner(configuration_update_request &proposal);
     bool is_cluster_primary_learner();
     std::string cluster_learn_status();
-    void add_duplication_learner(const rpc_address& learner, uint64_t signature);
+    void add_duplication_learner(const rpc_address &learner, uint64_t signature);
     bool is_cluster_secondary_learner();
 };
 typedef dsn::ref_ptr<replica> replica_ptr;

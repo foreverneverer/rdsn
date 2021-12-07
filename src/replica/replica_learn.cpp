@@ -46,8 +46,11 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_learn(uint64_t signature,
-                         const dsn::rpc_address &remote) // todo 需要支持传递目标地址 更新：已经支持，但是循环调用如何传递这个值 更新：目标地址应该是全局变量
+void replica::init_learn(
+    uint64_t signature,
+    const dsn::rpc_address &remote) // todo 需要支持传递目标地址
+                                    // 更新：已经支持，但是循环调用如何传递这个值
+                                    // 更新：目标地址应该是全局变量
 {
     _checker.only_one_thread_access();
 
@@ -62,7 +65,8 @@ void replica::init_learn(uint64_t signature,
         return;
     }
 
-    if (is_cluster_primary_learner() && _potential_secondary_states.learning_status >= learner_status::LearningWithPrepare){
+    if (is_cluster_primary_learner() &&
+        _potential_secondary_states.learning_status >= learner_status::LearningWithPrepare) {
         derror_replica("app duplication is {}, step to next stage {} for learning status is {}",
                        cluster_learn_status(),
                        enum_to_string(app_duplication_status::ClusterLearningSucceeded),
@@ -577,8 +581,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
 
     dassert_replica(partition_status::PS_POTENTIAL_SECONDARY == status() ||
                         is_cluster_primary_learner(), // todo 同上文，需要支持Primary
-            "invalid partition status, status = {}, duplication status = {}",
-            enum_to_string(status()),
+                    "invalid partition status, status = {}, duplication status = {}",
+                    enum_to_string(status()),
                     cluster_learn_status());
     dassert(req.signature == (int64_t)_potential_secondary_states.learning_version,
             "invalid learn signature, %" PRId64 " VS %" PRId64 "",
@@ -622,11 +626,11 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                   req.signature,
                   resp.config.primary.to_string());
             _potential_secondary_states.learning_round_is_running = false;
-            _potential_secondary_states.delay_learning_task =
-                tasking::create_task(LPC_DELAY_LEARN,
-                                     &_tracker,
-                                     std::bind(&replica::init_learn, this, req.signature, resp.config.primary),
-                                     get_gpid().thread_hash());
+            _potential_secondary_states.delay_learning_task = tasking::create_task(
+                LPC_DELAY_LEARN,
+                &_tracker,
+                std::bind(&replica::init_learn, this, req.signature, resp.config.primary),
+                get_gpid().thread_hash());
             _potential_secondary_states.delay_learning_task->enqueue(std::chrono::seconds(1));
         } else {
             handle_learning_error(resp.err, false);
@@ -634,7 +638,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         return;
     }
 
-    if (resp.config.ballot > get_ballot()) {// todo 集群间Learn不存在ballot的概念，所以也不应有update config, 注意并修改
+    if (resp.config.ballot >
+        get_ballot()) { // todo 集群间Learn不存在ballot的概念，所以也不应有update config, 注意并修改
         ddebug("%s: on_learn_reply[%016" PRIx64
                "]: learnee = %s, update configuration because ballot have changed",
                name(),
@@ -645,12 +650,14 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
     }
 
     // todo 添加校验函数is_learner()
-    if (status() != partition_status::PS_POTENTIAL_SECONDARY || !is_cluster_primary_learner() ) { // todo 同上文，需要支持Primary
-        derror_replica("on_learn_reply[{}]: learnee = {}, current_status = {}, duplication status = {}, stop learning",
-               req.signature,
-               resp.config.primary.to_string(),
+    if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
+        !is_cluster_primary_learner()) { // todo 同上文，需要支持Primary
+        derror_replica("on_learn_reply[{}]: learnee = {}, current_status = {}, duplication status "
+                       "= {}, stop learning",
+                       req.signature,
+                       resp.config.primary.to_string(),
                        cluster_learn_status(),
-               enum_to_string(status()));
+                       enum_to_string(status()));
         return;
     }
 
@@ -824,7 +831,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             if (mu->data.header.decree > last_committed_decree()) {
                 dinfo("%s: on_learn_reply[%016" PRIx64 "]: apply learned mutation %s",
                       name(),
-                      req.signature,// todo 所有的signature都需要注意
+                      req.signature, // todo 所有的signature都需要注意
                       mu->name());
 
                 // write to shared log with no callback, the later 2pc ensures that logs
@@ -891,8 +898,9 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 "state is incomplete");
 
         // go to next stage
-        _potential_secondary_states.learning_status =
-            learner_status::LearningWithPrepare; // todo 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断
+        _potential_secondary_states.learning_status = learner_status::
+            LearningWithPrepare; // todo
+                                 // 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断
         _potential_secondary_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
@@ -1264,7 +1272,8 @@ void replica::on_learn_remote_state_completed(error_code err)
 {
     _checker.only_one_thread_access();
 
-    if (partition_status::PS_POTENTIAL_SECONDARY != status() || !is_cluster_primary_learner() ) { // todo 同上
+    if (partition_status::PS_POTENTIAL_SECONDARY != status() ||
+        !is_cluster_primary_learner()) { // todo 同上
         dwarn("%s: on_learn_remote_state_completed[%016" PRIx64
               "]: learnee = %s, learn_duration = %" PRIu64 " ms, err = %s, "
               "the learner status is not PS_POTENTIAL_SECONDARY, but %s, ignore",
@@ -1296,8 +1305,10 @@ void replica::on_learn_remote_state_completed(error_code err)
     if (err != ERR_OK) {
         handle_learning_error(err, true);
     } else {
-        init_learn(_potential_secondary_states.learning_version); // todo 更新：已经在init_learn入口处更新
-                                                                  // todo 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
+        init_learn(
+            _potential_secondary_states.learning_version); // todo 更新：已经在init_learn入口处更新
+                                                           // todo
+                                                           // 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
     }
 }
 
@@ -1317,7 +1328,8 @@ void replica::handle_learning_error(error_code err, bool is_local_error)
     _stub->_counter_replicas_learning_recent_learn_fail_count->increment();
 
     update_local_configuration_with_no_ballot_change(
-        is_local_error ? partition_status::PS_ERROR : partition_status::PS_INACTIVE);// todo: cluster learn 也许不需要
+        is_local_error ? partition_status::PS_ERROR
+                       : partition_status::PS_INACTIVE); // todo: cluster learn 也许不需要
 }
 
 error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node,
@@ -1343,10 +1355,11 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
                it->second.signature);
         return ERR_INVALID_STATE;
     }
-    count++;
 
-    if (is_cluster_primary_learner() && ++_secondary_learner_completed_count == _primary_states.membership.secondaries.size()) {
-        derror_replica("app duplication status is {}, step next to stage {} for all secondaries have learned completed");
+    if (is_cluster_primary_learner() &&
+        ++_secondary_learner_completed_count == _primary_states.membership.secondaries.size()) {
+        derror_replica("app duplication status is {}, step next to stage {} for all secondaries "
+                       "have learned completed");
         _app_duplication_status = app_duplication_status::ReplicaLearningSucceeded;
         return ERR_OK;
     }
@@ -1504,11 +1517,6 @@ void replica::on_learn_completion_notification_reply(error_code err,
         }
     } else {
         _stub->_counter_replicas_learning_recent_learn_succ_count->increment();
-        if (_stub->_duplicating && get_gpid().get_partition_index() == 0) {
-            derror_replica("loop to start");
-            _potential_secondary_states.learning_status = learner_status::
-                LearningWithoutPrepare; // todo： 错误，由于不再通告，所以不会执行该代码，需要删除
-        }
     }
 }
 
