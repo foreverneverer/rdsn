@@ -251,7 +251,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                              pop_all_committed_mutations);
     }
 
-    count = 0;
+    int count = 0;
     for (auto it = _primary_states.learners.begin(); it != _primary_states.learners.end(); ++it) {
         if (it->second.prepare_start_decree != invalid_decree &&
             mu->data.header.decree >= it->second.prepare_start_decree) {
