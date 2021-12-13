@@ -717,7 +717,7 @@ bool replica::update_local_configuration(const replica_configuration &config,
         break;
     case partition_status::PS_POTENTIAL_SECONDARY:
         if (config.status == partition_status::PS_INACTIVE) {
-            if (!_potential_secondary_states.cleanup(false)) {
+            if (!_learner_states.cleanup(false)) {
                 dwarn("%s: status change from %s @ %" PRId64 " to %s @ %" PRId64
                       " is not allowed coz learning remote state is still running",
                       name(),
@@ -869,7 +869,7 @@ bool replica::update_local_configuration(const replica_configuration &config,
         case partition_status::PS_POTENTIAL_SECONDARY:
             // prevent further 2pc
             // wait next group check or explicit learn for real learning
-            _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
+            _learner_states.learning_status = learner_status::LearningWithoutPrepare;
             break;
         case partition_status::PS_INACTIVE:
             break;
@@ -889,7 +889,7 @@ bool replica::update_local_configuration(const replica_configuration &config,
             _prepare_list->truncate(_app->last_committed_decree());
 
             // using force cleanup now as all tasks must be done already
-            r = _potential_secondary_states.cleanup(true);
+            r = _learner_states.cleanup(true);
             dassert(r, "%s: potential secondary context cleanup failed", name());
 
             check_state_completeness();
@@ -900,7 +900,7 @@ bool replica::update_local_configuration(const replica_configuration &config,
             break;
         case partition_status::PS_ERROR:
             _prepare_list->reset(_app->last_committed_decree());
-            _potential_secondary_states.cleanup(false);
+            _learner_states.cleanup(false);
             // => do this in close as it may block
             // r = _potential_secondary_states.cleanup(true);
             // dassert(r, "%s: potential secondary context cleanup failed", name());

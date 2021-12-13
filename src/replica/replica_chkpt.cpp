@@ -369,12 +369,12 @@ void replica::catch_up_with_private_logs(partition_status::type s)
     auto err = apply_learned_state_from_private_log(state);
 
     if (s == partition_status::PS_POTENTIAL_SECONDARY) {
-        _potential_secondary_states.learn_remote_files_completed_task =
+        _learner_states.learn_remote_files_completed_task =
             tasking::create_task(LPC_CHECKPOINT_REPLICA_COMPLETED,
                                  &_tracker,
                                  [this, err]() { this->on_learn_remote_state_completed(err); },
                                  get_gpid().thread_hash());
-        _potential_secondary_states.learn_remote_files_completed_task->enqueue();
+        _learner_states.learn_remote_files_completed_task->enqueue();
     } else if (s == partition_status::PS_PARTITION_SPLIT) {
         _split_states.async_learn_task = tasking::enqueue(
             LPC_PARTITION_SPLIT,

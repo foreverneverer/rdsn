@@ -445,20 +445,20 @@ void replica::on_prepare(dsn::message_ex *request)
         return;
     } else if (partition_status::PS_POTENTIAL_SECONDARY == status()) {
         // new learning process
-        if (rconfig.learner_signature != _potential_secondary_states.learning_version) {
+        if (rconfig.learner_signature != _learner_states.learning_version) {
             derror("%s: mutation %s on_prepare failed as unmatched learning signature, state = %s"
                    ", old_signature[%016" PRIx64 "] vs new_signature[%016" PRIx64 "]",
                    name(),
                    mu->name(),
                    enum_to_string(status()),
-                   _potential_secondary_states.learning_version,
+                   _learner_states.learning_version,
                    rconfig.learner_signature);
             handle_learning_error(ERR_INVALID_STATE, false);
             ack_prepare_message(ERR_INVALID_STATE, mu);
             return;
         }
 
-        auto learning_status = _potential_secondary_states.learning_status;
+        auto learning_status = _learner_states.learning_status;
         if (learning_status != learner_status::LearningWithPrepare &&
             learning_status != learner_status::LearningSucceeded) {
             // if prepare requests are received when learning status is changing from

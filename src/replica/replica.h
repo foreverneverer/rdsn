@@ -539,7 +539,7 @@ private:
     // replica status specific states
     primary_context _primary_states;
     secondary_context _secondary_states;
-    potential_secondary_context _potential_secondary_states;
+    learner_context _learner_states;
     // policy_name --> cold_backup_context
     std::map<std::string, cold_backup_context_ptr> _cold_backup_contexts;
     partition_split_context _split_states;

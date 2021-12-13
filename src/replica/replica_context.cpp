@@ -209,9 +209,8 @@ bool secondary_context::cleanup(bool force)
 
 bool secondary_context::is_cleaned() { return checkpoint_is_running == false; }
 
-bool potential_secondary_context::cleanup(bool force)
+bool learner_context::cleanup(bool force)
 {
-    task_ptr t = nullptr;
 
     if (!force) {
         CLEANUP_TASK_ALWAYS(delay_learning_task)
@@ -251,7 +250,7 @@ bool potential_secondary_context::cleanup(bool force)
     return true;
 }
 
-bool potential_secondary_context::is_cleaned()
+bool learner_context::is_cleaned()
 {
     return nullptr == delay_learning_task && nullptr == learning_task &&
            nullptr == learn_remote_files_task && nullptr == learn_remote_files_completed_task &&

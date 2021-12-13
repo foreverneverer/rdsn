@@ -94,7 +94,7 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
 
     _duplicating = proposal.info.duplicating;
     _duplication_remote_node = proposal.duplication_config.primary;
-    init_learn(_potential_secondary_states.learning_version);
+    init_learn(_learner_states.learning_version);
 }
 
 // learner

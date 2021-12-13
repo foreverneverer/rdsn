@@ -192,10 +192,10 @@ public:
     ::dsn::task_ptr catchup_with_private_log_task;
 };
 
-class potential_secondary_context
+class learner_context
 {
 public:
-    explicit potential_secondary_context(replica *r)
+    explicit learner_context(replica *r)
         : owner_replica(r),
           learning_version(0),
           learning_start_ts_ns(0),

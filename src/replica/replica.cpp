@@ -55,7 +55,7 @@ replica::replica(
       _app_info(app),
       _primary_states(
           gpid, stub->options().staleness_for_commit, stub->options().batch_write_disabled),
-      _potential_secondary_states(this),
+      _learner_states(this),
       _cold_backup_running_count(0),
       _cold_backup_max_duration_time_ms(0),
       _cold_backup_max_upload_file_size(0),
@@ -323,8 +323,8 @@ void replica::execute_mutation(mutation_ptr &mu)
         }
         break;
     case partition_status::PS_POTENTIAL_SECONDARY:
-        if (_potential_secondary_states.learning_status == learner_status::LearningSucceeded ||
-            _potential_secondary_states.learning_status ==
+        if (_learner_states.learning_status == learner_status::LearningSucceeded ||
+            _learner_states.learning_status ==
                 learner_status::LearningWithPrepareTransient) {
             dassert(_app->last_committed_decree() + 1 == d,
                     "%" PRId64 " VS %" PRId64 "",
@@ -445,7 +445,7 @@ void replica::close()
 
     if (partition_status::PS_INACTIVE == status()) {
         dassert(_secondary_states.is_cleaned(), "secondary context is not cleared");
-        dassert(_potential_secondary_states.is_cleaned(),
+        dassert(_learner_states.is_cleaned(),
                 "potential secondary context is not cleared");
         dassert(_split_states.is_cleaned(), "partition split context is not cleared");
     }
@@ -455,7 +455,7 @@ void replica::close()
         bool r = _secondary_states.cleanup(true);
         dassert(r, "secondary context is not cleared");
 
-        r = _potential_secondary_states.cleanup(true);
+        r = _learner_states.cleanup(true);
         dassert(r, "potential secondary context is not cleared");
 
         r = _split_states.cleanup(true);

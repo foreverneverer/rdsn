@@ -1899,10 +1899,10 @@ void replica_stub::on_gc()
         if (rep->status() == partition_status::PS_POTENTIAL_SECONDARY) {
             learning_count++;
             learning_max_duration_time_ms = std::max(
-                learning_max_duration_time_ms, rep->_potential_secondary_states.duration_ms());
+                learning_max_duration_time_ms, rep->_learner_states.duration_ms());
             learning_max_copy_file_size =
                 std::max(learning_max_copy_file_size,
-                         rep->_potential_secondary_states.learning_copy_file_size);
+                         rep->_learner_states.learning_copy_file_size);
         }
         if (rep->status() == partition_status::PS_PRIMARY ||
             rep->status() == partition_status::PS_SECONDARY) {

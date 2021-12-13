@@ -46,14 +46,14 @@
 namespace dsn {
 namespace replication {
 
-void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地址
+void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地址 done
 // 更新：已经支持，但是循环调用如何传递这个值
 // 更新：目标地址应该是全局变量
 {
     _checker.only_one_thread_access();
 
     if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
-        !is_cluster_learner_with_primary_status()) { // todo 需要支持Primary
+        !is_cluster_learner_with_primary_status()) { // todo 需要支持Primary done
         derror_replica("state is not potential secondary or duplicating but "
                        "replica_learn={}，cluster_learn={}, skip "
                        "learning with signature",
@@ -64,11 +64,11 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
     }
 
     if (is_cluster_learner_with_primary_status() &&
-        _potential_secondary_states.learning_status >= learner_status::LearningWithPrepare) {
+        _learner_states.learning_status >= learner_status::LearningWithPrepare) {
         derror_replica("app duplication is {}, step to next stage {} for learning status is {}",
                        cluster_learn_status(),
                        enum_to_string(app_duplication_status::ClusterLearningSucceeded),
-                       enum_to_string(_potential_secondary_states.learning_status));
+                       enum_to_string(_learner_states.learning_status));
         _app_duplication_status = app_duplication_status::ClusterLearningSucceeded;
     }
 
@@ -78,8 +78,8 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
     }
 
     // at most one learning task running
-    if (_potential_secondary_states
-            .learning_round_is_running) { // todo _potential_secondary_statesz需要改名learner_states
+    if (_learner_states
+            .learning_round_is_running) { // todo _potential_secondary_statesz需要改名learner_states done
         derror("%s: previous learning is still running, skip learning with signature [%016" PRIx64
                "]",
                name(),
@@ -87,35 +87,35 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
         return;
     }
 
-    if (signature < _potential_secondary_states.learning_version) {
+    if (signature < _learner_states.learning_version) {
         derror("%s: learning request is out-dated, therefore skipped: [%016" PRIx64
                "] vs [%016" PRIx64 "]",
                name(),
                signature,
-               _potential_secondary_states.learning_version);
+               _learner_states.learning_version);
         return;
     }
 
     // learn timeout or primary change, the (new) primary starts another round of learning process
     // be cautious: primary should not issue signatures frequently to avoid learning abort
-    if (signature != _potential_secondary_states.learning_version) {
-        if (!_potential_secondary_states.cleanup(false)) {
+    if (signature != _learner_states.learning_version) {
+        if (!_learner_states.cleanup(false)) {
             derror("%s: previous learning with signature[%016" PRIx64
                    "] is still in-process, skip init new learning with signature [%016" PRIx64 "]",
                    name(),
-                   _potential_secondary_states.learning_version,
+                   _learner_states.learning_version,
                    signature);
             return;
         }
 
         _stub->_counter_replicas_learning_recent_start_count->increment();
 
-        _potential_secondary_states.learning_version = signature;
-        _potential_secondary_states.learning_start_ts_ns = dsn_now_ns();
-        _potential_secondary_states.learning_status = learner_status::LearningWithoutPrepare;
+        _learner_states.learning_version = signature;
+        _learner_states.learning_start_ts_ns = dsn_now_ns();
+        _learner_states.learning_status = learner_status::LearningWithoutPrepare;
         _prepare_list->truncate(_app->last_committed_decree());
     } else {
-        switch (_potential_secondary_states.learning_status) {
+        switch (_learner_states.learning_status) {
         // any failues in the process
         case learner_status::LearningFailed:
             break;
@@ -123,7 +123,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
         // learned state (app state) completed
         case learner_status::LearningWithPrepare:
             dassert(_app->last_durable_decree() + 1 >=
-                        _potential_secondary_states.learning_start_prepare_decree,
+                        _learner_states.learning_start_prepare_decree,
                     "learned state is incomplete");
             {
                 // check missing state due to _app->flush to checkpoint the learned state
@@ -151,8 +151,8 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
                     // missed ones need to be loaded via private logs
                     else {
                         _stub->_counter_replicas_learning_recent_round_start_count->increment();
-                        _potential_secondary_states.learning_round_is_running = true;
-                        _potential_secondary_states.catchup_with_private_log_task =
+                        _learner_states.learning_round_is_running = true;
+                        _learner_states.catchup_with_private_log_task =
                             tasking::create_task(LPC_CATCHUP_WITH_PRIVATE_LOGS,
                                                  &_tracker,
                                                  [this]() {
@@ -160,7 +160,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
                                                          partition_status::PS_POTENTIAL_SECONDARY);
                                                  },
                                                  get_gpid().thread_hash());
-                        _potential_secondary_states.catchup_with_private_log_task->enqueue();
+                        _learner_states.catchup_with_private_log_task->enqueue();
 
                         return; // incomplete
                     }
@@ -171,7 +171,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
                 }
 
                 // convert to success if app state and prepare list is connected
-                _potential_secondary_states.learning_status = learner_status::LearningSucceeded;
+                _learner_states.learning_status = learner_status::LearningSucceeded;
                 // fall through to success
             }
 
@@ -186,7 +186,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
         default:
             dassert(false,
                     "invalid learner_status, status = %s",
-                    enum_to_string(_potential_secondary_states.learning_status));
+                    enum_to_string(_learner_states.learning_status));
         }
     }
 
@@ -196,16 +196,16 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
                "ms, need to learn app because app_committed_decree = 0, but "
                "learn_app_concurrent_count(%d) >= learn_app_max_concurrent_count(%d), skip",
                name(),
-               _potential_secondary_states.learning_version,
+               _learner_states.learning_version,
                _config.primary.to_string(),
-               _potential_secondary_states.duration_ms(),
+               _learner_states.duration_ms(),
                _stub->_learn_app_concurrent_count.load(),
                _options->learn_app_max_concurrent_count);
         return;
     }
 
     _stub->_counter_replicas_learning_recent_round_start_count->increment();
-    _potential_secondary_states.learning_round_is_running = true;
+    _learner_states.learning_round_is_running = true;
 
     learn_request request;
     request.pid = get_gpid();
@@ -214,7 +214,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
     request.last_committed_decree_in_app = _app->last_committed_decree();
     request.last_committed_decree_in_prepare_list = _prepare_list->last_committed_decree();
     request.learner = _stub->_primary_address;
-    request.signature = _potential_secondary_states.learning_version;
+    request.signature = _learner_states.learning_version;
     _app->prepare_get_checkpoint(request.app_specific_learn_request);
 
     derror("%s: init_learn[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
@@ -225,23 +225,23 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
            name(),
            request.signature,
            _config.primary.to_string(),
-           _potential_secondary_states.duration_ms(),
+           _learner_states.duration_ms(),
            request.max_gced_decree,
            last_committed_decree(),
            _app->last_committed_decree(),
            _app->last_durable_decree(),
-           enum_to_string(_potential_secondary_states.learning_status),
-           _potential_secondary_states.learning_copy_file_count,
-           _potential_secondary_states.learning_copy_file_size,
-           _potential_secondary_states.learning_copy_buffer_size);
+           enum_to_string(_learner_states.learning_status),
+           _learner_states.learning_copy_file_count,
+           _learner_states.learning_copy_file_size,
+           _learner_states.learning_copy_buffer_size);
 
     auto remote_primary = _duplication_remote_node == dsn::rpc_address::s_invalid_address
                               ? _config.primary
                               : _duplication_remote_node;
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
-    _potential_secondary_states.learning_task = rpc::call(
-        remote_primary, // TODO 这里根据是集群间Learn还是集群内Learn传递相应地址
+    _learner_states.learning_task = rpc::call(
+        remote_primary, // TODO 这里根据是集群间Learn还是集群内Learn传递相应地址 done
         msg,
         &_tracker,
         [ this, req_cap = std::move(request) ](error_code err, learn_response && resp) mutable {
@@ -255,7 +255,7 @@ decree replica::get_max_gced_decree_for_learn() const // on learner
     decree max_gced_decree_for_learn;
 
     decree plog_max_gced_decree = max_gced_decree_no_lock();
-    decree first_learn_start = _potential_secondary_states.first_learn_start_decree;
+    decree first_learn_start = _learner_states.first_learn_start_decree;
     if (first_learn_start == invalid_decree) {
         // this is the first round of learn
         max_gced_decree_for_learn = plog_max_gced_decree;
@@ -362,7 +362,7 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
     _primary_states.get_replica_config(partition_status::PS_POTENTIAL_SECONDARY, response.config);
 
     auto it = _primary_states.learners.find(
-        request.learner); // todo 这里需要保证已经添加了热备集群的分片到learners
+        request.learner); // todo 这里需要保证已经添加了热备集群的分片到learners done
     if (it == _primary_states.learners.end()) {
         response.config.status = partition_status::PS_INACTIVE;
         response.err = ERR_OBJECT_NOT_FOUND;
@@ -584,10 +584,10 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                     "invalid partition status, status = {}, duplication status = {}",
                     enum_to_string(status()),
                     cluster_learn_status());
-    dassert(req.signature == (int64_t)_potential_secondary_states.learning_version,
+    dassert(req.signature == (int64_t)_learner_states.learning_version,
             "invalid learn signature, %" PRId64 " VS %" PRId64 "",
             req.signature,
-            (int64_t)_potential_secondary_states.learning_version);
+            (int64_t)_learner_states.learning_version);
 
     if (err != ERR_OK) {
         handle_learning_error(err, false);
@@ -602,7 +602,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         "{} ",
         req.signature,
         resp.config.primary.to_string(),
-        _potential_secondary_states.duration_ms(),
+        _learner_states.duration_ms(),
         resp.err.to_string(),
         resp.last_committed_decree,
         resp.prepare_start_decree,
@@ -612,9 +612,9 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         resp.state.to_decree_included,
         resp.state.learn_start_decree,
         _app->last_committed_decree(),
-        enum_to_string(_potential_secondary_states.learning_status));
+        enum_to_string(_learner_states.learning_status));
 
-    _potential_secondary_states.learning_copy_buffer_size += resp.state.meta.length();
+    _learner_states.learning_copy_buffer_size += resp.state.meta.length();
     _stub->_counter_replicas_learning_recent_copy_buffer_size->add(resp.state.meta.length());
 
     if (resp.err != ERR_OK) {
@@ -625,13 +625,13 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                   name(),
                   req.signature,
                   resp.config.primary.to_string());
-            _potential_secondary_states.learning_round_is_running = false;
-            _potential_secondary_states.delay_learning_task = tasking::create_task(
+            _learner_states.learning_round_is_running = false;
+            _learner_states.delay_learning_task = tasking::create_task(
                 LPC_DELAY_LEARN,
                 &_tracker,
-                std::bind(&replica::init_learn, this, req.signature, resp.config.primary),
+                [this, signature = req.signature] { init_learn(signature); },
                 get_gpid().thread_hash());
-            _potential_secondary_states.delay_learning_task->enqueue(std::chrono::seconds(1));
+            _learner_states.delay_learning_task->enqueue(std::chrono::seconds(1));
         } else {
             handle_learning_error(resp.err, false);
         }
@@ -651,7 +651,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
 
     // todo 添加校验函数is_learner()
     if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
-        !is_cluster_learner_with_primary_status()) { // todo 同上文，需要支持Primary
+        !is_cluster_learner_with_primary_status()) { // todo 同上文，需要支持Primary done
         derror_replica("on_learn_reply[{}]: learnee = {}, current_status = {}, duplication status "
                        "= {}, stop learning",
                        req.signature,
@@ -675,18 +675,18 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         _stub->_counter_replicas_learning_recent_learn_reset_count->increment();
 
         // close app
-        auto err = _app->close(true);
-        if (err != ERR_OK) {
+        auto errorCode = _app->close(true);
+        if (errorCode != ERR_OK) {
             derror("%s: on_learn_reply[%016" PRIx64
                    "]: learnee = %s, close app (with clear_state=true) failed, err = %s",
                    name(),
                    req.signature,
                    resp.config.primary.to_string(),
-                   err.to_string());
+                   errorCode.to_string());
         }
 
         // backup old data dir
-        if (err == ERR_OK) {
+        if (errorCode == ERR_OK) {
             std::string old_dir = _app->data_dir();
             if (dsn::utils::filesystem::directory_exists(old_dir)) {
                 char rename_dir[1024];
@@ -706,22 +706,22 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             }
         }
 
-        if (err == ERR_OK) {
-            err = _app->open_new_internal(this,
+        if (errorCode == ERR_OK) {
+            errorCode = _app->open_new_internal(this,
                                           _stub->_log->on_partition_reset(get_gpid(), 0),
                                           _private_log->on_partition_reset(get_gpid(), 0));
 
-            if (err != ERR_OK) {
+            if (errorCode != ERR_OK) {
                 derror("%s: on_learn_reply[%016" PRIx64
                        "]: learnee = %s, open app (with create_new=true) failed, err = %s",
                        name(),
                        req.signature,
                        resp.config.primary.to_string(),
-                       err.to_string());
+                       errorCode.to_string());
             }
         }
 
-        if (err == ERR_OK) {
+        if (errorCode == ERR_OK) {
             dassert(_app->last_committed_decree() == 0, "must be zero after app::open(true)");
             dassert(_app->last_durable_decree() == 0, "must be zero after app::open(true)");
 
@@ -729,19 +729,19 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             _prepare_list->reset(0);
         }
 
-        if (err != ERR_OK) {
-            _potential_secondary_states.learn_remote_files_task =
+        if (errorCode != ERR_OK) {
+            _learner_states.learn_remote_files_task =
                 tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                     this,
-                    err,
-                    copy_start = _potential_secondary_states.duration_ms(),
-                    req_cap = std::move(req),
-                    resp_cap = std::move(resp)
+                 errorCode,
+                    copy_start = _learner_states.duration_ms(),
+                    req_cap = req,
+                    resp_cap = resp
                 ]() mutable {
                     on_copy_remote_state_completed(
-                        err, 0, copy_start, std::move(req_cap), std::move(resp_cap));
+                        errorCode, 0, copy_start, std::move(req_cap), std::move(resp_cap));
                 });
-            _potential_secondary_states.learn_remote_files_task->enqueue();
+            _learner_states.learn_remote_files_task->enqueue();
             return;
         }
     }
@@ -753,18 +753,18 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                   "]: learnee = %s, learn_app_concurrent_count(%d) >= "
                   "learn_app_max_concurrent_count(%d), skip this round",
                   name(),
-                  _potential_secondary_states.learning_version,
+                  _learner_states.learning_version,
                   _config.primary.to_string(),
                   _stub->_learn_app_concurrent_count.load(),
                   _options->learn_app_max_concurrent_count);
-            _potential_secondary_states.learning_round_is_running = false;
+            _learner_states.learning_round_is_running = false;
             return;
         } else {
-            _potential_secondary_states.learn_app_concurrent_count_increased = true;
+            _learner_states.learn_app_concurrent_count_increased = true;
             ddebug("%s: on_learn_reply[%016" PRIx64
                    "]: learnee = %s, ++learn_app_concurrent_count = %d",
                    name(),
-                   _potential_secondary_states.learning_version,
+                   _learner_states.learning_version,
                    _config.primary.to_string(),
                    _stub->_learn_app_concurrent_count.load());
         }
@@ -789,12 +789,12 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         dassert(resp.type == learn_type::LT_CACHE,
                 "invalid learn_type, type = %s",
                 enum_to_string(resp.type));
-        dassert(resp.state.files.size() == 0, "");
-        dassert(_potential_secondary_states.learning_status ==
+        dassert(resp.state.files.empty(), "");
+        dassert(_learner_states.learning_status ==
                     learner_status::LearningWithoutPrepare,
                 "invalid learning_status, status = %s",
-                enum_to_string(_potential_secondary_states.learning_status));
-        _potential_secondary_states.learning_status = learner_status::LearningWithPrepareTransient;
+                enum_to_string(_learner_states.learning_status));
+        _learner_states.learning_status = learner_status::LearningWithPrepareTransient;
 
         // reset log positions for later mutations
         // WARNING: it still requires checkpoint operation in later
@@ -812,7 +812,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         _private_log->demand_switch_file();
 
         // reset preparelist
-        _potential_secondary_states.learning_start_prepare_decree = resp.prepare_start_decree;
+        _learner_states.learning_start_prepare_decree = resp.prepare_start_decree;
         _prepare_list->truncate(_app->last_committed_decree());
         ddebug("%s: on_learn_reply[%016" PRIx64
                "]: learnee = %s, truncate prepare list, local_committed_decree = %" PRId64
@@ -821,7 +821,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                req.signature,
                resp.config.primary.to_string(),
                _app->last_committed_decree(),
-               enum_to_string(_potential_secondary_states.learning_status));
+               enum_to_string(_learner_states.learning_status));
 
         // persist incoming mutations into private log and apply them to prepare-list
         std::pair<decree, decree> cache_range;
@@ -875,12 +875,12 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                name(),
                req.signature,
                resp.config.primary.to_string(),
-               _potential_secondary_states.duration_ms(),
+               _learner_states.duration_ms(),
                cache_range.first,
                cache_range.second,
                last_committed_decree(),
                _app->last_committed_decree(),
-               enum_to_string(_potential_secondary_states.learning_status));
+               enum_to_string(_learner_states.learning_status));
 
         // further states are synced using 2pc, and we must commit now as those later 2pc messages
         // thinks they should
@@ -893,25 +893,24 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         dassert(resp.state.files.size() == 0, "");
 
         // all state is complete
-        dassert(_app->last_committed_decree() + 1 >=
-                    _potential_secondary_states.learning_start_prepare_decree,
+        dassert(_app->last_committed_decree() + 1 >= _learner_states.learning_start_prepare_decree,
                 "state is incomplete");
 
         // go to next stage
-        _potential_secondary_states.learning_status = learner_status::LearningWithPrepare; // todo
+        _learner_states.learning_status = learner_status::LearningWithPrepare; // todo
         // 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断
-        _potential_secondary_states.learn_remote_files_task =
+        _learner_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
                 err,
-                copy_start = _potential_secondary_states.duration_ms(),
+                copy_start = _learner_states.duration_ms(),
                 req_cap = std::move(req),
                 resp_cap = std::move(resp)
             ]() mutable {
                 on_copy_remote_state_completed(
                     err, 0, copy_start, std::move(req_cap), std::move(resp_cap));
             });
-        _potential_secondary_states.learn_remote_files_task->enqueue();
+        _learner_states.learn_remote_files_task->enqueue();
     }
 
     else if (resp.state.files.size() > 0) {
@@ -927,10 +926,10 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                    resp.config.primary.to_string(),
                    learn_dir.c_str());
 
-            _potential_secondary_states.learn_remote_files_task =
+            _learner_states.learn_remote_files_task =
                 tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                     this,
-                    copy_start = _potential_secondary_states.duration_ms(),
+                    copy_start = _learner_states.duration_ms(),
                     req_cap = std::move(req),
                     resp_cap = std::move(resp)
                 ]() mutable {
@@ -940,7 +939,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                                                    std::move(req_cap),
                                                    std::move(resp_cap));
                 });
-            _potential_secondary_states.learn_remote_files_task->enqueue();
+            _learner_states.learn_remote_files_task->enqueue();
             return;
         }
 
@@ -950,11 +949,11 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                name(),
                req.signature,
                resp.config.primary.to_string(),
-               _potential_secondary_states.duration_ms(),
+               _learner_states.duration_ms(),
                static_cast<int>(resp.state.files.size()),
                high_priority ? "high" : "low");
 
-        _potential_secondary_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
+        _learner_states.learn_remote_files_task = _stub->_nfs->copy_remote_files(
             resp.config.primary,
             resp.replica_disk_tag,
             resp.base_local_dir,
@@ -967,7 +966,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             &_tracker,
             [
               this,
-              copy_start = _potential_secondary_states.duration_ms(),
+              copy_start = _learner_states.duration_ms(),
               req_cap = std::move(req),
               resp_copy = resp
             ](error_code err, size_t sz) mutable {
@@ -975,17 +974,17 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                     err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
             });
     } else {
-        _potential_secondary_states.learn_remote_files_task =
+        _learner_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
-                copy_start = _potential_secondary_states.duration_ms(),
+                copy_start = _learner_states.duration_ms(),
                 req_cap = std::move(req),
                 resp_cap = std::move(resp)
             ]() mutable {
                 on_copy_remote_state_completed(
                     ERR_OK, 0, copy_start, std::move(req_cap), std::move(resp_cap));
             });
-        _potential_secondary_states.learn_remote_files_task->enqueue();
+        _learner_states.learn_remote_files_task->enqueue();
     }
 }
 
@@ -1073,38 +1072,38 @@ void replica::on_copy_remote_state_completed(error_code err,
            name(),
            req.signature,
            resp.config.primary.to_string(),
-           _potential_secondary_states.duration_ms(),
+           _learner_states.duration_ms(),
            err.to_string(),
            static_cast<int>(resp.state.files.size()),
            static_cast<uint64_t>(size),
-           _potential_secondary_states.duration_ms() - copy_start_time,
+           _learner_states.duration_ms() - copy_start_time,
            last_committed_decree(),
            _app->last_committed_decree(),
            _app->last_durable_decree(),
            resp.prepare_start_decree,
-           enum_to_string(_potential_secondary_states.learning_status));
+           enum_to_string(_learner_states.learning_status));
 
     if (resp.type == learn_type::LT_APP) {
         --_stub->_learn_app_concurrent_count;
-        _potential_secondary_states.learn_app_concurrent_count_increased = false;
+        _learner_states.learn_app_concurrent_count_increased = false;
         ddebug("%s: on_copy_remote_state_completed[%016" PRIx64
                "]: learnee = %s, --learn_app_concurrent_count = %d",
                name(),
-               _potential_secondary_states.learning_version,
+               _learner_states.learning_version,
                _config.primary.to_string(),
                _stub->_learn_app_concurrent_count.load());
     }
 
     if (err == ERR_OK) {
-        _potential_secondary_states.learning_copy_file_count += resp.state.files.size();
-        _potential_secondary_states.learning_copy_file_size += size;
+        _learner_states.learning_copy_file_count += resp.state.files.size();
+        _learner_states.learning_copy_file_size += size;
         _stub->_counter_replicas_learning_recent_copy_file_count->add(resp.state.files.size());
         _stub->_counter_replicas_learning_recent_copy_file_size->add(size);
     }
 
     if (err != ERR_OK) {
         // do nothing
-    } else if (_potential_secondary_states.learning_status == learner_status::LearningWithPrepare) {
+    } else if (_learner_states.learning_status == learner_status::LearningWithPrepare) {
         dassert(resp.type == learn_type::LT_CACHE,
                 "invalid learn_type, type = %s",
                 enum_to_string(resp.type));
@@ -1150,7 +1149,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                        name(),
                        req.signature,
                        resp.config.primary.to_string(),
-                       _potential_secondary_states.duration_ms(),
+                       _learner_states.duration_ms(),
                        dsn_now_ns() - start_ts,
                        _app->last_committed_decree());
             } else {
@@ -1160,7 +1159,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                        name(),
                        req.signature,
                        resp.config.primary.to_string(),
-                       _potential_secondary_states.duration_ms(),
+                       _learner_states.duration_ms(),
                        dsn_now_ns() - start_ts,
                        err.to_string());
             }
@@ -1178,7 +1177,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                        name(),
                        req.signature,
                        resp.config.primary.to_string(),
-                       _potential_secondary_states.duration_ms(),
+                       _learner_states.duration_ms(),
                        dsn_now_ns() - start_ts,
                        _app->last_committed_decree());
             } else {
@@ -1189,7 +1188,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                        name(),
                        req.signature,
                        resp.config.primary.to_string(),
-                       _potential_secondary_states.duration_ms(),
+                       _learner_states.duration_ms(),
                        dsn_now_ns() - start_ts,
                        err.to_string());
             }
@@ -1211,7 +1210,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                name(),
                req.signature,
                resp.config.primary.to_string(),
-               _potential_secondary_states.duration_ms(),
+               _learner_states.duration_ms(),
                err.to_string(),
                old_prepared,
                last_prepared_decree(),
@@ -1223,13 +1222,12 @@ void replica::on_copy_remote_state_completed(error_code err,
                _app->last_durable_decree(),
                resp.last_committed_decree,
                resp.prepare_start_decree,
-               enum_to_string(_potential_secondary_states.learning_status));
+               enum_to_string(_learner_states.learning_status));
     }
 
     // if catch-up done, do flush to enable all learned state is durable
     if (err == ERR_OK && resp.prepare_start_decree != invalid_decree &&
-        _app->last_committed_decree() + 1 >=
-            _potential_secondary_states.learning_start_prepare_decree &&
+        _app->last_committed_decree() + 1 >= _learner_states.learning_start_prepare_decree &&
         _app->last_committed_decree() > _app->last_durable_decree()) {
         err = background_sync_checkpoint();
 
@@ -1239,7 +1237,7 @@ void replica::on_copy_remote_state_completed(error_code err,
                name(),
                req.signature,
                resp.config.primary.to_string(),
-               _potential_secondary_states.duration_ms(),
+               _learner_states.duration_ms(),
                err.to_string(),
                _app->last_committed_decree(),
                _app->last_durable_decree());
@@ -1257,14 +1255,14 @@ void replica::on_copy_remote_state_completed(error_code err,
     // nullptr
     // so that we don't have unnecessary failed reconfiguration later due to this non-nullptr in
     // cleanup
-    _potential_secondary_states.learn_remote_files_task = nullptr;
+    _learner_states.learn_remote_files_task = nullptr;
 
-    _potential_secondary_states.learn_remote_files_completed_task =
+    _learner_states.learn_remote_files_completed_task =
         tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES_COMPLETED,
                              &_tracker,
                              [this, err]() { on_learn_remote_state_completed(err); },
                              get_gpid().thread_hash());
-    _potential_secondary_states.learn_remote_files_completed_task->enqueue();
+    _learner_states.learn_remote_files_completed_task->enqueue();
 }
 
 void replica::on_learn_remote_state_completed(error_code err)
@@ -1277,9 +1275,9 @@ void replica::on_learn_remote_state_completed(error_code err)
               "]: learnee = %s, learn_duration = %" PRIu64 " ms, err = %s, "
               "the learner status is not PS_POTENTIAL_SECONDARY, but %s, ignore",
               name(),
-              _potential_secondary_states.learning_version,
+              _learner_states.learning_version,
               _config.primary.to_string(),
-              _potential_secondary_states.duration_ms(),
+              _learner_states.duration_ms(),
               err.to_string(),
               enum_to_string(status()));
         return;
@@ -1290,22 +1288,23 @@ void replica::on_learn_remote_state_completed(error_code err)
            "local_committed_decree = %" PRId64 ", app_committed_decree = %" PRId64
            ", app_durable_decree = %" PRId64 ", current_learning_status = %s",
            name(),
-           _potential_secondary_states.learning_version,
+           _learner_states.learning_version,
            _config.primary.to_string(),
-           _potential_secondary_states.duration_ms(),
+           _learner_states.duration_ms(),
            err.to_string(),
            last_committed_decree(),
            _app->last_committed_decree(),
            _app->last_durable_decree(),
-           enum_to_string(_potential_secondary_states.learning_status));
+           enum_to_string(_learner_states.learning_status));
 
-    _potential_secondary_states.learning_round_is_running = false;
+    _learner_states.learning_round_is_running = false;
 
     if (err != ERR_OK) {
         handle_learning_error(err, true);
     } else {
         init_learn(
-            _potential_secondary_states.learning_version); // todo 更新：已经在init_learn入口处更新
+            _learner_states
+                .learning_version); // todo 更新：已经在init_learn入口处更新
                                                            // todo
                                                            // 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
     }
@@ -1318,9 +1317,9 @@ void replica::handle_learning_error(error_code err, bool is_local_error)
     derror("%s: handle_learning_error[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
            " ms, err = %s, %s",
            name(),
-           _potential_secondary_states.learning_version,
+           _learner_states.learning_version,
            _config.primary.to_string(),
-           _potential_secondary_states.duration_ms(),
+           _learner_states.duration_ms(),
            err.to_string(),
            is_local_error ? "local_error" : "remote error");
 
@@ -1374,8 +1373,8 @@ void replica::notify_learn_completion()
     report.err = ERR_OK;
     report.last_committed_decree_in_app = _app->last_committed_decree();
     report.last_committed_decree_in_prepare_list = last_committed_decree();
-    report.learner_signature = _potential_secondary_states.learning_version;
-    report.learner_status_ = _potential_secondary_states.learning_status;
+    report.learner_signature = _learner_states.learning_version;
+    report.learner_status_ = _learner_states.learning_status;
     report.node = _stub->_primary_address;
 
     ddebug("%s: notify_learn_completion[%016" PRIx64 "]: learnee = %s, "
@@ -1383,23 +1382,23 @@ void replica::notify_learn_completion()
            "app_committed_decree = %" PRId64 ", app_durable_decree = %" PRId64
            ", current_learning_status = %s",
            name(),
-           _potential_secondary_states.learning_version,
+           _learner_states.learning_version,
            _config.primary.to_string(),
-           _potential_secondary_states.duration_ms(),
+           _learner_states.duration_ms(),
            last_committed_decree(),
            _app->last_committed_decree(),
            _app->last_durable_decree(),
-           enum_to_string(_potential_secondary_states.learning_status));
+           enum_to_string(_learner_states.learning_status));
 
-    if (_potential_secondary_states.completion_notify_task != nullptr) {
-        _potential_secondary_states.completion_notify_task->cancel(false);
+    if (_learner_states.completion_notify_task != nullptr) {
+        _learner_states.completion_notify_task->cancel(false);
     }
 
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_LEARN_COMPLETION_NOTIFY, 0, get_gpid().thread_hash());
     dsn::marshall(msg, report);
 
-    _potential_secondary_states.completion_notify_task =
+    _learner_states.completion_notify_task =
         rpc::call(_config.primary, msg, &_tracker, [
             this,
             report = std::move(report)
@@ -1461,27 +1460,27 @@ void replica::on_learn_completion_notification_reply(error_code err,
     dassert(partition_status::PS_POTENTIAL_SECONDARY == status(),
             "invalid partition_status, status = %s",
             enum_to_string(status()));
-    dassert(_potential_secondary_states.learning_status == learner_status::LearningSucceeded,
+    dassert(_learner_states.learning_status == learner_status::LearningSucceeded,
             "invalid learner_status, status = %s",
-            enum_to_string(_potential_secondary_states.learning_status));
-    dassert(report.learner_signature == (int64_t)_potential_secondary_states.learning_version,
+            enum_to_string(_learner_states.learning_status));
+    dassert(report.learner_signature == (int64_t)_learner_states.learning_version,
             "%" PRId64 " VS %" PRId64 "",
             report.learner_signature,
-            (int64_t)_potential_secondary_states.learning_version);
+            (int64_t)_learner_states.learning_version);
 
     if (err != ERR_OK) {
         handle_learning_error(err, false);
         return;
     }
 
-    if (resp.signature != (int64_t)_potential_secondary_states.learning_version) {
+    if (resp.signature != (int64_t)_learner_states.learning_version) {
         derror("%s: on_learn_completion_notification_reply[%016" PRIx64
                "]: learnee = %s, learn_duration = %" PRIu64 " ms, "
                "signature not matched, current signature on primary is [%016" PRIx64 "]",
                name(),
                report.learner_signature,
                _config.primary.to_string(),
-               _potential_secondary_states.duration_ms(),
+               _learner_states.duration_ms(),
                resp.signature);
         handle_learning_error(ERR_INVALID_STATE, false);
         return;
@@ -1492,7 +1491,7 @@ void replica::on_learn_completion_notification_reply(error_code err,
            name(),
            report.learner_signature,
            _config.primary.to_string(),
-           _potential_secondary_states.duration_ms(),
+           _learner_states.duration_ms(),
            resp.err.to_string());
 
     if (resp.err != ERR_OK) {
@@ -1503,14 +1502,14 @@ void replica::on_learn_completion_notification_reply(error_code err,
                   name(),
                   report.learner_signature,
                   _config.primary.to_string(),
-                  _potential_secondary_states.duration_ms());
-            _potential_secondary_states.learning_round_is_running = false;
-            _potential_secondary_states.delay_learning_task = tasking::create_task(
+                  _learner_states.duration_ms());
+            _learner_states.learning_round_is_running = false;
+            _learner_states.delay_learning_task = tasking::create_task(
                 LPC_DELAY_LEARN,
                 &_tracker,
                 std::bind(&replica::init_learn, this, report.learner_signature),
                 get_gpid().thread_hash());
-            _potential_secondary_states.delay_learning_task->enqueue(std::chrono::seconds(1));
+            _learner_states.delay_learning_task->enqueue(std::chrono::seconds(1));
         } else {
             handle_learning_error(resp.err, false);
         }
@@ -1661,22 +1660,22 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
     // the next round of learn will start from committed+1.
     //
     if (state.__isset.learn_start_decree &&
-        (_potential_secondary_states.first_learn_start_decree < 0 ||
-         _potential_secondary_states.first_learn_start_decree > state.learn_start_decree)) {
-        _potential_secondary_states.first_learn_start_decree = state.learn_start_decree;
+        (_learner_states.first_learn_start_decree < 0 ||
+         _learner_states.first_learn_start_decree > state.learn_start_decree)) {
+        _learner_states.first_learn_start_decree = state.learn_start_decree;
     }
 
     ddebug_replica("apply_learned_state_from_private_log[{}]: duplicating={}, step_back={}, "
                    "learnee = {}, learn_duration = {} ms, apply private log files done, file_count "
                    "={}, first_learn_start_decree ={}, learn_start_decree = {}, "
                    "app_committed_decree = {}",
-                   _potential_secondary_states.learning_version,
+                   _learner_states.learning_version,
                    duplicating,
                    step_back,
                    _config.primary.to_string(),
-                   _potential_secondary_states.duration_ms(),
+                   _learner_states.duration_ms(),
                    state.files.size(),
-                   _potential_secondary_states.first_learn_start_decree,
+                   _learner_states.first_learn_start_decree,
                    state.learn_start_decree,
                    _app->last_committed_decree());
 
@@ -1703,7 +1702,7 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
             ddebug_replica("apply_learned_state_from_private_log[{}]: learnee ={}, "
                            "learned_to_decree_included({}) > last_committed_decree({}), commit to "
                            "to_decree_included",
-                           _potential_secondary_states.learning_version,
+                           _learner_states.learning_version,
                            _config.primary.to_string(),
                            state.to_decree_included,
                            last_committed_decree());
@@ -1713,9 +1712,9 @@ error_code replica::apply_learned_state_from_private_log(learn_state &state)
         ddebug_replica(" apply_learned_state_from_private_log[{}]: learnee ={}, "
                        "learn_duration ={} ms, apply in-buffer private logs done, "
                        "replay_count ={}, app_committed_decree = {}",
-                       _potential_secondary_states.learning_version,
+                       _learner_states.learning_version,
                        _config.primary.to_string(),
-                       _potential_secondary_states.duration_ms(),
+                       _learner_states.duration_ms(),
                        replay_count,
                        _app->last_committed_decree());
     }
