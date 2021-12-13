@@ -94,7 +94,7 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
 
     _duplicating = proposal.info.duplicating;
     _duplication_remote_node = proposal.duplication_config.primary;
-    init_learn(_learner_states.learning_version);
+    init_learn(invalid_signature); // todo 初始值是0，即无效值，发出时会出现校验error done
 }
 
 // learner

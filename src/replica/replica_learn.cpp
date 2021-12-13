@@ -72,14 +72,15 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
         _app_duplication_status = app_duplication_status::ClusterLearningSucceeded;
     }
 
-    if (signature == invalid_signature) {
+    if (!is_cluster_learner_with_primary_status() && signature == invalid_signature) {
         derror("%s: invalid learning signature, skip", name());
         return;
     }
 
     // at most one learning task running
     if (_learner_states
-            .learning_round_is_running) { // todo _potential_secondary_statesz需要改名learner_states done
+            .learning_round_is_running) { // todo _potential_secondary_statesz需要改名learner_states
+                                          // done
         derror("%s: previous learning is still running, skip learning with signature [%016" PRIx64
                "]",
                name(),
@@ -240,13 +241,13 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
                               : _duplication_remote_node;
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_LEARN, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
-    _learner_states.learning_task = rpc::call(
-        remote_primary, // TODO 这里根据是集群间Learn还是集群内Learn传递相应地址 done
-        msg,
-        &_tracker,
-        [ this, req_cap = std::move(request) ](error_code err, learn_response && resp) mutable {
-            on_learn_reply(err, std::move(req_cap), std::move(resp));
-        });
+    _learner_states.learning_task =
+        rpc::call(remote_primary, // TODO 这里根据是集群间Learn还是集群内Learn传递相应地址 done
+                  msg,
+                  &_tracker,
+                  [ this, req_cap = request ](error_code err, learn_response && resp) mutable {
+                      on_learn_reply(err, std::move(req_cap), std::move(resp));
+                  });
 }
 
 // ThreadPool: THREAD_POOL_REPLICATION
@@ -353,17 +354,23 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
         return;
     }
 
-    // todo 好的做法是在创建热备表的时候先添加到learner
-    if (request.duplicating) {
-        add_duplication_learner(request.learner, request.signature);
-    }
-
     // but just set state to partition_status::PS_POTENTIAL_SECONDARY
     _primary_states.get_replica_config(partition_status::PS_POTENTIAL_SECONDARY, response.config);
 
     auto it = _primary_states.learners.find(
         request.learner); // todo 这里需要保证已经添加了热备集群的分片到learners done
     if (it == _primary_states.learners.end()) {
+        // todo 好的做法是在创建热备表的时候先添加到learner
+        if (request.duplicating) {
+            derror_replica("receive duplication app learn requst[{}] and add the remote replica as "
+                           "cluster learner",
+                           request.learner.to_string());
+            add_duplication_learner(request.learner, request.signature);
+            response.config.status = partition_status::PS_PRIMARY;
+            response.err = ERR_TRY_AGAIN;
+            reply(msg, response);
+            return;
+        }
         response.config.status = partition_status::PS_INACTIVE;
         response.err = ERR_OBJECT_NOT_FOUND;
         reply(msg, response);
@@ -626,11 +633,11 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                   req.signature,
                   resp.config.primary.to_string());
             _learner_states.learning_round_is_running = false;
-            _learner_states.delay_learning_task = tasking::create_task(
-                LPC_DELAY_LEARN,
-                &_tracker,
-                [this, signature = req.signature] { init_learn(signature); },
-                get_gpid().thread_hash());
+            _learner_states.delay_learning_task =
+                tasking::create_task(LPC_DELAY_LEARN,
+                                     &_tracker,
+                                     [ this, signature = req.signature ] { init_learn(signature); },
+                                     get_gpid().thread_hash());
             _learner_states.delay_learning_task->enqueue(std::chrono::seconds(1));
         } else {
             handle_learning_error(resp.err, false);
@@ -708,8 +715,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
 
         if (errorCode == ERR_OK) {
             errorCode = _app->open_new_internal(this,
-                                          _stub->_log->on_partition_reset(get_gpid(), 0),
-                                          _private_log->on_partition_reset(get_gpid(), 0));
+                                                _stub->_log->on_partition_reset(get_gpid(), 0),
+                                                _private_log->on_partition_reset(get_gpid(), 0));
 
             if (errorCode != ERR_OK) {
                 derror("%s: on_learn_reply[%016" PRIx64
@@ -733,7 +740,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             _learner_states.learn_remote_files_task =
                 tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                     this,
-                 errorCode,
+                    errorCode,
                     copy_start = _learner_states.duration_ms(),
                     req_cap = req,
                     resp_cap = resp
@@ -790,8 +797,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 "invalid learn_type, type = %s",
                 enum_to_string(resp.type));
         dassert(resp.state.files.empty(), "");
-        dassert(_learner_states.learning_status ==
-                    learner_status::LearningWithoutPrepare,
+        dassert(_learner_states.learning_status == learner_status::LearningWithoutPrepare,
                 "invalid learning_status, status = %s",
                 enum_to_string(_learner_states.learning_status));
         _learner_states.learning_status = learner_status::LearningWithPrepareTransient;
@@ -904,8 +910,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 this,
                 err,
                 copy_start = _learner_states.duration_ms(),
-                req_cap = std::move(req),
-                resp_cap = std::move(resp)
+                req_cap = req,
+                resp_cap = resp
             ]() mutable {
                 on_copy_remote_state_completed(
                     err, 0, copy_start, std::move(req_cap), std::move(resp_cap));
@@ -913,7 +919,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         _learner_states.learn_remote_files_task->enqueue();
     }
 
-    else if (resp.state.files.size() > 0) {
+    else if (!resp.state.files.empty()) {
         auto learn_dir = _app->learn_dir();
         utils::filesystem::remove_path(learn_dir);
         utils::filesystem::create_directory(learn_dir);
@@ -930,8 +936,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                     this,
                     copy_start = _learner_states.duration_ms(),
-                    req_cap = std::move(req),
-                    resp_cap = std::move(resp)
+                    req_cap = req,
+                    resp_cap = resp
                 ]() mutable {
                     on_copy_remote_state_completed(ERR_FILE_OPERATION_FAILED,
                                                    0,
@@ -964,12 +970,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             high_priority,
             LPC_REPLICATION_COPY_REMOTE_FILES,
             &_tracker,
-            [
-              this,
-              copy_start = _learner_states.duration_ms(),
-              req_cap = std::move(req),
-              resp_copy = resp
-            ](error_code err, size_t sz) mutable {
+            [ this, copy_start = _learner_states.duration_ms(), req_cap = req, resp_copy = resp ](
+                error_code err, size_t sz) mutable {
                 on_copy_remote_state_completed(
                     err, sz, copy_start, std::move(req_cap), std::move(resp_copy));
             });
@@ -978,8 +980,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
                 copy_start = _learner_states.duration_ms(),
-                req_cap = std::move(req),
-                resp_cap = std::move(resp)
+                req_cap = req,
+                resp_cap = resp
             ]() mutable {
                 on_copy_remote_state_completed(
                     ERR_OK, 0, copy_start, std::move(req_cap), std::move(resp_cap));
@@ -1302,11 +1304,9 @@ void replica::on_learn_remote_state_completed(error_code err)
     if (err != ERR_OK) {
         handle_learning_error(err, true);
     } else {
-        init_learn(
-            _learner_states
-                .learning_version); // todo 更新：已经在init_learn入口处更新
-                                                           // todo
-                                                           // 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
+        init_learn(_learner_states.learning_version); // todo 更新：已经在init_learn入口处更新
+                                                      // todo
+                                                      // 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
     }
 }
 
@@ -1362,7 +1362,7 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
         return ERR_OK;
     }
 
-    upgrade_to_secondary_on_primary(node); // todo 不需要上报
+    upgrade_to_secondary_on_primary(node); // todo 不需要上报 done
     return ERR_OK;
 }
 
@@ -1398,11 +1398,11 @@ void replica::notify_learn_completion()
         dsn::message_ex::create_request(RPC_LEARN_COMPLETION_NOTIFY, 0, get_gpid().thread_hash());
     dsn::marshall(msg, report);
 
-    _learner_states.completion_notify_task =
-        rpc::call(_config.primary, msg, &_tracker, [
-            this,
-            report = std::move(report)
-        ](error_code err, learn_notify_response && resp) mutable {
+    _learner_states.completion_notify_task = rpc::call(
+        _config.primary,
+        msg,
+        &_tracker,
+        [ this, report = report ](error_code err, learn_notify_response && resp) mutable {
             on_learn_completion_notification_reply(err, std::move(report), std::move(resp));
         });
 }
@@ -1504,11 +1504,13 @@ void replica::on_learn_completion_notification_reply(error_code err,
                   _config.primary.to_string(),
                   _learner_states.duration_ms());
             _learner_states.learning_round_is_running = false;
-            _learner_states.delay_learning_task = tasking::create_task(
-                LPC_DELAY_LEARN,
-                &_tracker,
-                std::bind(&replica::init_learn, this, report.learner_signature),
-                get_gpid().thread_hash());
+            _learner_states.delay_learning_task =
+                tasking::create_task(LPC_DELAY_LEARN,
+                                     &_tracker,
+                                     [ this, learner_signature = report.learner_signature ] {
+                                         init_learn(learner_signature);
+                                     },
+                                     get_gpid().thread_hash());
             _learner_states.delay_learning_task->enqueue(std::chrono::seconds(1));
         } else {
             handle_learning_error(resp.err, false);

@@ -324,8 +324,7 @@ void replica::execute_mutation(mutation_ptr &mu)
         break;
     case partition_status::PS_POTENTIAL_SECONDARY:
         if (_learner_states.learning_status == learner_status::LearningSucceeded ||
-            _learner_states.learning_status ==
-                learner_status::LearningWithPrepareTransient) {
+            _learner_states.learning_status == learner_status::LearningWithPrepareTransient) {
             dassert(_app->last_committed_decree() + 1 == d,
                     "%" PRId64 " VS %" PRId64 "",
                     _app->last_committed_decree() + 1,
@@ -445,8 +444,7 @@ void replica::close()
 
     if (partition_status::PS_INACTIVE == status()) {
         dassert(_secondary_states.is_cleaned(), "secondary context is not cleared");
-        dassert(_learner_states.is_cleaned(),
-                "potential secondary context is not cleared");
+        dassert(_learner_states.is_cleaned(), "potential secondary context is not cleared");
         dassert(_split_states.is_cleaned(), "partition split context is not cleared");
     }
 

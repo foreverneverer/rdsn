@@ -157,8 +157,7 @@ public:
         for (auto tt : tests) {
             _replica = create_duplicating_replica();
             _replica->mock_max_gced_decree(tt.plog_max_gced_decree);
-            _replica->_learner_states.first_learn_start_decree =
-                tt.first_learn_start_decree;
+            _replica->_learner_states.first_learn_start_decree = tt.first_learn_start_decree;
             ASSERT_EQ(_replica->get_max_gced_decree_for_learn(), tt.want);
         }
     }
