@@ -645,8 +645,9 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
         return;
     }
 
-    if (resp.config.ballot >
-        get_ballot()) { // todo 集群间Learn不存在ballot的概念，所以也不应有update config, 注意并修改
+    if (!is_cluster_learner_with_primary_status() && resp.config.ballot > get_ballot()) { // todo
+        // 集群间Learn不存在ballot的概念，所以也不应有update
+        // config, 注意并修改 done
         ddebug("%s: on_learn_reply[%016" PRIx64
                "]: learnee = %s, update configuration because ballot have changed",
                name(),
@@ -837,7 +838,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             if (mu->data.header.decree > last_committed_decree()) {
                 dinfo("%s: on_learn_reply[%016" PRIx64 "]: apply learned mutation %s",
                       name(),
-                      req.signature, // todo 所有的signature都需要注意
+                      req.signature, // todo 所有的signature都需要注意 done
                       mu->name());
 
                 // write to shared log with no callback, the later 2pc ensures that logs
@@ -850,12 +851,12 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 _private_log->append(mu, LPC_WRITE_REPLICATION_LOG_COMMON, &_tracker, nullptr);
 
                 // then we prepare, it is possible that a committed mutation exists in learner's
-                // prepare log,
-                // but with DIFFERENT ballot. Reference https://github.com/imzhenyu/rDSN/issues/496
+                // prepare log, but with DIFFERENT ballot. Reference
+                // https://github.com/imzhenyu/rDSN/issues/496
                 mutation_ptr existing_mutation =
                     _prepare_list->get_mutation_by_decree(mu->data.header.decree);
                 if (existing_mutation != nullptr &&
-                    existing_mutation->data.header.ballot > mu->data.header.ballot) {
+                    existing_mutation->data.header.ballot > mu->data.header.ballot) { // todo ballot存在于mu中，所以需要额外注意
                     ddebug("%s: on_learn_reply[%016" PRIx64 "]: learnee = %s, "
                            "mutation(%s) exist on the learner with larger ballot %" PRId64 "",
                            name(),
@@ -896,15 +897,15 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 "",
                 _prepare_list->last_committed_decree(),
                 _app->last_committed_decree());
-        dassert(resp.state.files.size() == 0, "");
+        dassert(resp.state.files.empty(), "");
 
         // all state is complete
         dassert(_app->last_committed_decree() + 1 >= _learner_states.learning_start_prepare_decree,
                 "state is incomplete");
 
         // go to next stage
-        _learner_states.learning_status = learner_status::LearningWithPrepare; // todo
-        // 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断
+        // todo 处理完就返回，不再循环init_learn，更新：已经在init_learn入口处判断 done
+        _learner_states.learning_status = learner_status::LearningWithPrepare;
         _learner_states.learn_remote_files_task =
             tasking::create_task(LPC_LEARN_REMOTE_DELTA_FILES, &_tracker, [
                 this,
@@ -949,7 +950,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
             return;
         }
 
-        bool high_priority = (resp.type == learn_type::LT_APP ? false : true);
+        bool high_priority = resp.type != learn_type::LT_APP;
         ddebug("%s: on_learn_reply[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
                " ms, start to copy remote files, copy_file_count = %d, priority = %s",
                name(),
@@ -1272,7 +1273,7 @@ void replica::on_learn_remote_state_completed(error_code err)
     _checker.only_one_thread_access();
 
     if (partition_status::PS_POTENTIAL_SECONDARY != status() ||
-        !is_cluster_learner_with_primary_status()) { // todo 同上
+        !is_cluster_learner_with_primary_status()) { // todo 同上 done
         dwarn("%s: on_learn_remote_state_completed[%016" PRIx64
               "]: learnee = %s, learn_duration = %" PRIu64 " ms, err = %s, "
               "the learner status is not PS_POTENTIAL_SECONDARY, but %s, ignore",
@@ -1314,16 +1315,18 @@ void replica::handle_learning_error(error_code err, bool is_local_error)
 {
     _checker.only_one_thread_access();
 
-    derror("%s: handle_learning_error[%016" PRIx64 "]: learnee = %s, learn_duration = %" PRIu64
-           " ms, err = %s, %s",
-           name(),
+    derror_replica("handle_learning_error[{}]: learnee = {}, learn_duration = {} ms, err = {}, {}, is_cluster_learner = {}",
            _learner_states.learning_version,
            _config.primary.to_string(),
            _learner_states.duration_ms(),
            err.to_string(),
-           is_local_error ? "local_error" : "remote error");
+           is_local_error ? "local_error" : "remote error",
+                   is_cluster_learner_with_primary_status());
 
     _stub->_counter_replicas_learning_recent_learn_fail_count->increment();
+    if (is_cluster_learner_with_primary_status()) {
+        return;
+    }
 
     update_local_configuration_with_no_ballot_change(
         is_local_error ? partition_status::PS_ERROR
