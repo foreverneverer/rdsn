@@ -1347,8 +1347,7 @@ void server_state::send_proposal(const configuration_proposal_action &action,
             return;
         }
 
-        if (_duplication_info.remote_partition_configurations.size() !=
-            app.partition_count) {
+        if (_duplication_info.remote_partition_configurations.size() != app.partition_count) {
             derror_f("app {} mark as duplication but remote app config size not equal with local "
                      "app: remote = {} vs local = {}",
                      app.app_name,
@@ -1357,7 +1356,8 @@ void server_state::send_proposal(const configuration_proposal_action &action,
             return;
         }
 
-        request.__set_duplication_config(_duplication_info
+        request.__set_duplication_config(
+            _duplication_info
                 .remote_partition_configurations[app.app_name]
                                                 [request.config.pid.get_partition_index()]);
     }
@@ -2420,14 +2420,19 @@ bool server_state::check_all_partitions()
         // todo 缝合怪啊
         if (app->duplicating) {
             if (_duplication_info.remote_cluster_name.empty()) {
-                derror_f("the remote app[{}.{}] duplication app hasn't inited, please wait", _duplication_info.remote_cluster_name, app->app_name);
-                return false;
+                derror_f("the remote app[{}.{}] duplication app hasn't inited, please wait",
+                         _duplication_info.remote_cluster_name,
+                         app->app_name);
+                continue;
             }
             // todo 需要保证安全
             auto err = sync_remote_duplication_config(app->app_name, _duplication_info);
             if (err != ERR_OK) {
-                derror_f("can't sync remote app[{}.{}] duplication info, ignore the app send proposal", _duplication_info.remote_cluster_name, app->app_name);
-                return false;
+                derror_f(
+                    "can't sync remote app[{}.{}] duplication info, ignore the app send proposal",
+                    _duplication_info.remote_cluster_name,
+                    app->app_name);
+                continue;
             }
         }
 
@@ -2921,22 +2926,24 @@ void server_state::clear_app_envs(const app_env_rpc &env_rpc)
 // todo 需要存储一些状态
 error_code server_state::init_duplication_app_info(const duplication_app_options &options)
 {
-    if (!_duplication_info.remote_cluster_name.empty() &&
-        _duplication_info.remote_cluster_name != options.cluster_name) {
+    if (_duplication_info.remote_cluster_name.empty()) {
+        _duplication_info.remote_cluster_name = options.cluster_name;
+        _duplication_info.remote_meta_list = options.meta_list;
+    }
+
+    if (_duplication_info.remote_cluster_name != options.cluster_name) {
         derror_f("the cluster has existed duplication cluster: remote={} vs request={}",
                  _duplication_info.remote_cluster_name,
                  options.cluster_name);
         return ERR_INVALID_PARAMETERS;
     }
 
-    _duplication_info.remote_cluster_name = options.cluster_name;
-    _duplication_info.remote_meta_list = options.meta_list;
     return sync_remote_duplication_config(options.app_name, _duplication_info);
 }
 
 // todo 需要重构这个函数
 error_code server_state::sync_remote_duplication_config(const std::string &app_name,
-                                                  /*out*/ const duplication_info &config)
+                                                        /*out*/ const duplication_info &config)
 {
     std::vector<partition_configuration> configurations;
     error_code err_code;
@@ -2947,17 +2954,23 @@ error_code server_state::sync_remote_duplication_config(const std::string &app_n
             dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX, 0, 0);
         dsn::marshall(msg, meta_config_request);
         rpc::call(meta, msg, nullptr, [
-            &,
-            req_cap = meta_config_request
+                                          &,
+                                          req_cap = meta_config_request
         ](error_code err, configuration_query_by_index_response && resp) mutable {
             if (err != ERR_OK) {
                 err_code = err;
-                derror_f("sync remote cluster[{}] duplication app[{}] failed :{}", config.remote_cluster_name, app_name, err_code.to_string());
+                derror_f("sync remote cluster[{}] duplication app[{}] failed :{}",
+                         config.remote_cluster_name,
+                         app_name,
+                         err_code.to_string());
             } else {
                 err_code = resp.err;
                 if (err_code != ERR_OK) {
                     err_code = resp.err;
-                    derror_f("sync remote cluster[{}] duplication app[{}] failed :{}", config.remote_cluster_name, app_name, err_code.to_string());
+                    derror_f("sync remote cluster[{}] duplication app[{}] failed :{}",
+                             config.remote_cluster_name,
+                             app_name,
+                             err_code.to_string());
                 } else {
                     configurations = resp.partitions;
                 }
