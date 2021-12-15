@@ -2420,6 +2420,7 @@ bool server_state::check_all_partitions()
 
         // todo 缝合怪啊
         if (app->duplicating) {
+            // todo 需要保证安全
             sync_remote_duplication_config(app->app_name, _duplication_info);
         }
 
