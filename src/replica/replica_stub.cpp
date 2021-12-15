@@ -1253,21 +1253,6 @@ void replica_stub::on_learn(dsn::message_ex *msg)
     }
 }
 
-void replica_stub::on_cluster_learn(dsn::message_ex *msg)
-{
-    learn_request request;
-    ::dsn::unmarshall(msg, request);
-
-    replica_ptr rep = get_replica(request.pid);
-    if (rep != nullptr) {
-        rep->on_cluster_learn(msg, request);
-    } else {
-        learn_response response;
-        response.err = ERR_OBJECT_NOT_FOUND;
-        reply(msg, response);
-    }
-}
-
 void replica_stub::on_copy_checkpoint(copy_checkpoint_rpc rpc)
 {
     const replica_configuration &request = rpc.request();
@@ -2231,7 +2216,6 @@ void replica_stub::open_service()
                                          "LearnNotify",
                                          &replica_stub::on_learn_completion_notification);
     register_rpc_handler(RPC_LEARN_ADD_LEARNER, "LearnAdd", &replica_stub::on_add_learner);
-    register_rpc_handler(RPC_CLUSTER_LEARN, "on_cluster_learn", &replica_stub::on_cluster_learn);
     register_rpc_handler(RPC_REMOVE_REPLICA, "remove", &replica_stub::on_remove);
     register_rpc_handler_with_rpc_holder(
         RPC_GROUP_CHECK, "GroupCheck", &replica_stub::on_group_check);

@@ -128,9 +128,9 @@ ENUM_BEGIN2(replication::app_duplication_status::type,
             replication::app_duplication_status::DuplicationIdle)
 ENUM_REG(replication::app_duplication_status::DuplicationIdle)
 ENUM_REG(replication::app_duplication_status::ClusterLearning)
-ENUM_REG(replication::app_duplication_status::ClusterLearningSucceed)
+ENUM_REG(replication::app_duplication_status::ClusterLearningSucceeded)
 ENUM_REG(replication::app_duplication_status::ReplicaLearning)
-ENUM_REG(replication::app_duplication_status::ReplicaLearningSucceed)
+ENUM_REG(replication::app_duplication_status::ReplicaLearningSucceeded)
 ENUM_END2(replication::app_duplication_status::type, app_duplication_status)
 
 } // namespace dsn

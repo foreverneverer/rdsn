@@ -160,15 +160,12 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
     dassert(partition_status::PS_PRIMARY == status(),
             "invalid partition_status, status = %s",
             enum_to_string(status()));
-    if (_stub->_duplicating) {
-        derror_replica("now is duplicating, ignored the prepare request");
-        return;
-    }
 
     mu->_tracer->set_description("primary");
     ADD_POINT(mu->_tracer);
 
     error_code err = ERR_OK;
+    uint8_t count = 0;
     const auto request_count = mu->client_requests.size();
     mu->data.header.last_committed_decree = last_committed_decree();
 
@@ -251,7 +248,7 @@ void replica::init_prepare(mutation_ptr &mu, bool reconciliation, bool pop_all_c
                              pop_all_committed_mutations);
     }
 
-    int count = 0;
+    count = 0;
     for (auto it = _primary_states.learners.begin(); it != _primary_states.learners.end(); ++it) {
         if (it->second.prepare_start_decree != invalid_decree &&
             mu->data.header.decree >= it->second.prepare_start_decree) {
@@ -322,7 +319,7 @@ void replica::send_prepare_message(::dsn::rpc_address addr,
                                    bool pop_all_committed_mutations,
                                    int64_t learn_signature)
 {
-    if (_stub->_duplicating) {
+    if (_duplicating) {
         derror_replica("now is duplicating, ignored the send_prepare_message");
         return;
     }

@@ -91,7 +91,7 @@ void replica::on_config_proposal(configuration_update_request &proposal)
             derror_replica(
                 "app[{}] is duplicating and need learn remote cluster replica[{}.{}] firstly",
                 proposal.info.app_name,
-                proposal.duplication_config.primary,
+                proposal.duplication_config.primary.to_string(),
                 proposal.duplication_config.pid);
             on_add_cluster_learner(proposal);
         } else {

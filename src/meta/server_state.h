@@ -356,7 +356,7 @@ public:
 
     duplication_info _duplication_info;
     error_code init_duplication_app_info(const duplication_app_options &options);
-    void sync_remote_duplication_config(const std::string &app_name,
+    error_code sync_remote_duplication_config(const std::string &app_name,
                                         /*out*/ const duplication_info &config);
 };
 

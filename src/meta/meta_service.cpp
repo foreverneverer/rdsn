@@ -286,46 +286,6 @@ void meta_service::register_ctrl_commands()
                 }
                 return result;
             });
-
-    // just test
-    _test_add_slave_learner_command = dsn::command_manager::instance().register_command(
-        {"_test_add_slave_learner_command"},
-        "_test_add_slave_learner_command [num | DEFAULT]",
-        "_test_add_slave_learner_command",
-        [this](const std::vector<std::string> &args) {
-            std::string result("OK");
-            if (args.empty()) {
-                result = "test_add_slave_learner_command = " + duplication_info_message;
-                return result;
-            }
-
-            create_duplication_app_request request;
-            std::vector<std::string> config;
-            static const std::string invalid_arguments("invalid arguments");
-
-            dsn::utils::split_args(args[0].c_str(), config, ',');
-            if (config.empty()) {
-                return invalid_arguments;
-            }
-
-            std::string remote_meta_addrs = config[0];
-            std::vector<std::string> ipport;
-            dsn::utils::split_args(remote_meta_addrs.c_str(), ipport, ':');
-            if (ipport.empty()) {
-                return invalid_arguments;
-            }
-            uint32_t port = 0;
-            if (!dsn::buf2uint32(ipport[1], port)) {
-                return invalid_arguments;
-            }
-            request.meta_list.emplace_back(dsn::rpc_address(ipport[0].c_str(), port));
-            request.app_name = config[1];
-
-            create_duplication_app_rpc rpc(std::move(request), );
-            on_create_duplication_app(request);
-            duplication_info_message = args[0];
-            return result;
-        });
 }
 
 void meta_service::unregister_ctrl_commands()
@@ -558,9 +518,6 @@ void meta_service::register_rpc_handlers()
         RPC_CM_START_BACKUP_APP, "start_backup_app", &meta_service::on_start_backup_app);
     register_rpc_handler_with_rpc_holder(
         RPC_CM_QUERY_BACKUP_STATUS, "query_backup_status", &meta_service::on_query_backup_status);
-    register_rpc_handler_with_rpc_holder(RPC_CM_CREATE_DUPLICATION_APP,
-                                         "create_duplication_app",
-                                         &meta_service::on_create_duplication_app);
 }
 
 int meta_service::check_leader(dsn::message_ex *req, dsn::rpc_address *forward_address)

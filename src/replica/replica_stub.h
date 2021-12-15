@@ -227,9 +227,6 @@ public:
 
     void on_add_new_disk(add_new_disk_rpc rpc);
 
-    // cluster learn
-    void on_add_duplication_app(create_dup_app rpc);
-
 private:
     enum replica_node_state
     {
