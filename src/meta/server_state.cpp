@@ -2420,7 +2420,7 @@ bool server_state::check_all_partitions()
 
         // todo 缝合怪啊
         if (app->duplicating) {
-            _meta_svc->sync_remote_duplication_config(app->app_name, _meta_svc->_duplication_info);
+            sync_remote_duplication_config(app->app_name, _duplication_info);
         }
 
         for (unsigned int i = 0; i != app->partition_count; ++i) {
