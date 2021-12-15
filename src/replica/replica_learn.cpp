@@ -856,7 +856,8 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
                 mutation_ptr existing_mutation =
                     _prepare_list->get_mutation_by_decree(mu->data.header.decree);
                 if (existing_mutation != nullptr &&
-                    existing_mutation->data.header.ballot > mu->data.header.ballot) { // todo ballot存在于mu中，所以需要额外注意
+                    existing_mutation->data.header.ballot >
+                        mu->data.header.ballot) { // todo ballot存在于mu中，所以需要额外注意
                     ddebug("%s: on_learn_reply[%016" PRIx64 "]: learnee = %s, "
                            "mutation(%s) exist on the learner with larger ballot %" PRId64 "",
                            name(),
@@ -1315,12 +1316,13 @@ void replica::handle_learning_error(error_code err, bool is_local_error)
 {
     _checker.only_one_thread_access();
 
-    derror_replica("handle_learning_error[{}]: learnee = {}, learn_duration = {} ms, err = {}, {}, is_cluster_learner = {}",
-           _learner_states.learning_version,
-           _config.primary.to_string(),
-           _learner_states.duration_ms(),
-           err.to_string(),
-           is_local_error ? "local_error" : "remote error",
+    derror_replica("handle_learning_error[{}]: learnee = {}, learn_duration = {} ms, err = {}, {}, "
+                   "is_cluster_learner = {}",
+                   _learner_states.learning_version,
+                   _config.primary.to_string(),
+                   _learner_states.duration_ms(),
+                   err.to_string(),
+                   is_local_error ? "local_error" : "remote error",
                    is_cluster_learner_with_primary_status());
 
     _stub->_counter_replicas_learning_recent_learn_fail_count->increment();

@@ -149,10 +149,19 @@ struct create_app_options
     6:map<string, string>  envs;
 }
 
+struct duplication_app_options
+{
+    1:bool enable_duplication = false;
+    2:string app_name;
+    3:string cluster_name;
+    4:list<dsn.rpc_address>       meta_list;
+}
+
 struct configuration_create_app_request
 {
     1:string                   app_name;
     2:create_app_options       options;
+    3:optional duplication_app_options duplication;
 }
 
 // meta server => client
@@ -358,17 +367,4 @@ struct ddd_diagnose_response
 {
     1:dsn.error_code           err;
     2:list<ddd_partition_info> partitions;
-}
-
-struct configuration_create_dup_app_request
-{
-    1:string app_name;
-    2:string cluster_name;
-    3:list<dsn.rpc_address>       meta_list;
-}
-
-struct configuration_create_dup_app_response
-{
-    1:dsn.error_code   err;
-    2:string              hint_msg;
 }

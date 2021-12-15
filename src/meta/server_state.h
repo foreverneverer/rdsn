@@ -346,7 +346,18 @@ private:
     perf_counter_wrapper _recent_partition_change_writable_count;
 
 public:
-    void create_dup_app(const std::string &app_name);
+    struct duplication_info
+    {
+        std::string remote_cluster_name;
+        std::vector<rpc_address> remote_meta_list;
+        std::unordered_map<std::string, std::vector<partition_configuration>>
+            remote_partition_configurations;
+    };
+
+    duplication_info _duplication_info;
+    error_code init_duplication_app_info(const duplication_app_options &options);
+    void sync_remote_duplication_config(const std::string &app_name,
+                                        /*out*/ const duplication_info &config);
 };
 
 } // namespace replication

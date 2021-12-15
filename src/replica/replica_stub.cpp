@@ -1324,18 +1324,6 @@ void replica_stub::on_add_learner(const group_check_request &request)
     }
 }
 
-void replica_stub::on_add_duplication_app(create_dup_app rpc)
-{
-    const auto &request = rpc.request();
-    auto &resp = rpc.response();
-    derror_f("add remote duplication app: remote_cluster={}, remote_app={}",
-             request.cluster_name,
-             request.app_name);
-    zauto_write_lock l(_duplication_apps_lock);
-    _duplication_apps.emplace(request.app_name, request.meta_list);
-    resp.err = ERR_OK;
-}
-
 void replica_stub::on_remove(const replica_configuration &request)
 {
     replica_ptr rep = get_replica(request.pid);
@@ -2272,9 +2260,6 @@ void replica_stub::open_service()
         RPC_DETECT_HOTKEY, "detect_hotkey", &replica_stub::on_detect_hotkey);
     register_rpc_handler_with_rpc_holder(
         RPC_ADD_NEW_DISK, "add_new_disk", &replica_stub::on_add_new_disk);
-    register_rpc_handler_with_rpc_holder(RPC_LEARN_ADD_DUPLICATION_LEARNER,
-                                         "add_slave_learn",
-                                         &replica_stub::on_add_duplication_app);
 
     register_ctrl_command();
 }

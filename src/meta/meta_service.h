@@ -286,13 +286,10 @@ private:
 
     std::unique_ptr<security::access_controller> _access_controller;
 
+public:
     //
     dsn_handle_t _test_add_slave_learner_command;
-    std::string duplication_info;
-    void on_create_dup_app(const configuration_create_dup_app_request &request);
-    void check_dup_request_to_remote_meta(const configuration_create_dup_app_request &request);
-    void
-    on_check_dup_request_reply_from_remote_meta(const configuration_create_dup_app_response &resp);
+    std::string duplication_info_message;
 };
 
 } // namespace replication

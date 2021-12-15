@@ -295,11 +295,11 @@ void meta_service::register_ctrl_commands()
         [this](const std::vector<std::string> &args) {
             std::string result("OK");
             if (args.empty()) {
-                result = "test_add_slave_learner_command = " + duplication_info;
+                result = "test_add_slave_learner_command = " + duplication_info_message;
                 return result;
             }
 
-            configuration_create_dup_app_request request;
+            create_duplication_app_request request;
             std::vector<std::string> config;
             static const std::string invalid_arguments("invalid arguments");
 
@@ -320,8 +320,10 @@ void meta_service::register_ctrl_commands()
             }
             request.meta_list.emplace_back(dsn::rpc_address(ipport[0].c_str(), port));
             request.app_name = config[1];
-            on_create_dup_app(request);
-            duplication_info = args[0];
+
+            create_duplication_app_rpc rpc(std::move(request), );
+            on_create_duplication_app(request);
+            duplication_info_message = args[0];
             return result;
         });
 }
@@ -556,6 +558,9 @@ void meta_service::register_rpc_handlers()
         RPC_CM_START_BACKUP_APP, "start_backup_app", &meta_service::on_start_backup_app);
     register_rpc_handler_with_rpc_holder(
         RPC_CM_QUERY_BACKUP_STATUS, "query_backup_status", &meta_service::on_query_backup_status);
+    register_rpc_handler_with_rpc_holder(RPC_CM_CREATE_DUPLICATION_APP,
+                                         "create_duplication_app",
+                                         &meta_service::on_create_duplication_app);
 }
 
 int meta_service::check_leader(dsn::message_ex *req, dsn::rpc_address *forward_address)
@@ -1227,47 +1232,6 @@ void meta_service::on_query_backup_status(query_backup_status_rpc rpc)
         return;
     }
     _backup_handler->query_backup_status(std::move(rpc));
-}
-
-void meta_service::on_create_dup_app(const configuration_create_dup_app_request &request)
-{
-    bool ok = true;
-    for (const auto &replica_server : _alive_set) {
-        dsn::message_ex *msg =
-            dsn::message_ex::create_request(RPC_LEARN_ADD_DUPLICATION_LEARNER, 0, 0);
-        dsn::marshall(msg, request);
-        auto task = rpc::call(replica_server, msg, &_tracker, [
-            &ok,
-            replica_server_cp = replica_server,
-            req_cap = request
-        ](error_code err, configuration_create_dup_app_response && resp) mutable {
-            if (err != ERR_OK) {
-                ok = false;
-                derror_f("failed={}, {}", err.to_string(), replica_server_cp.to_string());
-            } else {
-                derror_f("ok={}", resp.err.to_string());
-            }
-        });
-        task->wait();
-    }
-    if (ok) {
-        derror_f("create dup app: {}", request.app_name);
-        get_server_state()->create_dup_app(request.app_name);
-    } else {
-        derror_f("create dup app faild: {}", request.app_name);
-    }
-}
-
-// todo
-void meta_service::check_dup_request_to_remote_meta(
-    const configuration_create_dup_app_request &request)
-{
-}
-
-// todo
-void meta_service::on_check_dup_request_reply_from_remote_meta(
-    const configuration_create_dup_app_response &resp)
-{
 }
 
 } // namespace replication
