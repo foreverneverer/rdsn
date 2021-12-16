@@ -85,7 +85,7 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
               enum_to_string(partition_status::PS_PRIMARY));
     dassert_f(proposal.info.duplicating, "app must be at duplicating when start cluster learning");
 
-    derror_replica("process add cluster learner, remote = {},"
+    derror_replica("process add cluster learner, remote = {}, "
                    "last_committed_decree = {} vs {}, duplicating = {}",
                    proposal.duplication_config.primary.to_string(),
                    proposal.duplication_config.last_committed_decree,
