@@ -90,7 +90,7 @@ void replica::on_config_proposal(configuration_update_request &proposal)
         if (proposal.info.duplicating &&
             proposal.config.pid.get_partition_index() == 0 /* todo just test */) {
             derror_replica(
-                "app[{}] is duplicating and need learn remote cluster replica[{}.{}] firstly",
+                "app[{}] is duplicating and need learn remote cluster replica[{}|{}] firstly",
                 proposal.info.app_name,
                 proposal.duplication_config.primary.to_string(),
                 proposal.duplication_config.pid);

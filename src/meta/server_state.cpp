@@ -1389,6 +1389,14 @@ void server_state::send_proposal(const configuration_proposal_action &action,
             _duplication_info
                 .remote_partition_configurations[app.app_name]
                                                 [request.config.pid.get_partition_index()]);
+        derror_f("app[{}] is duplicating and has added remote duplication config "
+                 "[{}|{}|{}], last_commit_decree=remote.{} vs local.{}",
+                 app.app_name,
+                 _duplication_info.remote_cluster_name,
+                 request.duplication_config.primary.to_string(),
+                 request.duplication_config.pid.to_string(),
+                 request.duplication_config.last_committed_decree,
+                 request.config.last_committed_decree);
     }
 
     send_proposal(action.target, request);

@@ -106,7 +106,7 @@ bool replica::is_cluster_learner_with_primary_status() const
 // learner
 std::string replica::cluster_learn_status()
 {
-    return fmt::format("[{}]{}", _duplicating, enum_to_string(_app_duplication_status));
+    return fmt::format("{}[{}]", enum_to_string(_app_duplication_status), _duplicating);
 }
 
 // learner
