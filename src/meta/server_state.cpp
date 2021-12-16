@@ -1333,7 +1333,7 @@ void server_state::list_apps(const configuration_list_apps_request &request,
     response.err = dsn::ERR_OK;
 }
 
-void server_state::send_proposal(rpc_address target, const configuration_update_request &proposal)
+void server_state::send_proposal(const rpc_address &target, configuration_update_request &proposal)
 {
     derror_f(
         "send proposal {} for gpid({}.{}), ballot = {}, target = {}, node = {}, duplicating = {}",
@@ -1344,6 +1344,47 @@ void server_state::send_proposal(rpc_address target, const configuration_update_
         target.to_string(),
         proposal.node.to_string(),
         proposal.info.duplicating);
+
+    // todo 重构成一个函数
+    if (proposal.info.duplicating && (proposal.type == config_type::CT_ADD_SECONDARY ||
+                                      proposal.type == config_type::CT_ADD_SECONDARY_FOR_LB)) {
+        if (_duplication_info.remote_partition_configurations.count(proposal.info.app_name) == 0) {
+            derror_f("app[{}] mark as duplication but not cache the remote app config",
+                     proposal.info.app_name);
+            return;
+        }
+
+        if (_duplication_info.remote_partition_configurations[proposal.info.app_name].empty()) {
+            derror_f("app[{}] mark as duplication but remote app config cache size is empty",
+                     proposal.info.app_name);
+            return;
+        }
+
+        if (_duplication_info.remote_partition_configurations[proposal.info.app_name].size() !=
+            proposal.info.partition_count) {
+            derror_f(
+                "app[{}] mark as duplication but remote app config size not equal with local "
+                "app: remote = {} vs local = {}",
+                proposal.info.app_name,
+                _duplication_info.remote_partition_configurations[proposal.info.app_name].size(),
+                proposal.info.partition_count);
+            return;
+        }
+
+        proposal.__set_duplication_config(
+            _duplication_info
+                .remote_partition_configurations[proposal.info.app_name]
+                                                [proposal.config.pid.get_partition_index()]);
+        derror_f("app[{}] is duplicating and has added remote duplication config "
+                 "[{}|{}|{}], last_commit_decree = remote.{} vs local.{}, proposal = {}",
+                 proposal.info.app_name,
+                 _duplication_info.remote_cluster_name,
+                 proposal.duplication_config.primary.to_string(),
+                 proposal.duplication_config.pid.to_string(),
+                 proposal.duplication_config.last_committed_decree,
+                 proposal.config.last_committed_decree,
+                 dsn::enum_to_string(proposal.type));
+    }
 
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CONFIG_PROPOSAL, 0, proposal.config.pid.thread_hash());
@@ -1360,44 +1401,6 @@ void server_state::send_proposal(const configuration_proposal_action &action,
     request.type = action.type;
     request.node = action.node;
     request.config = pc;
-
-    // todo 重构成一个函数
-    if (request.info.duplicating) {
-        if (_duplication_info.remote_partition_configurations.count(app.app_name) == 0) {
-            derror_f("app[{}] mark as duplication but not cache the remote app config",
-                     app.app_name);
-            return;
-        }
-
-        if (_duplication_info.remote_partition_configurations[app.app_name].empty()) {
-            derror_f("app[{}] mark as duplication but remote app config cache size is empty",
-                     app.app_name);
-            return;
-        }
-
-        if (_duplication_info.remote_partition_configurations[app.app_name].size() !=
-            app.partition_count) {
-            derror_f("app[{}] mark as duplication but remote app config size not equal with local "
-                     "app: remote = {} vs local = {}",
-                     app.app_name,
-                     _duplication_info.remote_partition_configurations[app.app_name].size(),
-                     app.partition_count);
-            return;
-        }
-
-        request.__set_duplication_config(
-            _duplication_info
-                .remote_partition_configurations[app.app_name]
-                                                [request.config.pid.get_partition_index()]);
-        derror_f("app[{}] is duplicating and has added remote duplication config "
-                 "[{}|{}|{}], last_commit_decree=remote.{} vs local.{}",
-                 app.app_name,
-                 _duplication_info.remote_cluster_name,
-                 request.duplication_config.primary.to_string(),
-                 request.duplication_config.pid.to_string(),
-                 request.duplication_config.last_committed_decree,
-                 request.config.last_committed_decree);
-    }
 
     send_proposal(action.target, request);
 }

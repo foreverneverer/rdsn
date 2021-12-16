@@ -99,7 +99,11 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
 
     // learn timeout or primary change, the (new) primary starts another round of learning process
     // be cautious: primary should not issue signatures frequently to avoid learning abort
-    if (signature != _learner_states.learning_version) {
+    if (signature !=
+        _learner_states
+            .learning_version) { // todo cluster learn
+                                 // todo 设置了=_learner_states.learning_version，于是直接进入下面，learner
+                                 // todo status将会是无效的
         if (!_learner_states.cleanup(false)) {
             derror("%s: previous learning with signature[%016" PRIx64
                    "] is still in-process, skip init new learning with signature [%016" PRIx64 "]",
