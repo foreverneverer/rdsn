@@ -52,7 +52,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
 {
     _checker.only_one_thread_access();
 
-    if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
+    if (status() != partition_status::PS_POTENTIAL_SECONDARY &&
         !is_cluster_learner_with_primary_status()) { // todo 需要支持Primary done
         derror_replica("state is not potential secondary or duplicating but "
                        "replica_learn={}，cluster_learn={}, skip "
@@ -658,7 +658,7 @@ void replica::on_learn_reply(error_code err, learn_request &&req, learn_response
     }
 
     // todo 添加校验函数is_learner()
-    if (status() != partition_status::PS_POTENTIAL_SECONDARY ||
+    if (status() != partition_status::PS_POTENTIAL_SECONDARY &&
         !is_cluster_learner_with_primary_status()) { // todo 同上文，需要支持Primary done
         derror_replica("on_learn_reply[{}]: learnee = {}, current_status = {}, duplication status "
                        "= {}, stop learning",
@@ -1273,7 +1273,7 @@ void replica::on_learn_remote_state_completed(error_code err)
 {
     _checker.only_one_thread_access();
 
-    if (partition_status::PS_POTENTIAL_SECONDARY != status() ||
+    if (partition_status::PS_POTENTIAL_SECONDARY != status() &&
         !is_cluster_learner_with_primary_status()) { // todo 同上 done
         dwarn("%s: on_learn_remote_state_completed[%016" PRIx64
               "]: learnee = %s, learn_duration = %" PRIu64 " ms, err = %s, "

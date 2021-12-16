@@ -87,7 +87,8 @@ void replica::on_config_proposal(configuration_update_request &proposal)
         break;
     case config_type::CT_ADD_SECONDARY:
     case config_type::CT_ADD_SECONDARY_FOR_LB:
-        if (proposal.info.duplicating) {
+        if (proposal.info.duplicating &&
+            proposal.config.pid.get_partition_index() == 0 /* todo just test */) {
             derror_replica(
                 "app[{}] is duplicating and need learn remote cluster replica[{}.{}] firstly",
                 proposal.info.app_name,
