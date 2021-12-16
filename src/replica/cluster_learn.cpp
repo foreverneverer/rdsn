@@ -68,7 +68,7 @@ void replica::on_add_cluster_learner(configuration_update_request &proposal)
                        cluster_learn_status(),
                        enum_to_string(app_duplication_status::ReplicaLearning));
         _app_duplication_status = app_duplication_status::ReplicaLearning;
-        add_potential_secondary(proposal);
+        add_potential_secondary(proposal);// todo: 当Primary挂掉后，当前只存在两个PotentialSecondary， meta此时如何抉择？
     }
 }
 
