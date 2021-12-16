@@ -50,6 +50,7 @@
 #include "dump_file.h"
 #include "app_env_validator.h"
 #include "meta_bulk_load_service.h"
+#include <dsn/tool-api/group_address.h>
 
 using namespace dsn;
 
@@ -1058,7 +1059,6 @@ void server_state::create_app(dsn::message_ex *msg)
     std::shared_ptr<app_state> app;
     bool will_create_app = false;
     dsn::unmarshall(msg, request);
-    derror_f("HHHHHHHHHHHH");
 
     if (request.app_name == "dup_test" &&
         request.options.envs.count("dup") == 1) { // todo just test
@@ -1072,7 +1072,6 @@ void server_state::create_app(dsn::message_ex *msg)
         request.duplication.meta_list.emplace_back(meta3);
         request.duplication.cluster_name = "onebox1";
         request.duplication.app_name = request.app_name; // todo 表名重复了，需要精简
-        derror_f("AAAAAAAAAA");
     }
 
     if (request.duplication.enable_duplication) {
@@ -1143,7 +1142,7 @@ void server_state::create_app(dsn::message_ex *msg)
             info.status = app_status::AS_CREATING;
             info.create_second = dsn_now_ms() / 1000;
             info.init_partition_count = request.options.partition_count;
-            info.duplicating = request.duplication.enable_duplication;
+            info.__set_duplicating(request.duplication.enable_duplication);
 
             app = app_state::create(info);
             app->helpers->pending_response = msg;
@@ -1336,13 +1335,15 @@ void server_state::list_apps(const configuration_list_apps_request &request,
 
 void server_state::send_proposal(rpc_address target, const configuration_update_request &proposal)
 {
-    ddebug("send proposal %s for gpid(%d.%d), ballot = %" PRId64 ", target = %s, node = %s",
-           ::dsn::enum_to_string(proposal.type),
-           proposal.config.pid.get_app_id(),
-           proposal.config.pid.get_partition_index(),
-           proposal.config.ballot,
-           target.to_string(),
-           proposal.node.to_string());
+    derror_f(
+        "send proposal {} for gpid({}.{}), ballot = {}, target = {}, node = {}, duplicating = {}",
+        ::dsn::enum_to_string(proposal.type),
+        proposal.config.pid.get_app_id(),
+        proposal.config.pid.get_partition_index(),
+        proposal.config.ballot,
+        target.to_string(),
+        proposal.node.to_string(),
+        proposal.info.duplicating);
 
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CONFIG_PROPOSAL, 0, proposal.config.pid.thread_hash());
@@ -1363,22 +1364,23 @@ void server_state::send_proposal(const configuration_proposal_action &action,
     // todo 重构成一个函数
     if (request.info.duplicating) {
         if (_duplication_info.remote_partition_configurations.count(app.app_name) == 0) {
-            derror_f("app {} mark as duplication but not cache the remote app config",
+            derror_f("app[{}] mark as duplication but not cache the remote app config",
                      app.app_name);
             return;
         }
 
         if (_duplication_info.remote_partition_configurations[app.app_name].empty()) {
-            derror_f("app {} mark as duplication but remote app config cache size is empty",
+            derror_f("app[{}] mark as duplication but remote app config cache size is empty",
                      app.app_name);
             return;
         }
 
-        if (_duplication_info.remote_partition_configurations.size() != app.partition_count) {
-            derror_f("app {} mark as duplication but remote app config size not equal with local "
+        if (_duplication_info.remote_partition_configurations[app.app_name].size() !=
+            app.partition_count) {
+            derror_f("app[{}] mark as duplication but remote app config size not equal with local "
                      "app: remote = {} vs local = {}",
                      app.app_name,
-                     _duplication_info.remote_partition_configurations.size(),
+                     _duplication_info.remote_partition_configurations[app.app_name].size(),
                      app.partition_count);
             return;
         }
@@ -2973,41 +2975,42 @@ error_code server_state::sync_remote_duplication_config(const std::string &app_n
 {
     std::vector<partition_configuration> configurations;
     error_code err_code;
-    for (const auto &meta : _duplication_info.remote_meta_list) {
-        derror_f("send {} start.........", meta.to_string());
-        configuration_query_by_index_request meta_config_request;
-        dsn::message_ex *msg =
-            dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX, 0, 0);
-        dsn::marshall(msg, meta_config_request);
-        rpc::call(meta,
-                  msg,
-                  nullptr,
-                  [&](error_code err, configuration_query_by_index_response &&resp) mutable {
-                      if (err != ERR_OK) {
-                          err_code = err;
-                          derror_f("sync remote duplication app[{}.{}] failed :{}",
+    rpc_address meta_servers;
+    meta_servers.assign_group("meta-servers");
+    meta_servers.group_address()->add_list(_duplication_info.remote_meta_list);
+
+    configuration_query_by_index_request meta_config_request;
+    meta_config_request.app_name = app_name;
+    dsn::message_ex *msg =
+        dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX, 1000, 1);
+    dsn::marshall(msg, meta_config_request);
+    rpc::call(meta_servers,
+              msg,
+              &_tracker,
+              [&](error_code err, configuration_query_by_index_response &&resp) mutable {
+                  if (err != ERR_OK) {
+                      err_code = err;
+                      derror_f("sync remote duplication app[{}.{}] failed[NET]: {}",
+                               _duplication_info.remote_cluster_name,
+                               app_name,
+                               err_code.to_string());
+                  } else {
+                      err_code = resp.err;
+                      if (err_code != ERR_OK) {
+                          derror_f("sync remote duplication app[{}.{}] failed[RPC]: {}",
                                    _duplication_info.remote_cluster_name,
                                    app_name,
                                    err_code.to_string());
                       } else {
-                          err_code = resp.err;
-                          if (err_code != ERR_OK) {
-                              derror_f("sync remote duplication app[{}.{}] failed :{}",
-                                       _duplication_info.remote_cluster_name,
-                                       app_name,
-                                       err_code.to_string());
-                          } else {
-                              configurations = resp.partitions;
-                          }
+                          configurations = resp.partitions;
                       }
-                  })
-            ->wait();
-        derror_f("send {} ok.........", meta.to_string());
-        if (err_code == ERR_OK) {
-            _duplication_info.remote_partition_configurations.emplace(
-                app_name, configurations); // todo 这个拷贝是低效的，寻找好的方法
-            return ERR_OK;
-        }
+                  }
+              })
+        ->wait();
+    if (err_code == ERR_OK) {
+        _duplication_info.remote_partition_configurations.emplace(
+            app_name, configurations); // todo 这个拷贝是低效的，寻找好的方法
+        return ERR_OK;
     }
     return err_code;
 }

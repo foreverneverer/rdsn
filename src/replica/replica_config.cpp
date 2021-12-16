@@ -96,6 +96,8 @@ void replica::on_config_proposal(configuration_update_request &proposal)
                 proposal.duplication_config.pid);
             on_add_cluster_learner(proposal);
         } else {
+            derror_replica("app[{}] is not duplicating and just add_potential_secondary",
+                           proposal.info.app_name);
             add_potential_secondary(proposal);
         }
         break;
