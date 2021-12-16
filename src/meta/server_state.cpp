@@ -2985,15 +2985,14 @@ error_code server_state::sync_remote_duplication_config(const std::string &app_n
                   [&](error_code err, configuration_query_by_index_response &&resp) mutable {
                       if (err != ERR_OK) {
                           err_code = err;
-                          derror_f("sync remote cluster[{}] duplication app[{}] failed :{}",
+                          derror_f("sync remote duplication app[{}.{}] failed :{}",
                                    _duplication_info.remote_cluster_name,
                                    app_name,
                                    err_code.to_string());
                       } else {
                           err_code = resp.err;
                           if (err_code != ERR_OK) {
-                              err_code = resp.err;
-                              derror_f("sync remote cluster[{}] duplication app[{}] failed :{}",
+                              derror_f("sync remote duplication app[{}.{}] failed :{}",
                                        _duplication_info.remote_cluster_name,
                                        app_name,
                                        err_code.to_string());
