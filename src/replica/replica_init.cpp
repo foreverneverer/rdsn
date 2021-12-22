@@ -72,15 +72,19 @@ error_code replica::initialize_on_new()
                                   gpid gpid,
                                   const app_info &app,
                                   bool restore_if_necessary,
+                                  const partition_configuration &duplication_config,
+                                  bool duplicate_from_remote,
                                   const std::string &parent_dir)
 {
+    dassert_f(restore_if_necessary == false || duplicate_from_remote == false,
+              "replica data only recover from one way");
     std::string dir;
     if (parent_dir.empty()) {
         dir = stub->get_replica_dir(app.app_type.c_str(), gpid);
     } else {
         dir = stub->get_child_dir(app.app_type.c_str(), gpid, parent_dir);
     }
-    replica *rep = new replica(stub, gpid, app, dir.c_str(), restore_if_necessary);
+    auto *rep = new replica(stub, gpid, app, dir.c_str(), restore_if_necessary);
     error_code err;
     if (restore_if_necessary && (err = rep->restore_checkpoint()) != dsn::ERR_OK) {
         derror("try to restore replica %s failed, error(%s)", rep->name(), err.to_string());
@@ -92,6 +96,33 @@ error_code replica::initialize_on_new()
         utils::filesystem::remove_path(dir);
         stub->_fs_manager.remove_replica(gpid);
         return nullptr;
+    }
+
+    if (duplicate_from_remote) {
+        if (duplication_config.primary == rpc_address::s_invalid_address) {
+            err = ERR_OBJECT_NOT_FOUND;
+            derror_f(
+                "try to duplicate remote replica[app={}] failed for remote replica addr is invalid",
+                app.app_name);
+        } else if ((err = rep->learn_checkpoint_from_remote()) != ERR_OK) {
+            derror_f("try to duplicate remote replica[app={}({}|{})] failed for learn replica "
+                     "checkpoint is failed",
+                     app.app_name,
+                     duplication_config.primary.to_string(),
+                     duplication_config.pid.to_string());
+        }
+
+        // todo jiashuo1 重构成一个函数
+        if (err != ERR_OK) {
+            rep->close();
+            delete rep;
+            rep = nullptr;
+
+            // clear work on failure
+            utils::filesystem::remove_path(dir);
+            stub->_fs_manager.remove_replica(gpid);
+            return nullptr;
+        }
     }
 
     err = rep->initialize_on_new();

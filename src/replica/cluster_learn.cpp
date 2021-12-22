@@ -111,20 +111,13 @@ std::string replica::cluster_learn_status()
     return fmt::format("{}[{}]", enum_to_string(_app_duplication_status), _duplicating);
 }
 
-// learner
-void replica::add_duplication_learner(const rpc_address &learner, uint64_t signature)
-{
-    auto it = _primary_states.learners.find(learner);
-    if (it == _primary_states.learners.end()) {
-        remote_learner_state state;
-        state.prepare_start_decree = invalid_decree;
-        state.timeout_task = nullptr; // TODO: add timer for learner task
+error_code replica::get_learnee_replica_state() { return {}; }
 
-        state.signature = signature; // TODO 这里的校验可能会有一些问题
-        _primary_states.learners[learner] = state;
-        _primary_states.statuses[learner] = partition_status::PS_PRIMARY;
-    }
-}
+error_code replica::learn_checkpoint_from_remote() { return {}; }
+
+error_code replica::learn_log_from_remote() { return {}; }
+
+error_code replica::learn_cache_from_remote() { return {}; }
 
 } // namespace replication
 } // namespace dsn

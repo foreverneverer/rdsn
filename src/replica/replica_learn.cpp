@@ -99,11 +99,9 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
 
     // learn timeout or primary change, the (new) primary starts another round of learning process
     // be cautious: primary should not issue signatures frequently to avoid learning abort
-    if (signature !=
-        _learner_states
-            .learning_version) { // todo cluster learn
-                                 // todo 设置了=_learner_states.learning_version，于是直接进入下面，learner
-                                 // todo status将会是无效的
+    if (signature != _learner_states.learning_version) { // todo cluster learn
+        // todo 设置了=_learner_states.learning_version，于是直接进入下面，learner
+        // todo status将会是无效的
         if (!_learner_states.cleanup(false)) {
             derror("%s: previous learning with signature[%016" PRIx64
                    "] is still in-process, skip init new learning with signature [%016" PRIx64 "]",
@@ -361,32 +359,23 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
     // but just set state to partition_status::PS_POTENTIAL_SECONDARY
     _primary_states.get_replica_config(partition_status::PS_POTENTIAL_SECONDARY, response.config);
 
-    auto it = _primary_states.learners.find(
-        request.learner); // todo 这里需要保证已经添加了热备集群的分片到learners done
-    if (it == _primary_states.learners.end()) {
-        // todo 好的做法是在创建热备表的时候先添加到learner
-        if (request.duplicating) {
-            derror_replica("receive duplication app learn requst[{}] and add the remote replica as "
-                           "cluster learner",
-                           request.learner.to_string());
-            add_duplication_learner(request.learner, request.signature);
-            response.config.status = partition_status::PS_PRIMARY;
-            response.err = ERR_TRY_AGAIN;
+    remote_learner_state learner_state;
+    if (!request.duplicating) {
+        auto it = _primary_states.learners.find(request.learner);
+        if (it == _primary_states.learners.end()) {
+            response.config.status = partition_status::PS_INACTIVE;
+            response.err = ERR_OBJECT_NOT_FOUND;
             reply(msg, response);
             return;
         }
-        response.config.status = partition_status::PS_INACTIVE;
-        response.err = ERR_OBJECT_NOT_FOUND;
-        reply(msg, response);
-        return;
-    }
 
-    remote_learner_state &learner_state = it->second;
-    if (learner_state.signature != request.signature) {
-        response.config.learner_signature = learner_state.signature;
-        response.err = ERR_WRONG_CHECKSUM; // means invalid signature
-        reply(msg, response);
-        return;
+        learner_state = it->second;
+        if (learner_state.signature != request.signature) {
+            response.config.learner_signature = learner_state.signature;
+            response.err = ERR_WRONG_CHECKSUM; // means invalid signature
+            reply(msg, response);
+            return;
+        }
     }
 
     // prepare learn_start_decree

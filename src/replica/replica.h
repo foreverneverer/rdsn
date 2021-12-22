@@ -117,6 +117,8 @@ public:
                          gpid gpid,
                          const app_info &app,
                          bool restore_if_necessary,
+                         const partition_configuration &duplication_config,
+                         bool duplicate_from_remote,
                          const std::string &parent_dir = "");
 
     // return true when the mutation is valid for the current replica
@@ -620,6 +622,10 @@ private:
     bool is_cluster_learner_with_primary_status() const;
     std::string cluster_learn_status();
     void add_duplication_learner(const rpc_address &learner, uint64_t signature);
+    error_code learn_checkpoint_from_remote();
+    error_code learn_log_from_remote();
+    error_code learn_cache_from_remote();
+    error_code get_learnee_replica_state();
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication
