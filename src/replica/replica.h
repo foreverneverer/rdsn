@@ -625,7 +625,7 @@ private:
     error_code learn_checkpoint_from_remote();
     error_code learn_log_from_remote();
     error_code learn_cache_from_remote();
-    error_code get_learnee_replica_state();
+    error_code learn_remote_data(const partition_configuration &duplication_config);
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication

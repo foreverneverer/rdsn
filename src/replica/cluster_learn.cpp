@@ -111,7 +111,32 @@ std::string replica::cluster_learn_status()
     return fmt::format("{}[{}]", enum_to_string(_app_duplication_status), _duplicating);
 }
 
-error_code replica::get_learnee_replica_state() { return {}; }
+// todo 甚至需要
+error_code replica::learn_remote_data(const partition_configuration &duplication_config)
+{
+    learn_request duplication_request;
+    learn_response duplication_response;
+
+    duplication_request.pid = get_gpid();
+    duplication_request.__set_max_gced_decree(get_max_gced_decree_for_learn());
+    duplication_request.__set_duplicating(_duplicating);
+    // todo duplication manager需要用新版本
+    duplication_request.last_committed_decree_in_app = _duplication_mgr->min_confirmed_decree();
+    duplication_request.last_committed_decree_in_prepare_list =
+        _prepare_list->last_committed_decree();
+    duplication_request.learner = _stub->_primary_address;
+    duplication_request.signature = invalid_signature;
+
+    dsn::message_ex *msg = dsn::message_ex::create_request(RPC_LEARN, 0, get_gpid().thread_hash());
+    dsn::marshall(msg, duplication_request);
+    rpc::call(
+        duplication_config.primary, // TODO 这里根据是集群间Learn还是集群内Learn传递相应地址 done
+        msg,
+        &_tracker,
+        [ this, req_cap = duplication_request ](error_code err, learn_response && resp) mutable {
+
+        });
+}
 
 error_code replica::learn_checkpoint_from_remote() { return {}; }
 

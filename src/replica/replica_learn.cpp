@@ -343,6 +343,7 @@ decree replica::get_learn_start_decree(const learn_request &request) // on prima
     return learn_start_decree;
 }
 
+// todo 至少该函数不再和Learn耦合，一旦耦合就必须阻写 更新：不对，只要传递的decree是热备环境
 void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
 {
     _checker.only_one_thread_access();
