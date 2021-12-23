@@ -297,7 +297,7 @@ private:
     error_code apply_learned_state_from_private_log(learn_state &state);
 
     // cluster learning
-    void init_cluster_learn(const dsn::gpid &gpid);
+    void init_cluster_learn(uint64_t signature);
     void on_cluster_learn_reply(error_code err,
                                 dsn::rpc_address learnee,
                                 learn_request &&req,
@@ -620,6 +620,13 @@ private:
     bool is_cluster_learner_with_primary_status() const;
     std::string cluster_learn_status();
     void add_duplication_learner(const rpc_address &learner, uint64_t signature);
+    bool check_cluster_learner_state();
+    void init_learn_status(uint64_t signature, const std::function<void()> &learn_execute);
+    void handle_current_learn_status(const std::function<void()> &learn_execute);
+    bool catch_up_latest_decree();
+    void get_learnee_state();
+    void get_learnee_state_completed();
+    void start_cluster_learn();
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication
