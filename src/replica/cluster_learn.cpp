@@ -337,7 +337,11 @@ void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &reques
     response.address = _stub->_primary_address;
     response.prepare_start_decree = invalid_decree;
     response.last_committed_decree = local_committed_decree;
-    response.err = ERR_OK;
+
+    remote_learner_state learner_state;
+    learner_state.prepare_start_decree = invalid_decree;
+    learner_state.timeout_task = nullptr; // TODO: add timer for learner task
+    learner_state.signature = request.signature; // TODO 这里的校验可能会有一些问题
 
     // learn delta state or checkpoint
     bool should_learn_cache = prepare_cached_learn_state(request,
@@ -454,11 +458,12 @@ void replica::on_cluster_learn(dsn::message_ex *msg, const learn_request &reques
     }
 }
 
-error_code replica::check_learnee_status(const learn_request &request) {
+error_code replica::check_learnee_status(const learn_request &request)
+{
     if (partition_status::PS_PRIMARY != status()) {
         return (partition_status::PS_INACTIVE == status() && _inactive_is_transient)
-                       ? ERR_INACTIVE_STATE
-                       : ERR_INVALID_STATE;
+                   ? ERR_INACTIVE_STATE
+                   : ERR_INVALID_STATE;
     }
 
     // TODO: learner machine has been down for a long time, and DDD MUST happened before
@@ -474,9 +479,9 @@ error_code replica::check_learnee_status(const learn_request &request) {
         *(decree *)&request.last_committed_decree_in_app = 0;
         return ERR_OK;
     }
-        // mutations are previously committed already on learner (old primary)
-        // this happens when the new primary does not commit the previously prepared mutations
-        // yet, which it should do, so let's help it now.
+    // mutations are previously committed already on learner (old primary)
+    // this happens when the new primary does not commit the previously prepared mutations
+    // yet, which it should do, so let's help it now.
     else if (request.last_committed_decree_in_app > last_committed_decree()) {
         derror_replica("on_learn[{}]: learner = {}, learner's last_committed_decree_in_app is "
                        "newer than learnee, learner_app_committed_decree = {}, "
@@ -490,8 +495,8 @@ error_code replica::check_learnee_status(const learn_request &request) {
 
         if (request.last_committed_decree_in_app > last_committed_decree()) {
             derror("%s: on_learn[%016" PRIx64 "]: try to commit primary to %" PRId64
-                       ", still less than learner(%s)'s committed decree(%" PRId64
-                       "), wait mutations to be commitable",
+                   ", still less than learner(%s)'s committed decree(%" PRId64
+                   "), wait mutations to be commitable",
                    name(),
                    request.signature,
                    last_committed_decree(),
@@ -504,6 +509,7 @@ error_code replica::check_learnee_status(const learn_request &request) {
             "%" PRId64 " VS %" PRId64 "",
             request.last_committed_decree_in_app,
             last_committed_decree());
+    return ERR_OK;
 }
 
 } // namespace replication
