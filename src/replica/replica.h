@@ -616,17 +616,27 @@ private:
     rpc_address _duplication_remote_node = rpc_address::s_invalid_address;
     app_duplication_status::type _app_duplication_status{app_duplication_status::DuplicationIdle};
     void on_add_cluster_learner(configuration_update_request &proposal);
-    void init_cluster_learn(configuration_update_request &proposal);
+    void init_cluster_learn(uint64_t signature, configuration_update_request &proposal);
     bool is_cluster_learner_with_primary_status() const;
     std::string cluster_learn_status();
     void add_duplication_learner(const rpc_address &learner, uint64_t signature);
-    bool check_cluster_learner_state();
-    void init_learn_status(uint64_t signature, const std::function<void()> &learn_execute);
-    void handle_current_learn_status(const std::function<void()> &learn_execute);
-    bool catch_up_latest_decree();
+    bool check_cluster_learner_state(configuration_update_request &proposal);
+    void init_learner_status(
+        uint64_t signature,
+        const dsn::rpc_address &target,
+        dsn::task_code code,
+        const std::function<void(const rpc_address &, dsn::task_code)> &start_learn);
+    void handle_current_learner_status(
+        const dsn::rpc_address &target,
+        dsn::task_code code,
+        const std::function<void(const rpc_address &, dsn::task_code)> &start_learn);
+    bool catch_up_with_latest_decree();
     void get_learnee_state();
     void get_learnee_state_completed();
-    void start_cluster_learn();
+    void start_learn(const dsn::rpc_address &target, dsn::task_code code);
+    void check_cluster_learnee_state(configuration_update_request &proposal);
+    void start_cluster_learn(uint64_t signature);
+    error_code check_learnee_status(const learn_request &request);
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication
