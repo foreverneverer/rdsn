@@ -72,15 +72,15 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
         _app_duplication_status = app_duplication_status::ClusterLearningSucceeded;
     }
 
-    if (!is_cluster_learner_with_primary_status() && signature == invalid_signature) {
+    if (signature == invalid_signature) {
         derror("%s: invalid learning signature, skip", name());
         return;
     }
 
     // at most one learning task running
-    if (_learner_states
-            .learning_round_is_running) { // todo _potential_secondary_statesz需要改名learner_states
-                                          // done
+    // todo _potential_secondary_statesz需要改名learner_states
+    // done
+    if (_learner_states.learning_round_is_running) {
         derror("%s: previous learning is still running, skip learning with signature [%016" PRIx64
                "]",
                name(),
@@ -99,11 +99,10 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
 
     // learn timeout or primary change, the (new) primary starts another round of learning process
     // be cautious: primary should not issue signatures frequently to avoid learning abort
-    if (signature !=
-        _learner_states
-            .learning_version) { // todo cluster learn
-                                 // todo 设置了=_learner_states.learning_version，于是直接进入下面，learner
-                                 // todo status将会是无效的
+    // todo cluster learn
+    // todo 设置了=_learner_states.learning_version，于是直接进入下面，learner
+    // todo status将会是无效的
+    if (signature != _learner_states.learning_version) {
         if (!_learner_states.cleanup(false)) {
             derror("%s: previous learning with signature[%016" PRIx64
                    "] is still in-process, skip init new learning with signature [%016" PRIx64 "]",
@@ -361,32 +360,27 @@ void replica::on_learn(dsn::message_ex *msg, const learn_request &request)
     // but just set state to partition_status::PS_POTENTIAL_SECONDARY
     _primary_states.get_replica_config(partition_status::PS_POTENTIAL_SECONDARY, response.config);
 
-    auto it = _primary_states.learners.find(
-        request.learner); // todo 这里需要保证已经添加了热备集群的分片到learners done
-    if (it == _primary_states.learners.end()) {
-        // todo 好的做法是在创建热备表的时候先添加到learner
-        if (request.duplicating) {
-            derror_replica("receive duplication app learn requst[{}] and add the remote replica as "
-                           "cluster learner",
-                           request.learner.to_string());
-            add_duplication_learner(request.learner, request.signature);
-            response.config.status = partition_status::PS_PRIMARY;
-            response.err = ERR_TRY_AGAIN;
+    remote_learner_state learner_state;
+    if (request.duplicating) {
+        learner_state.prepare_start_decree = invalid_decree;
+        learner_state.timeout_task = nullptr;        // TODO: add timer for learner task
+        learner_state.signature = request.signature; // TODO 这里的校验可能会有一些问题
+    } else {
+        auto it = _primary_states.learners.find(request.learner);
+        if (it == _primary_states.learners.end()) {
+            response.config.status = partition_status::PS_INACTIVE;
+            response.err = ERR_OBJECT_NOT_FOUND;
             reply(msg, response);
             return;
         }
-        response.config.status = partition_status::PS_INACTIVE;
-        response.err = ERR_OBJECT_NOT_FOUND;
-        reply(msg, response);
-        return;
-    }
 
-    remote_learner_state &learner_state = it->second;
-    if (learner_state.signature != request.signature) {
-        response.config.learner_signature = learner_state.signature;
-        response.err = ERR_WRONG_CHECKSUM; // means invalid signature
-        reply(msg, response);
-        return;
+        learner_state = it->second;
+        if (learner_state.signature != request.signature) {
+            response.config.learner_signature = learner_state.signature;
+            response.err = ERR_WRONG_CHECKSUM; // means invalid signature
+            reply(msg, response);
+            return;
+        }
     }
 
     // prepare learn_start_decree
@@ -1310,9 +1304,10 @@ void replica::on_learn_remote_state_completed(error_code err)
     if (err != ERR_OK) {
         handle_learning_error(err, true);
     } else {
-        init_learn(_learner_states.learning_version); // todo 更新：已经在init_learn入口处更新
-                                                      // todo
-                                                      // 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
+        // todo 更新：已经在init_learn入口处更新
+        // todo
+        // 需要注意是否需要执行，理论应该直接返回等候下一轮：可能只有在CACHE状态下直接return，也即是LearnWithPrepare
+        init_learn(_learner_states.learning_version);
     }
 }
 

@@ -82,10 +82,13 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
     dassert_f(_app_duplication_status == app_duplication_status::ClusterLearning,
               "app_duplication_status must be at {}",
               enum_to_string(app_duplication_status::ClusterLearning));
-    dassert_f(status() == partition_status::PS_PRIMARY,
-              "replica must be at {} when start cluster learning",
-              enum_to_string(partition_status::PS_PRIMARY));
     dassert_f(proposal.info.duplicating, "app must be at duplicating when start cluster learning");
+
+    if (status() != partition_status::PS_PRIMARY) {
+        derror_replica("replica must be at {} when start cluster learning",
+                       enum_to_string(partition_status::PS_PRIMARY));
+        return;
+    }
 
     derror_replica("process add cluster learner, remote = {}, "
                    "last_committed_decree = {} vs {}, duplicating = {}",
@@ -96,34 +99,13 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
 
     _duplicating = proposal.info.duplicating;
     _duplication_remote_node = proposal.duplication_config.primary;
-    init_learn(invalid_signature); // todo 初始值是0，即无效值，发出时会出现校验error done
-}
-
-// learner
-bool replica::is_cluster_learner_with_primary_status() const
-{
-    return _duplicating && status() == partition_status::PS_PRIMARY;
+    init_learn(++cluster_learn_signature); // todo 初始值是0，即无效值，发出时会出现校验error done
 }
 
 // learner
 std::string replica::cluster_learn_status()
 {
     return fmt::format("{}[{}]", enum_to_string(_app_duplication_status), _duplicating);
-}
-
-// learner
-void replica::add_duplication_learner(const rpc_address &learner, uint64_t signature)
-{
-    auto it = _primary_states.learners.find(learner);
-    if (it == _primary_states.learners.end()) {
-        remote_learner_state state;
-        state.prepare_start_decree = invalid_decree;
-        state.timeout_task = nullptr; // TODO: add timer for learner task
-
-        state.signature = signature; // TODO 这里的校验可能会有一些问题
-        _primary_states.learners[learner] = state;
-        _primary_states.statuses[learner] = partition_status::PS_PRIMARY;
-    }
 }
 
 } // namespace replication

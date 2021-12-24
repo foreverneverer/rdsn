@@ -619,7 +619,7 @@ private:
     void init_cluster_learn(configuration_update_request &proposal);
     bool is_cluster_learner_with_primary_status() const;
     std::string cluster_learn_status();
-    void add_duplication_learner(const rpc_address &learner, uint64_t signature);
+    uint64_t cluster_learn_signature = 0;
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication
