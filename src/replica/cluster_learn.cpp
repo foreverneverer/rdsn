@@ -102,11 +102,5 @@ void replica::init_cluster_learn(configuration_update_request &proposal)
     init_learn(++cluster_learn_signature); // todo 初始值是0，即无效值，发出时会出现校验error done
 }
 
-// learner
-std::string replica::cluster_learn_status()
-{
-    return fmt::format("{}[{}]", enum_to_string(_app_duplication_status), _duplicating);
-}
-
 } // namespace replication
 } // namespace dsn

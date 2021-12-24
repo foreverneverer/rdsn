@@ -617,8 +617,14 @@ private:
     app_duplication_status::type _app_duplication_status{app_duplication_status::DuplicationIdle};
     void on_add_cluster_learner(configuration_update_request &proposal);
     void init_cluster_learn(configuration_update_request &proposal);
-    bool is_cluster_learner_with_primary_status() const;
-    std::string cluster_learn_status();
+    bool is_cluster_learner_with_primary_status() const
+    {
+        return _duplicating && status() == partition_status::PS_PRIMARY;
+    };
+    std::string cluster_learn_status()
+    {
+        return fmt::format("{}[{}]", enum_to_string(_app_duplication_status), _duplicating);
+    };
     uint64_t cluster_learn_signature = 0;
 };
 typedef dsn::ref_ptr<replica> replica_ptr;

@@ -70,6 +70,7 @@ void replica::init_learn(uint64_t signature) // todo 需要支持传递目标地
                        enum_to_string(app_duplication_status::ClusterLearningSucceeded),
                        enum_to_string(_learner_states.learning_status));
         _app_duplication_status = app_duplication_status::ClusterLearningSucceeded;
+        return;
     }
 
     if (signature == invalid_signature) {
@@ -1358,11 +1359,19 @@ error_code replica::handle_learning_succeeded_on_primary(::dsn::rpc_address node
         return ERR_INVALID_STATE;
     }
 
-    if (is_cluster_learner_with_primary_status() &&
-        ++_secondary_learner_completed_count == _primary_states.membership.secondaries.size()) {
-        derror_replica("app duplication status is {}, step next to stage {} for all secondaries "
-                       "have learned completed");
-        _app_duplication_status = app_duplication_status::ReplicaLearningSucceeded;
+    if (is_cluster_learner_with_primary_status() && get_gpid().get_partition_index() == 0) {
+        if (++_secondary_learner_completed_count == 2) {
+            derror_replica(
+                "app duplication status is {}, step next to stage {} for all secondaries "
+                "have learned completed");
+            _app_duplication_status = app_duplication_status::ReplicaLearningSucceeded;
+            _secondary_learner_completed_count = 0;
+        } else {
+            derror_replica("just {}[{}] ok, total = {}, return and wait other learner",
+                           node.to_string(),
+                           _secondary_learner_completed_count,
+                           _primary_states.membership.secondaries.size());
+        }
         return ERR_OK;
     }
 
