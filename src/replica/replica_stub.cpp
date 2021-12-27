@@ -1255,12 +1255,12 @@ void replica_stub::on_learn(dsn::message_ex *msg)
 
 void replica_stub::on_copy_checkpoint(copy_checkpoint_rpc rpc)
 {
-    const replica_configuration &request = rpc.request();
+    const learn_request &request = rpc.request();
     learn_response &response = rpc.response();
 
     replica_ptr rep = get_replica(request.pid);
     if (rep != nullptr) {
-        rep->on_copy_checkpoint(request, response);
+        rep->on_copy_checkpoint(response);
     } else {
         response.err = ERR_OBJECT_NOT_FOUND;
     }
@@ -2016,8 +2016,8 @@ void replica_stub::on_disk_stat()
 
 void replica_stub::open_replica(const app_info &app,
                                 gpid id,
-                                std::shared_ptr<group_check_request> req,
-                                std::shared_ptr<configuration_update_request> req2)
+                                const std::shared_ptr<group_check_request> &group_check,
+                                const std::shared_ptr<configuration_update_request> &config_update)
 {
     std::string dir = get_replica_dir(app.app_type.c_str(), id, false);
     replica_ptr rep = nullptr;
@@ -2028,7 +2028,7 @@ void replica_stub::open_replica(const app_info &app,
         ddebug("%s@%s: start to load replica %s group check, dir = %s",
                id.to_string(),
                _primary_address_str,
-               req ? "with" : "without",
+               group_check ? "with" : "without",
                dir.c_str());
         rep = replica::load(this, dir.c_str());
 
@@ -2067,8 +2067,14 @@ void replica_stub::open_replica(const app_info &app,
         // do it again
 
         bool restore_if_necessary =
-            ((req2 != nullptr) && (req2->type == config_type::CT_ASSIGN_PRIMARY) &&
+            ((config_update != nullptr) &&
+             (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
              (app.envs.find(backup_restore_constant::POLICY_NAME) != app.envs.end()));
+
+        bool duplicate_if_necessary =
+            ((config_update != nullptr) &&
+             (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
+             (app.envs.find(duplication_constant::MASTER_APP_NAME) != app.envs.end()));
 
         // NOTICE: when we don't need execute restore-process, we should remove a.b.pegasus
         // directory because it don't contain the valid data dir and also we need create a new
@@ -2080,7 +2086,7 @@ void replica_stub::open_replica(const app_info &app,
                 return;
             }
         }
-        rep = replica::newr(this, id, app, restore_if_necessary);
+        rep = replica::newr(this, id, app, restore_if_necessary, duplicate_if_necessary);
     }
 
     if (rep == nullptr) {
@@ -2108,12 +2114,16 @@ void replica_stub::open_replica(const app_info &app,
         _closed_replicas.erase(id);
     }
 
-    if (nullptr != req) {
-        rpc::call_one_way_typed(
-            _primary_address, RPC_LEARN_ADD_LEARNER, *req, req->config.pid.thread_hash());
-    } else if (nullptr != req2) {
-        rpc::call_one_way_typed(
-            _primary_address, RPC_CONFIG_PROPOSAL, *req2, req2->config.pid.thread_hash());
+    if (nullptr != group_check) {
+        rpc::call_one_way_typed(_primary_address,
+                                RPC_LEARN_ADD_LEARNER,
+                                *group_check,
+                                group_check->config.pid.thread_hash());
+    } else if (nullptr != config_update) {
+        rpc::call_one_way_typed(_primary_address,
+                                RPC_CONFIG_PROPOSAL,
+                                *config_update,
+                                config_update->config.pid.thread_hash());
     }
 }
 
@@ -2802,7 +2812,7 @@ replica_ptr replica_stub::create_child_replica_if_not_found(gpid child_pid,
             dwarn_f("failed create child replica({}) because it is under close", child_pid);
             return nullptr;
         } else {
-            replica *rep = replica::newr(this, child_pid, *app, false, parent_dir);
+            replica *rep = replica::newr(this, child_pid, *app, false, false, parent_dir);
             if (rep != nullptr) {
                 auto pr = _replicas.insert(replicas::value_type(child_pid, rep));
                 dassert_f(pr.second, "child replica {} has been existed", rep->name());

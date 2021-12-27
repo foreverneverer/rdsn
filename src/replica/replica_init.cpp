@@ -28,6 +28,7 @@
 #include "mutation.h"
 #include "mutation_log.h"
 #include "replica_stub.h"
+#include "duplication/replica_follower.h"
 #include "backup/replica_backup_manager.h"
 #include <dsn/utility/factory_store.h>
 #include <dsn/utility/filesystem.h>
@@ -72,6 +73,7 @@ error_code replica::initialize_on_new()
                                   gpid gpid,
                                   const app_info &app,
                                   bool restore_if_necessary,
+                                  bool duplicate_if_necessary,
                                   const std::string &parent_dir)
 {
     std::string dir;
@@ -80,10 +82,24 @@ error_code replica::initialize_on_new()
     } else {
         dir = stub->get_child_dir(app.app_type.c_str(), gpid, parent_dir);
     }
-    replica *rep = new replica(stub, gpid, app, dir.c_str(), restore_if_necessary);
+    auto *rep =
+        new replica(stub, gpid, app, dir.c_str(), restore_if_necessary, duplicate_if_necessary);
     error_code err;
     if (restore_if_necessary && (err = rep->restore_checkpoint()) != dsn::ERR_OK) {
         derror("try to restore replica %s failed, error(%s)", rep->name(), err.to_string());
+        rep->close();
+        delete rep;
+        rep = nullptr;
+
+        // clear work on failure
+        utils::filesystem::remove_path(dir);
+        stub->_fs_manager.remove_replica(gpid);
+        return nullptr;
+    }
+
+    if (duplicate_if_necessary &&
+        (err = rep->get_replica_follower()->duplicate_checkpoint()) != dsn::ERR_OK) {
+        derror("try to duplicate replica %s failed, error(%s)", rep->name(), err.to_string());
         rep->close();
         delete rep;
         rep = nullptr;

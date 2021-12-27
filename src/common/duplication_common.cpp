@@ -24,6 +24,12 @@
 
 namespace dsn {
 namespace replication {
+
+const std::string duplication_constant::FORCE_DUPLICATE("duplication.force_duplicate");
+const std::string duplication_constant::MASTER_APP_NAME("duplication.master_app_name");
+const std::string duplication_constant::MASTER_CLUSTER_NAME("duplication.master_cluster_name");
+const std::string duplication_constant::MASTER_CLUSTER_LIST("duplication.master_cluster_list");
+
 /*extern*/ const char *duplication_status_to_string(duplication_status::type status)
 {
     auto it = _duplication_status_VALUES_TO_NAMES.find(status);

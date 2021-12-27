@@ -29,6 +29,7 @@
 #include "mutation_log.h"
 #include "replica_stub.h"
 #include "duplication/replica_duplicator_manager.h"
+#include "duplication/replica_follower.h"
 #include "backup/replica_backup_manager.h"
 #include "backup/cold_backup_context.h"
 #include "bulk_load/replica_bulk_loader.h"
@@ -48,8 +49,12 @@
 namespace dsn {
 namespace replication {
 
-replica::replica(
-    replica_stub *stub, gpid gpid, const app_info &app, const char *dir, bool need_restore)
+replica::replica(replica_stub *stub,
+                 gpid gpid,
+                 const app_info &app,
+                 const char *dir,
+                 bool need_restore,
+                 bool need_duplicate)
     : serverlet<replica>("replica"),
       replica_base(gpid, fmt::format("{}@{}", gpid, stub->_primary_address_str), app.app_name),
       _app_info(app),
@@ -77,6 +82,7 @@ replica::replica(
     _bulk_loader = make_unique<replica_bulk_loader>(this);
     _split_mgr = make_unique<replica_split_manager>(this);
     _disk_migrator = make_unique<replica_disk_migrator>(this);
+    _replica_follower = make_unique<replica_follower>(this);
 
     std::string counter_str = fmt::format("private.log.size(MB)@{}", gpid);
     _counter_private_log_size.init_app_counter(
@@ -135,6 +141,12 @@ replica::replica(
         // add an extra env for restore
         _extra_envs.insert(
             std::make_pair(backup_restore_constant::FORCE_RESTORE, std::string("true")));
+    }
+
+    if (need_restore) {
+        // add an extra env for restore
+        _extra_envs.insert(
+            std::make_pair(duplication_constant::FORCE_DUPLICATE, std::string("true")));
     }
 
     _access_controller = security::create_replica_access_controller(name());

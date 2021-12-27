@@ -160,6 +160,7 @@ struct learn_request
     // be duplicated (ie. max_gced_decree < confirmed_decree), if not,
     // learnee will copy the missing logs.
     7:optional i64        max_gced_decree;
+    8:optional dsn.rpc_address learnee;// todo
 }
 
 struct learn_response

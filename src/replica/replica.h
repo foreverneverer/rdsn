@@ -69,6 +69,7 @@ class replica_backup_manager;
 class replica_bulk_loader;
 class replica_split_manager;
 class replica_disk_migrator;
+class replica_follower;
 
 class cold_backup_context;
 typedef dsn::ref_ptr<cold_backup_context> cold_backup_context_ptr;
@@ -108,6 +109,7 @@ public:
                          gpid gpid,
                          const app_info &app,
                          bool restore_if_necessary,
+                         bool duplicate_if_necessary,
                          const std::string &parent_dir = "");
 
     // return true when the mutation is valid for the current replica
@@ -151,7 +153,8 @@ public:
     void on_add_learner(const group_check_request &request);
     void on_remove(const replica_configuration &request);
     void on_group_check(const group_check_request &request, /*out*/ group_check_response &response);
-    void on_copy_checkpoint(const replica_configuration &request, /*out*/ learn_response &response);
+    void copy_checkpoint(const rpc_address &target_node, const gpid target_gpid);
+    void on_copy_checkpoint(learn_response &response);
 
     //
     //    messsages from liveness monitor
@@ -218,6 +221,8 @@ public:
     //
     replica_disk_migrator *disk_migrator() const { return _disk_migrator.get(); }
 
+    replica_follower *get_replica_follower() const { return _replica_follower.get(); };
+
     //
     // Statistics
     //
@@ -244,7 +249,12 @@ private:
     mutation_ptr new_mutation(decree decree);
 
     // initialization
-    replica(replica_stub *stub, gpid gpid, const app_info &app, const char *dir, bool need_restore);
+    replica(replica_stub *stub,
+            gpid gpid,
+            const app_info &app,
+            const char *dir,
+            bool need_restore,
+            bool need_duplicate = false);
     error_code initialize_on_new();
     error_code initialize_on_load();
     error_code init_app_and_prepare_list(bool create_new);
@@ -359,12 +369,10 @@ private:
     error_code background_sync_checkpoint();
     void catch_up_with_private_logs(partition_status::type s);
     void on_checkpoint_completed(error_code err);
-    void on_copy_checkpoint_ack(error_code err,
-                                const std::shared_ptr<replica_configuration> &req,
-                                const std::shared_ptr<learn_response> &resp);
+    void on_copy_checkpoint_reply(error_code err, learn_request &&req, learn_response &&resp);
     void on_copy_checkpoint_file_completed(error_code err,
                                            size_t sz,
-                                           std::shared_ptr<learn_response> resp,
+                                           learn_response &&resp,
                                            const std::string &chk_dir);
 
     /////////////////////////////////////////////////////////////////
@@ -553,6 +561,9 @@ private:
 
     // disk migrator
     std::unique_ptr<replica_disk_migrator> _disk_migrator;
+
+    //
+    std::unique_ptr<replica_follower> _replica_follower;
 
     // perf counters
     perf_counter_wrapper _counter_private_log_size;

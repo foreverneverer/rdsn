@@ -52,7 +52,7 @@ typedef rpc_holder<group_check_request, group_check_response> group_check_rpc;
 typedef rpc_holder<query_replica_decree_request, query_replica_decree_response>
     query_replica_decree_rpc;
 typedef rpc_holder<query_replica_info_request, query_replica_info_response> query_replica_info_rpc;
-typedef rpc_holder<replica_configuration, learn_response> copy_checkpoint_rpc;
+typedef rpc_holder<learn_request, learn_response> copy_checkpoint_rpc;
 typedef rpc_holder<query_disk_info_request, query_disk_info_response> query_disk_info_rpc;
 typedef rpc_holder<replica_disk_migrate_request, replica_disk_migrate_response>
     replica_disk_migrate_rpc;
@@ -259,8 +259,8 @@ private:
                                        std::shared_ptr<configuration_update_request> req2);
     void open_replica(const app_info &app,
                       gpid id,
-                      std::shared_ptr<group_check_request> req,
-                      std::shared_ptr<configuration_update_request> req2);
+                      const std::shared_ptr<group_check_request> &req,
+                      const std::shared_ptr<configuration_update_request> &req2);
     ::dsn::task_ptr begin_close_replica(replica_ptr r);
     void close_replica(replica_ptr r);
     void notify_replica_state_update(const replica_configuration &config, bool is_closing);
