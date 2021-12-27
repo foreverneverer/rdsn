@@ -150,7 +150,9 @@ void replica::init_checkpoint(bool is_emergency)
         _stub->_counter_recent_trigger_emergency_checkpoint_count->increment();
 }
 
-void replica::copy_checkpoint(const rpc_address &target_node, const gpid target_gpid)
+void replica::copy_checkpoint(const rpc_address &target_node,
+                              const gpid target_gpid,
+                              task_tracker &tracker)
 {
     learn_request request;
     request.learnee = target_node;
@@ -159,12 +161,12 @@ void replica::copy_checkpoint(const rpc_address &target_node, const gpid target_
     dsn::message_ex *msg = dsn::message_ex::create_request(
         RPC_REPLICA_COPY_LAST_CHECKPOINT, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
-    rpc::call(target_node,
-              msg,
-              &_tracker,
-              [ this, req_cap = request ](error_code err, learn_response && resp) mutable {
-                  on_copy_checkpoint_reply(err, std::move(req_cap), std::move(resp));
-              });
+    rpc::call(
+        target_node, msg, &tracker, [ this,
+                                      req_cap = request,
+                                      &tracker ](error_code err, learn_response && resp) mutable {
+            on_copy_checkpoint_reply(err, std::move(req_cap), std::move(resp), tracker);
+        });
 }
 
 // @ secondary
@@ -197,14 +199,15 @@ void replica::on_copy_checkpoint(learn_response &response)
     }
 }
 
-void replica::on_copy_checkpoint_reply(error_code err, learn_request &&req, learn_response &&resp)
+void replica::on_copy_checkpoint_reply(error_code err,
+                                       learn_request &&req,
+                                       learn_response &&resp,
+                                       task_tracker &tracker)
 {
-    _checker.only_one_thread_access();
-
     if (err != ERR_OK) {
         derror_replica(
             "copy checkpoint from {} failed, err = %s", req.learnee.to_string(), err.to_string());
-        _primary_states.checkpoint_task = nullptr;
+        tracker.set_result(err);
         return;
     }
 
@@ -214,17 +217,20 @@ void replica::on_copy_checkpoint_reply(error_code err, learn_request &&req, lear
         bool remove = utils::filesystem::remove_path(dest_dir);
         if (!remove) {
             derror_replica("remove existed copy dest {} failed", dest_dir);
+            tracker.set_result(ERR_FILE_OPERATION_FAILED);
             return;
         }
         bool create = utils::filesystem::create_directory(dest_dir);
         if (!create) {
             derror_replica("create copy dest {} failed", dest_dir);
+            tracker.set_result(ERR_FILE_OPERATION_FAILED);
             return;
         }
     } else {
         bool create = utils::filesystem::create_directory(dest_dir);
         if (!create) {
             derror_replica("create copy dest {} failed", dest_dir);
+            tracker.set_result(ERR_FILE_OPERATION_FAILED);
             return;
         }
     }
@@ -239,9 +245,9 @@ void replica::on_copy_checkpoint_reply(error_code err, learn_request &&req, lear
         true,
         false,
         LPC_REPLICA_COPY_LAST_CHECKPOINT_DONE,
-        &_tracker,
-        [ this, resp_cp = resp, dest_dir ](error_code err, size_t sz) mutable {
-            on_copy_checkpoint_file_completed(err, sz, std::move(resp_cp), dest_dir);
+        &tracker,
+        [ this, resp_cp = resp, dest_dir, &tracker ](error_code err, size_t sz) mutable {
+            on_copy_checkpoint_file_completed(err, sz, std::move(resp_cp), dest_dir, tracker);
         },
         get_gpid().thread_hash());
 }
@@ -249,7 +255,8 @@ void replica::on_copy_checkpoint_reply(error_code err, learn_request &&req, lear
 void replica::on_copy_checkpoint_file_completed(error_code err,
                                                 size_t sz,
                                                 learn_response &&resp,
-                                                const std::string &chk_dir)
+                                                const std::string &chk_dir,
+                                                task_tracker &tracker)
 {
     _checker.only_one_thread_access();
 
@@ -257,7 +264,7 @@ void replica::on_copy_checkpoint_file_completed(error_code err,
         dwarn("copy checkpoint failed, err(%s), remote_addr(%s)",
               err.to_string(),
               resp.address.to_string());
-        _primary_states.checkpoint_task = nullptr;
+        tracker.set_result(err);
         return;
     }
 

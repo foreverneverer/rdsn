@@ -162,6 +162,10 @@ public:
     // cancel and wait all outstanding tasks to finish
     void cancel_outstanding_tasks();
 
+    void set_result(error_code err) { _result = err; }
+
+    error_code result() const { return _result; }
+
     // cancel but not wait outstanding tasks to finish
     // return not finished task count
     int cancel_but_not_wait_outstanding_tasks();
@@ -171,6 +175,7 @@ private:
     const int _task_bucket_count;
     ::dsn::utils::ex_lock_nr_spin *_outstanding_tasks_lock;
     dlink *_outstanding_tasks;
+    error_code _result;
 };
 
 // ------- inlined implementation ----------

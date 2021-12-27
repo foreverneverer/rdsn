@@ -153,7 +153,8 @@ public:
     void on_add_learner(const group_check_request &request);
     void on_remove(const replica_configuration &request);
     void on_group_check(const group_check_request &request, /*out*/ group_check_response &response);
-    void copy_checkpoint(const rpc_address &target_node, const gpid target_gpid);
+    void
+    copy_checkpoint(const rpc_address &target_node, const gpid target_gpid, task_tracker &tracker);
     void on_copy_checkpoint(learn_response &response);
 
     //
@@ -369,11 +370,15 @@ private:
     error_code background_sync_checkpoint();
     void catch_up_with_private_logs(partition_status::type s);
     void on_checkpoint_completed(error_code err);
-    void on_copy_checkpoint_reply(error_code err, learn_request &&req, learn_response &&resp);
+    void on_copy_checkpoint_reply(error_code err,
+                                  learn_request &&req,
+                                  learn_response &&resp,
+                                  task_tracker &tracker);
     void on_copy_checkpoint_file_completed(error_code err,
                                            size_t sz,
                                            learn_response &&resp,
-                                           const std::string &chk_dir);
+                                           const std::string &chk_dir,
+                                           task_tracker &tracker);
 
     /////////////////////////////////////////////////////////////////
     // cold backup

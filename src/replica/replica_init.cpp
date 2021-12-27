@@ -99,7 +99,9 @@ error_code replica::initialize_on_new()
 
     if (duplicate_if_necessary &&
         (err = rep->get_replica_follower()->duplicate_checkpoint()) != dsn::ERR_OK) {
-        derror("try to duplicate replica %s failed, error(%s)", rep->name(), err.to_string());
+        derror_f("{} try to duplicate replica checkpoint failed, error({})",
+                 rep->name(),
+                 err.to_string());
         rep->close();
         delete rep;
         rep = nullptr;

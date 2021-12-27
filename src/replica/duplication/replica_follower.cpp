@@ -46,7 +46,10 @@ error_code replica_follower::duplicate_checkpoint()
                    target_node,
                    target_gpid);
 
-    _replica->copy_checkpoint(target_node, target_gpid);
+    task_tracker tracker;
+    _replica->copy_checkpoint(target_node, target_gpid, tracker);
+    tracker.wait_outstanding_tasks();
+    return tracker.result();
 }
 
 error_code replica_follower::get_master_config(rpc_address &target, gpid &pid)
