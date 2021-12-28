@@ -143,12 +143,6 @@ replica::replica(replica_stub *stub,
             std::make_pair(backup_restore_constant::FORCE_RESTORE, std::string("true")));
     }
 
-    if (need_restore) {
-        // add an extra env for restore
-        _extra_envs.insert(
-            std::make_pair(duplication_constant::FORCE_DUPLICATE, std::string("true")));
-    }
-
     _access_controller = security::create_replica_access_controller(name());
 }
 

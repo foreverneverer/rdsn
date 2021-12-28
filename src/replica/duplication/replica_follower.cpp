@@ -43,8 +43,8 @@ error_code replica_follower::duplicate_checkpoint()
                    "succeeded: address = {}, gpid = {}",
                    _replica->get_app_info()->dup_options.cluster_name,
                    _replica->get_app_info()->dup_options.app_name,
-                   target_node,
-                   target_gpid);
+                   target_node.to_string(),
+                   target_gpid.to_string());
 
     task_tracker tracker;
     _replica->copy_checkpoint(target_node, target_gpid, tracker);
