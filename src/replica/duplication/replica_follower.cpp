@@ -18,6 +18,7 @@
  */
 
 #include "replica_follower.h"
+#include "dsn/utility/filesystem.h"
 
 #include <dsn/tool-api/group_address.h>
 
@@ -30,7 +31,9 @@ replica_follower::~replica_follower() = default;
 
 error_code replica_follower::duplicate_checkpoint()
 {
-
+    derror_replica("start duplicate replica[{}.{}]",
+                   _replica->get_app_info()->dup_options.cluster_name,
+                   _replica->get_app_info()->dup_options.app_name);
     rpc_address target_node;
     gpid target_gpid;
 

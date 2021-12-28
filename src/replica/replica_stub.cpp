@@ -2019,6 +2019,7 @@ void replica_stub::open_replica(const app_info &app,
                                 const std::shared_ptr<group_check_request> &group_check,
                                 const std::shared_ptr<configuration_update_request> &config_update)
 {
+    derror_f("start open {} replica", id.to_string());
     std::string dir = get_replica_dir(app.app_type.c_str(), id, false);
     replica_ptr rep = nullptr;
     if (!dir.empty()) {
@@ -2071,9 +2072,9 @@ void replica_stub::open_replica(const app_info &app,
              (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
              (app.envs.find(backup_restore_constant::POLICY_NAME) != app.envs.end()));
 
-        bool duplicate_if_necessary =
-            ((config_update != nullptr) &&
-             (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&(!app.dup_options.metas.empty()));
+        bool duplicate_if_necessary = ((config_update != nullptr) &&
+                                       (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
+                                       (!app.dup_options.metas.empty()));
 
         // todo just test
         if (id.get_partition_index() != 0) {
@@ -2090,6 +2091,11 @@ void replica_stub::open_replica(const app_info &app,
                 return;
             }
         }
+        derror_f("start new {} replica[{}|{}.{}]",
+                 id.to_string(),
+                 duplicate_if_necessary,
+                 app.dup_options.cluster_name,
+                 app.dup_options.app_name);
         rep = replica::newr(this, id, app, restore_if_necessary, duplicate_if_necessary);
     }
 

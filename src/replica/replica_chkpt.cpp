@@ -158,6 +158,9 @@ void replica::copy_checkpoint(const rpc_address &target_node,
     request.learnee = target_node;
     request.pid = target_gpid;
 
+    derror_replica(
+        "start send copy request to {}.{}", target_node.to_string(), target_gpid.to_string());
+
     dsn::message_ex *msg = dsn::message_ex::create_request(
         RPC_REPLICA_COPY_LAST_CHECKPOINT, 0, get_gpid().thread_hash());
     dsn::marshall(msg, request);
@@ -187,15 +190,10 @@ void replica::on_copy_checkpoint(learn_response &response)
         response.err = ERR_OK;
         response.last_committed_decree = last_committed_decree();
         response.base_local_dir = _app->data_dir();
-
-        // the state.files is returned whether with full_path or only-filename depends
-        // on the app impl, we'd better handle with it
-        for (std::string &file_name : response.state.files) {
-            std::size_t last_splitter = file_name.find_last_of("/\\");
-            if (last_splitter != std::string::npos)
-                file_name = file_name.substr(last_splitter + 1);
-        }
         response.address = _stub->_primary_address;
+        for (auto &file : response.state.files) {
+            file = file.substr(response.base_local_dir.length() + 1);
+        }
     }
 }
 
@@ -211,25 +209,34 @@ void replica::on_copy_checkpoint_reply(error_code err,
         return;
     }
 
-    std::string dest_dir = utils::filesystem::path_combine(_app->learn_dir(), "checkpoint.copy");
+    derror_replica("start send nfs request to {}.{}.{}[size={}]",
+                   req.learnee.to_string(),
+                   resp.config.pid,
+                   resp.base_local_dir,
+                   resp.state.files.size());
+    for (const auto &file : resp.state.files) {
+        derror_replica("copy list = {}/{}", resp.base_local_dir, file);
+    }
 
-    if (utils::filesystem::path_exists(dest_dir)) {
-        bool remove = utils::filesystem::remove_path(dest_dir);
+    std::string tmp_dir = utils::filesystem::path_combine(_dir, "learn/checkpoint.copy.tmp");
+    std::string final_dir = utils::filesystem::path_combine(_dir, "learn/checkpoint.copy");
+    if (utils::filesystem::path_exists(tmp_dir)) {
+        bool remove = utils::filesystem::remove_path(tmp_dir);
         if (!remove) {
-            derror_replica("remove existed copy dest {} failed", dest_dir);
+            derror_replica("remove existed copy dest {} failed", tmp_dir);
             tracker.set_result(ERR_FILE_OPERATION_FAILED);
             return;
         }
-        bool create = utils::filesystem::create_directory(dest_dir);
+        bool create = utils::filesystem::create_directory(tmp_dir);
         if (!create) {
-            derror_replica("create copy dest {} failed", dest_dir);
+            derror_replica("create copy dest {} failed", tmp_dir);
             tracker.set_result(ERR_FILE_OPERATION_FAILED);
             return;
         }
     } else {
-        bool create = utils::filesystem::create_directory(dest_dir);
+        bool create = utils::filesystem::create_directory(tmp_dir);
         if (!create) {
-            derror_replica("create copy dest {} failed", dest_dir);
+            derror_replica("create copy dest {} failed", tmp_dir);
             tracker.set_result(ERR_FILE_OPERATION_FAILED);
             return;
         }
@@ -241,38 +248,33 @@ void replica::on_copy_checkpoint_reply(error_code err,
         resp.base_local_dir,
         resp.state.files,
         get_replica_disk_tag(),
-        dest_dir,
+        tmp_dir,
         true,
         false,
         LPC_REPLICA_COPY_LAST_CHECKPOINT_DONE,
         &tracker,
-        [ this, resp_cp = resp, dest_dir, &tracker ](error_code err, size_t sz) mutable {
-            on_copy_checkpoint_file_completed(err, sz, std::move(resp_cp), dest_dir, tracker);
+        [ this, resp_cp = resp, tmp_dir, final_dir, &tracker ](error_code err, size_t sz) mutable {
+            if (ERR_OK != err) {
+                dwarn("copy checkpoint failed, err(%s), remote_addr(%s)",
+                      err.to_string(),
+                      resp_cp.address.to_string());
+                tracker.set_result(err);
+                return;
+            }
+            std::string tmp_file_path =
+                fmt::format("{}/checkpoint.{}", tmp_dir, resp_cp.state.to_decree_included);
+            utils::filesystem::rename_path(tmp_file_path, final_dir);
+            derror_replica("copy checkpoint successed, remote = {}, file count = {}, dir = {}",
+                           resp_cp.base_local_dir,
+                           resp_cp.state.files.size(),
+                           final_dir);
+            std::vector<std::string> files;
+            utils::filesystem::get_subfiles(final_dir, files, true);
+            for (const auto &file : files) {
+                derror_replica("local: {}", file);
+            }
         },
         get_gpid().thread_hash());
-}
-
-void replica::on_copy_checkpoint_file_completed(error_code err,
-                                                size_t sz,
-                                                learn_response &&resp,
-                                                const std::string &chk_dir,
-                                                task_tracker &tracker)
-{
-    _checker.only_one_thread_access();
-
-    if (ERR_OK != err) {
-        dwarn("copy checkpoint failed, err(%s), remote_addr(%s)",
-              err.to_string(),
-              resp.address.to_string());
-        tracker.set_result(err);
-        return;
-    }
-
-    for (std::string &filename : resp.state.files) {
-        dassert(filename.find_last_of("/\\") == std::string::npos, "invalid file name");
-        filename = utils::filesystem::path_combine(chk_dir, filename);
-    }
-    _app->apply_checkpoint(replication_app_base::chkpt_apply_mode::copy, resp.state);
 }
 
 // run in background thread
