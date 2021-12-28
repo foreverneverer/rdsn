@@ -26,15 +26,6 @@
 namespace dsn {
 namespace replication {
 
-class duplication_constant
-{
-public:
-    static const std::string FORCE_DUPLICATE;
-    static const std::string MASTER_APP_NAME;
-    static const std::string MASTER_CLUSTER_NAME;
-    static const std::string MASTER_CLUSTER_LIST;
-};
-
 typedef rpc_holder<duplication_modify_request, duplication_modify_response> duplication_modify_rpc;
 typedef rpc_holder<duplication_add_request, duplication_add_response> duplication_add_rpc;
 typedef rpc_holder<duplication_query_request, duplication_query_response> duplication_query_rpc;

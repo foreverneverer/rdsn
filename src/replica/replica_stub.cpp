@@ -2073,8 +2073,12 @@ void replica_stub::open_replica(const app_info &app,
 
         bool duplicate_if_necessary =
             ((config_update != nullptr) &&
-             (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
-             (app.envs.find(duplication_constant::MASTER_APP_NAME) != app.envs.end()));
+             (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&(!app.dup_options.metas.empty()));
+
+        // todo just test
+        if (id.get_partition_index() != 0) {
+            duplicate_if_necessary = false;
+        }
 
         // NOTICE: when we don't need execute restore-process, we should remove a.b.pegasus
         // directory because it don't contain the valid data dir and also we need create a new
