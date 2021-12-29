@@ -75,6 +75,9 @@ class cold_backup_context;
 typedef dsn::ref_ptr<cold_backup_context> cold_backup_context_ptr;
 struct cold_backup_metadata;
 
+typedef std::function<void(dsn::error_code, const learn_request &, const learn_response &, size_t)>
+    copy_checkpoint_callback;
+
 namespace test {
 class test_checker;
 }
@@ -153,8 +156,9 @@ public:
     void on_add_learner(const group_check_request &request);
     void on_remove(const replica_configuration &request);
     void on_group_check(const group_check_request &request, /*out*/ group_check_response &response);
-    void
-    copy_checkpoint(const rpc_address &target_node, const gpid target_gpid, task_tracker &tracker);
+    error_code sync_copy_checkpoint(const learn_request &request,
+                                    const std::string &relative_dest,
+                                    const copy_checkpoint_callback &callback);
     void on_copy_checkpoint(learn_response &response);
 
     //
@@ -473,6 +477,7 @@ private:
     friend class replica_disk_migrator;
     friend class replica_disk_test;
     friend class replica_disk_migrate_test;
+    friend class replica_follower;
 
     // replica configuration, updated by update_local_configuration ONLY
     replica_configuration _config;

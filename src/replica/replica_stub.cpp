@@ -2072,9 +2072,12 @@ void replica_stub::open_replica(const app_info &app,
              (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
              (app.envs.find(backup_restore_constant::POLICY_NAME) != app.envs.end()));
 
-        bool duplicate_if_necessary = ((config_update != nullptr) &&
-                                       (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
-                                       (!app.dup_options.metas.empty()));
+        bool duplicate_if_necessary =
+            ((config_update != nullptr) &&
+                 (config_update->type == config_type::CT_ASSIGN_PRIMARY) &&
+                 (app.envs.find(duplication_constants::DUPLICATION_MASTER_APP_FLAG) !=
+                  app.envs.end()),
+             (!app.dup_options.metas.empty()));
 
         // todo just test
         if (id.get_partition_index() != 0) {
@@ -2091,11 +2094,6 @@ void replica_stub::open_replica(const app_info &app,
                 return;
             }
         }
-        derror_f("start new {} replica[{}|{}.{}]",
-                 id.to_string(),
-                 duplicate_if_necessary,
-                 app.dup_options.cluster_name,
-                 app.dup_options.app_name);
         rep = replica::newr(this, id, app, restore_if_necessary, duplicate_if_necessary);
     }
 
@@ -2246,8 +2244,9 @@ void replica_stub::open_service()
         RPC_QUERY_PN_DECREE, "query_decree", &replica_stub::on_query_decree);
     register_rpc_handler_with_rpc_holder(
         RPC_QUERY_REPLICA_INFO, "query_replica_info", &replica_stub::on_query_replica_info);
-    register_rpc_handler_with_rpc_holder(
-        RPC_REPLICA_COPY_LAST_CHECKPOINT, "copy_checkpoint", &replica_stub::on_copy_checkpoint);
+    register_rpc_handler_with_rpc_holder(RPC_REPLICA_COPY_LAST_CHECKPOINT,
+                                         "sync_copy_checkpoint",
+                                         &replica_stub::on_copy_checkpoint);
     register_rpc_handler_with_rpc_holder(
         RPC_QUERY_DISK_INFO, "query_disk_info", &replica_stub::on_query_disk_info);
     register_rpc_handler_with_rpc_holder(

@@ -1089,28 +1089,24 @@ void server_state::create_app(dsn::message_ex *msg)
     bool will_create_app = false;
     dsn::unmarshall(msg, request);
 
-    if (request.app_name == "dup_test" &&
-        request.options.envs.count("dup") == 1) { // todo just test
-
-        rpc_address meta1 = rpc_address("127.0.0.1", 34601);
-        rpc_address meta2 = rpc_address("127.0.0.1", 34602);
-        rpc_address meta3 = rpc_address("127.0.0.1", 34603);
-        request.options.duplication.metas.emplace_back(meta1);
-        request.options.duplication.metas.emplace_back(meta2);
-        request.options.duplication.metas.emplace_back(meta3);
-
-        request.options.duplication.cluster_name = "onebox1";
-        request.options.duplication.app_name = request.app_name; // todo 表名重复了，需要精简
+    if (!request.options.duplication.metas.empty()) {
+        request.options.envs.emplace(duplication_constants::DUPLICATION_MASTER_APP_FLAG,
+                                     fmt::format("{}.{}",
+                                                 request.options.duplication.cluster_name,
+                                                 request.options.duplication.app_name));
     }
 
     derror_f("create app request, name({}), type({}), partition_count({}), replica_count({}), "
-             "duplication({}.{})",
-             request.app_name.c_str(),
-             request.options.app_type.c_str(),
+             "duplication({})",
+             request.app_name,
+             request.options.app_type,
              request.options.partition_count,
              request.options.replica_count,
-             request.options.duplication.cluster_name,
-             request.options.duplication.app_name);
+             request.options.duplication.metas.empty()
+                 ? "false"
+                 : fmt::format("{}.{}",
+                               request.options.duplication.cluster_name,
+                               request.options.duplication.app_name));
 
     auto option_match_check = [](const create_app_options &opt, const app_state &exist_app) {
         return opt.partition_count == exist_app.partition_count &&

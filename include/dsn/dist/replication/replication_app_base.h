@@ -263,6 +263,7 @@ public:
     const std::string &learn_dir() const { return _dir_learn; }
     const std::string &backup_dir() const { return _dir_backup; }
     const std::string &bulk_load_dir() const { return _dir_bulk_load; }
+    const std::string &duplication_dir() const { return _dir_duplication; }
     const app_info *get_app_info() const;
     ::dsn::replication::decree last_committed_decree() const
     {

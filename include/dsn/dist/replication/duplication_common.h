@@ -70,5 +70,14 @@ inline bool is_cluster_id_configured(uint8_t cid)
     return get_distinct_cluster_id_set().find(cid) != get_distinct_cluster_id_set().end();
 }
 
+class duplication_constants
+{
+
+public:
+    const static std::string DUPLICATION_FOLLOWER_ROOT_DIR;
+    const static std::string DUPLICATION_FOLLOWER_ROOT_TEMP_DIR;
+    const static std::string DUPLICATION_MASTER_APP_FLAG;
+};
+
 } // namespace replication
 } // namespace dsn

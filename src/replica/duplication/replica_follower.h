@@ -32,8 +32,36 @@ public:
 
 private:
     replica *_replica;
-    error_code get_master_config(rpc_address &target, gpid &pid);
-    error_code parse_master_meta_list();
+
+    std::string _master_cluster_name;
+    std::string _master_app_name;
+    std::vector<rpc_address> _master_meta_list;
+    partition_configuration _master_replica_config;
+
+    error_code update_master_replica_config();
+    error_code update_master_replica_config_callback(error_code err,
+                                                     configuration_query_by_index_response &&resp);
+
+    error_code copy_master_checkpoint(const rpc_address &node, const gpid &pid);
+    error_code copy_master_checkpoint_callback(error_code err, learn_response &&resp);
+
+    error_code nfs_copy_remote_files(const rpc_address &remote_node,
+                                     const std::string &remote_disk,
+                                     const std::string &remote_dir,
+                                     std::vector<std::string> &file_list,
+                                     const std::string &dest);
+
+    std::string master_replica_name()
+    {
+        std::string app_info = fmt::format("{}.{}", _master_cluster_name, _master_app_name);
+        if (_master_replica_config.primary != rpc_address::s_invalid_address) {
+            return fmt::format("{}({}|{})",
+                               app_info,
+                               _master_replica_config.primary.to_string(),
+                               _master_replica_config.pid.to_string());
+        }
+        return app_info;
+    }
 };
 
 } // namespace replication

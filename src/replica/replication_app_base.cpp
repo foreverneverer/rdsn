@@ -27,6 +27,7 @@
 #include "replica.h"
 #include "mutation.h"
 #include "common/bulk_load_common.h"
+#include "dsn/dist/replication/duplication_common.h"
 #include <dsn/utils/latency_tracer.h>
 #include <dsn/dist/replication/replication_app_base.h>
 #include <dsn/utility/factory_store.h>
@@ -318,6 +319,8 @@ replication_app_base::replication_app_base(replica *replica) : replica_base(repl
     _dir_backup = utils::filesystem::path_combine(replica->dir(), "backup");
     _dir_bulk_load = utils::filesystem::path_combine(replica->dir(),
                                                      bulk_load_constant::BULK_LOAD_LOCAL_ROOT_DIR);
+    _dir_duplication = utils::filesystem::path_combine(
+        replica->dir(), duplication_constants::DUPLICATION_FOLLOWER_ROOT_DIR);
     _last_committed_decree = 0;
     _replica = replica;
 }
