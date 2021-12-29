@@ -47,7 +47,8 @@ error_code replica_follower::duplicate_checkpoint()
     if (err_code != ERR_OK) {
         return err_code;
     }
-    return copy_master_checkpoint(_master_replica_config.primary, _master_replica_config.pid);
+    return copy_master_replica_checkpoint(_master_replica_config.primary,
+                                          _master_replica_config.pid);
 }
 
 error_code replica_follower::update_master_replica_config()
@@ -110,7 +111,8 @@ error_code replica_follower::update_master_replica_config_callback(
     return ERR_OK;
 }
 
-error_code replica_follower::copy_master_checkpoint(const rpc_address &node, const gpid &pid)
+error_code replica_follower::copy_master_replica_checkpoint(const rpc_address &node,
+                                                            const gpid &pid)
 {
     error_code err_code = ERR_OK;
 

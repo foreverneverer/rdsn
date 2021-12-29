@@ -42,7 +42,7 @@ private:
     error_code update_master_replica_config_callback(error_code err,
                                                      configuration_query_by_index_response &&resp);
 
-    error_code copy_master_checkpoint(const rpc_address &node, const gpid &pid);
+    error_code copy_master_replica_checkpoint(const rpc_address &node, const gpid &pid);
     error_code copy_master_checkpoint_callback(error_code err, learn_response &&resp);
 
     error_code nfs_copy_remote_files(const rpc_address &remote_node,
