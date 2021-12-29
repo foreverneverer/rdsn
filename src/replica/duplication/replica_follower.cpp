@@ -150,7 +150,7 @@ error_code replica_follower::copy_master_checkpoint_callback(error_code err, lea
     std::string final_dest = utils::filesystem::path_combine(
         _replica->dir(), duplication_constants::DUPLICATION_FOLLOWER_ROOT_DIR);
     std::string checkpoint_file_temp_path =
-        fmt::format("{}/checkpoint.{}", final_dest, resp.state.to_decree_included);
+        fmt::format("{}/checkpoint.{}", temp_dest, resp.state.to_decree_included);
     if (!utils::filesystem::rename_path(checkpoint_file_temp_path, final_dest)) {
         derror_replica("move checkpoint[{}] from {} to {} failed: {}",
                        master_replica_name(),
