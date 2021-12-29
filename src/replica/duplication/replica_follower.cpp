@@ -130,15 +130,17 @@ error_code replica_follower::copy_master_checkpoint_callback(error_code err, lea
 {
     error_code err_code = err != ERR_OK ? err : resp.err;
     if (err_code != ERR_OK) {
-        derror_replica("copy master checkpoint[{}] failed, err = %s", master_replica_name());
+        derror_replica("copy master replica checkpoint[{}] failed, err = %s",
+                       master_replica_name());
         return err_code;
     }
 
     std::string temp_dest = utils::filesystem::path_combine(
         _replica->dir(), duplication_constants::DUPLICATION_FOLLOWER_ROOT_TEMP_DIR);
     if (!utils::filesystem::remove_path(temp_dest)) {
-        derror_replica(
-            "clear copy checkpoint[{}] temp dest {} failed", master_replica_name(), temp_dest);
+        derror_replica("clear master replica checkpoint[{}] temp_dir {} failed",
+                       master_replica_name(),
+                       temp_dest);
         return ERR_FILE_OPERATION_FAILED;
     }
 
@@ -152,7 +154,7 @@ error_code replica_follower::copy_master_checkpoint_callback(error_code err, lea
     std::string checkpoint_file_temp_path =
         fmt::format("{}/checkpoint.{}", temp_dest, resp.state.to_decree_included);
     if (!utils::filesystem::rename_path(checkpoint_file_temp_path, final_dest)) {
-        derror_replica("move checkpoint[{}] from {} to {} failed: {}",
+        derror_replica("move master replica checkpoint[{}] from {} to {} failed: {}",
                        master_replica_name(),
                        checkpoint_file_temp_path,
                        final_dest,
