@@ -1102,6 +1102,8 @@ void server_state::create_app(dsn::message_ex *msg)
         request.options.duplication.app_name = "dup_test";
     }
 
+    // todo 可以由客户端控制，不需要写在这里 更新：必要的，应因为要保证key =
+    // todo DUPLICATION_MASTER_APP_FLAG，当服务端变更后，客户端需要同步更新，维护成本高
     if (!request.options.duplication.metas.empty()) {
         request.options.envs.emplace(duplication_constants::DUPLICATION_MASTER_APP_FLAG,
                                      fmt::format("{}.{}",
