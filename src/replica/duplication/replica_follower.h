@@ -49,7 +49,7 @@ private:
                                      const std::string &remote_disk,
                                      const std::string &remote_dir,
                                      std::vector<std::string> &file_list,
-                                     const std::string &dest);
+                                     const std::string &dest_dir);
 
     std::string master_replica_name()
     {

@@ -47,6 +47,13 @@
 namespace dsn {
 namespace replication {
 
+const std::string kCheckpointFolderPrefix /*NOLINT*/ = "checkpoint";
+
+static std::string checkpoint_folder(int64_t decree)
+{
+    return fmt::format("{}.{}", kCheckpointFolderPrefix, decree);
+}
+
 // ThreadPool: THREAD_POOL_REPLICATION
 void replica::on_checkpoint_timer()
 {
@@ -151,7 +158,7 @@ void replica::init_checkpoint(bool is_emergency)
 }
 
 // @ secondary
-void replica::on_copy_checkpoint(learn_response &response)
+void replica::on_query_last_checkpoint_info(learn_response &response)
 {
     _checker.only_one_thread_access();
 
@@ -167,7 +174,8 @@ void replica::on_copy_checkpoint(learn_response &response)
     } else {
         response.err = ERR_OK;
         response.last_committed_decree = last_committed_decree();
-        response.base_local_dir = _app->data_dir();
+        response.base_local_dir = utils::filesystem::path_combine(
+            _app->data_dir(), checkpoint_folder(response.state.to_decree_included));
         response.address = _stub->_primary_address;
         for (auto &file : response.state.files) {
             file = file.substr(response.base_local_dir.length() + 1);

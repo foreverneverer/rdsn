@@ -159,7 +159,7 @@ public:
     error_code sync_copy_checkpoint(const learn_request &request,
                                     const std::string &relative_dest,
                                     const copy_checkpoint_callback &callback);
-    void on_copy_checkpoint(learn_response &response);
+    void on_query_last_checkpoint_info(learn_response &response);
 
     //
     //    messsages from liveness monitor

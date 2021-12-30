@@ -154,8 +154,6 @@ static nlohmann::json duplication_entry_to_json(const duplication_entry &ent)
 }
 
 const std::string duplication_constants::DUPLICATION_FOLLOWER_ROOT_DIR /*NOLINT*/ = "duplication";
-const std::string duplication_constants::DUPLICATION_FOLLOWER_ROOT_TEMP_DIR /*NOLINT*/ =
-    "duplication.tmp";
 // follow is the app env key
 const std::string duplication_constants::DUPLICATION_MASTER_APP_FLAG /*NOLINT*/ =
     "duplication.master_app";

@@ -75,7 +75,6 @@ class duplication_constants
 
 public:
     const static std::string DUPLICATION_FOLLOWER_ROOT_DIR;
-    const static std::string DUPLICATION_FOLLOWER_ROOT_TEMP_DIR;
     const static std::string DUPLICATION_MASTER_APP_FLAG;
 };
 

@@ -1260,7 +1260,7 @@ void replica_stub::on_copy_checkpoint(copy_checkpoint_rpc rpc)
 
     replica_ptr rep = get_replica(request.pid);
     if (rep != nullptr) {
-        rep->on_copy_checkpoint(response);
+        rep->on_query_last_checkpoint_info(response);
     } else {
         response.err = ERR_OBJECT_NOT_FOUND;
     }
