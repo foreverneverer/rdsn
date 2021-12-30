@@ -1089,6 +1089,19 @@ void server_state::create_app(dsn::message_ex *msg)
     bool will_create_app = false;
     dsn::unmarshall(msg, request);
 
+    // todo just test
+    if (request.app_name == "dup_test" &&
+        request.options.envs.find("dup") != request.options.envs.end()) {
+        rpc_address meta1 = rpc_address("10.231.57.98", 34601);
+        rpc_address meta2 = rpc_address("10.231.57.98", 34602);
+        rpc_address meta3 = rpc_address("10.231.57.98", 34603);
+        request.options.duplication.metas.emplace_back(meta1);
+        request.options.duplication.metas.emplace_back(meta2);
+        request.options.duplication.metas.emplace_back(meta3);
+        request.options.duplication.cluster_name = "onebox1";
+        request.options.duplication.cluster_name = "dup_test";
+    }
+
     if (!request.options.duplication.metas.empty()) {
         request.options.envs.emplace(duplication_constants::DUPLICATION_MASTER_APP_FLAG,
                                      fmt::format("{}.{}",
