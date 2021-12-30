@@ -42,6 +42,7 @@
 #include <dsn/utility/autoref_ptr.h>
 #include <dsn/utility/rand.h>
 #include <dsn/tool-api/rpc_address.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 class rpc_group_address : public dsn::ref_counter
@@ -80,6 +81,14 @@ public:
     bool is_update_leader_automatically() const { return _update_leader_automatically; }
     void set_update_leader_automatically(bool value) { _update_leader_automatically = value; }
     const char *name() const { return _name.c_str(); }
+    std::string info() const
+    {
+        std::string info = fmt::format("({})", _name);
+        for (const auto &address : _members) {
+            info = fmt::format("|{}", address.to_string());
+        }
+        return info;
+    };
 
 private:
     typedef std::vector<rpc_address> members_t;

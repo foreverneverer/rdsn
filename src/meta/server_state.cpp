@@ -1099,7 +1099,7 @@ void server_state::create_app(dsn::message_ex *msg)
         request.options.duplication.metas.emplace_back(meta2);
         request.options.duplication.metas.emplace_back(meta3);
         request.options.duplication.cluster_name = "onebox1";
-        request.options.duplication.cluster_name = "dup_test";
+        request.options.duplication.app_name = "dup_test";
     }
 
     if (!request.options.duplication.metas.empty()) {

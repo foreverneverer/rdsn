@@ -41,7 +41,7 @@ replica_follower::~replica_follower() = default;
 
 error_code replica_follower::duplicate_checkpoint()
 {
-    derror_replica("start duplicate master checkpoint[{}}]", master_replica_name());
+    derror_replica("start duplicate master[{}] checkpoint", master_replica_name());
 
     error_code err_code = update_master_replica_config();
     if (err_code != ERR_OK) {
@@ -63,6 +63,9 @@ error_code replica_follower::update_master_replica_config()
     meta_config_request.app_name = _master_app_name;
     meta_config_request.partition_indices = std::vector<int32_t>(get_gpid().get_partition_index());
 
+    derror_replica("query master[{}] replica configuration to {}",
+                   master_replica_name(),
+                   meta_servers.to_string());
     dsn::message_ex *msg =
         dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX, 1000, 1);
     dsn::marshall(msg, meta_config_request);
@@ -114,6 +117,11 @@ error_code replica_follower::update_master_replica_config_callback(
 error_code replica_follower::copy_master_replica_checkpoint(const rpc_address &node,
                                                             const gpid &pid)
 {
+    derror_replica("query master[{}] replica[{}] checkpoint info to {}",
+                   master_replica_name(),
+                   pid.to_string(),
+                   node.to_string());
+
     error_code err_code = ERR_OK;
 
     learn_request request;
@@ -130,7 +138,7 @@ error_code replica_follower::copy_master_checkpoint_callback(error_code err, lea
 {
     error_code err_code = err != ERR_OK ? err : resp.err;
     if (err_code != ERR_OK) {
-        derror_replica("copy master replica checkpoint[{}] failed, err = %s",
+        derror_replica("copy master[{}] replica checkpoint failed, err = %s",
                        master_replica_name());
         return err_code;
     }
@@ -139,7 +147,7 @@ error_code replica_follower::copy_master_checkpoint_callback(error_code err, lea
         _replica->dir(), duplication_constants::DUPLICATION_FOLLOWER_ROOT_DIR);
     if (!utils::filesystem::remove_path(dest)) {
         derror_replica(
-            "clear master replica checkpoint[{}] dir {} failed", master_replica_name(), dest);
+            "clear master[{}] replica checkpoint dir {} failed", master_replica_name(), dest);
         return ERR_FILE_OPERATION_FAILED;
     }
 
@@ -157,6 +165,10 @@ error_code replica_follower::nfs_copy_remote_files(const rpc_address &remote_nod
                                                    std::vector<std::string> &file_list,
                                                    const std::string &dest_dir)
 {
+    derror_replica("nfs copy master[{}] replica checkpoint[{}] from {}",
+                   master_replica_name(),
+                   remote_dir,
+                   remote_node.to_string());
     std::shared_ptr<remote_copy_request> request = std::make_shared<remote_copy_request>();
     request->source = remote_node;
     request->source_disk_tag = remote_disk;
@@ -169,21 +181,26 @@ error_code replica_follower::nfs_copy_remote_files(const rpc_address &remote_nod
 
     error_code err_code = ERR_OK;
     _replica->_stub->_nfs
-        ->copy_remote_files(request,
-                            LPC_NFS_COPY_CHECKPOINT_FILES,
-                            _replica->tracker(),
-                            [&](error_code err, size_t size) mutable {
-                                if (err != ERR_OK) {
-                                    err_code = err;
-                                    derror_replica("nfs copy checkpoint[{}] failed: {}",
-                                                   master_replica_name(),
-                                                   err.to_string());
-                                    return;
-                                }
-                                derror_replica("nfs copy checkpoint[{}] completed: size = {}",
-                                               master_replica_name(),
-                                               size);
-                            })
+        ->copy_remote_files(
+            request,
+            LPC_NFS_COPY_CHECKPOINT_FILES,
+            _replica->tracker(),
+            [&](error_code err, size_t size) mutable {
+                if (err != ERR_OK) {
+                    err_code = err;
+                    derror_replica("nfs copy master[{}] checkpoint[{}] from failed: {}",
+                                   master_replica_name(),
+                                   remote_dir,
+                                   remote_node.to_string(),
+                                   err.to_string());
+                    return;
+                }
+                derror_replica("nfs copy master[{}] checkpoint[{}] completed from {}: size = {}",
+                               master_replica_name(),
+                               remote_dir,
+                               remote_node.to_string(),
+                               size);
+            })
         ->wait();
     return err_code;
 }

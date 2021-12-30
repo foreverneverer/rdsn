@@ -206,7 +206,7 @@ const char *rpc_address::to_string() const
         snprintf_p(p + ip_len, sz - ip_len, ":%hu", port());
         break;
     case HOST_TYPE_GROUP:
-        p = (char *)group_address()->name();
+        p = (char *)group_address()->info().c_str();
         break;
     default:
         p = (char *)"invalid address";

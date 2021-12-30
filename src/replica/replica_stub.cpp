@@ -2019,7 +2019,6 @@ void replica_stub::open_replica(const app_info &app,
                                 const std::shared_ptr<group_check_request> &group_check,
                                 const std::shared_ptr<configuration_update_request> &config_update)
 {
-    derror_f("start open {} replica", id.to_string());
     std::string dir = get_replica_dir(app.app_type.c_str(), id, false);
     replica_ptr rep = nullptr;
     if (!dir.empty()) {
