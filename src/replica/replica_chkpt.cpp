@@ -157,20 +157,21 @@ void replica::init_checkpoint(bool is_emergency)
         _stub->_counter_recent_trigger_emergency_checkpoint_count->increment();
 }
 
-// @ secondary
+// todo 这里的durable_decree不是last_commit_decree，可能需要异步打一下checkpoint
 void replica::on_query_last_checkpoint_info(learn_response &response)
 {
+    derror_replica("HHHHHHHHHHHHHHHHH");
     _checker.only_one_thread_access();
 
     if (_app->last_durable_decree() == 0) {
-        response.err = ERR_OBJECT_NOT_FOUND;
+        response.err = ERR_INCOMPLETE_DATA;
         return;
     }
 
     blob placeholder;
     int err = _app->get_checkpoint(0, placeholder, response.state);
     if (err != 0) {
-        response.err = ERR_LEARN_FILE_FAILED;
+        response.err = ERR_GET_LEARN_STATE_FAILED;
     } else {
         response.err = ERR_OK;
         response.last_committed_decree = last_committed_decree();

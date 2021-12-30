@@ -2078,11 +2078,6 @@ void replica_stub::open_replica(const app_info &app,
                   app.envs.end()),
              (!app.dup_options.metas.empty()));
 
-        // todo just test
-        if (id.get_partition_index() != 0) {
-            duplicate_if_necessary = false;
-        }
-
         // NOTICE: when we don't need execute restore-process, we should remove a.b.pegasus
         // directory because it don't contain the valid data dir and also we need create a new
         // replica(if contain valid data, it will execute load-process)

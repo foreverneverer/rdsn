@@ -62,6 +62,9 @@ private:
         }
         return app_info;
     }
+
+    friend class duplication_test_base;
+    friend class replica_duplicator_test;
 };
 
 } // namespace replication

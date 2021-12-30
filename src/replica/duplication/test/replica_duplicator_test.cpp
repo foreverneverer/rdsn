@@ -64,6 +64,11 @@ public:
         ASSERT_EQ(duplicator->get_gpid().thread_hash(), expected_env.__conf.thread_hash);
     }
 
+    void update_master_replica_config(std::unique_ptr<replica_follower> follower)
+    {
+        follower->update_master_replica_config();
+    }
+
     void test_pause_start_duplication()
     {
         mutation_log_ptr mlog = new mutation_log_private(
@@ -130,6 +135,13 @@ TEST_F(replica_duplicator_test, duplication_progress)
     ASSERT_EQ(duplicator->update_progress(duplicator->progress().set_confirmed_decree(12)),
               error_s::make(ERR_INVALID_STATE,
                             "last_decree(10) should always larger than confirmed_decree(12)"));
+}
+
+// todo jiashuo1
+TEST_F(replica_duplicator_test, duplication_follower)
+{
+    auto follower = create_test_follower();
+    update_master_replica_config(std::move(follower));
 }
 
 } // namespace replication

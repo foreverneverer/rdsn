@@ -20,6 +20,7 @@
 #include "replica/mutation_log_utils.h"
 #include "replica/test/replica_test_base.h"
 #include "replica/duplication/replica_duplicator.h"
+#include "replica/duplication/replica_follower.h"
 #include "replica/duplication/replica_duplicator_manager.h"
 #include "replica/duplication/duplication_sync_timer.h"
 
@@ -62,6 +63,22 @@ public:
         dup_ent.status = duplication_status::DS_PAUSE;
         dup_ent.progress[_replica->get_gpid().get_partition_index()] = confirmed;
         return make_unique<replica_duplicator>(dup_ent, _replica.get());
+    }
+
+    // todo jiashuo1
+    std::unique_ptr<replica_follower> create_test_follower()
+    {
+        rpc_address meta1 = rpc_address("10.231.57.98", 34601);
+        rpc_address meta2 = rpc_address("10.231.57.98", 34602);
+        rpc_address meta3 = rpc_address("10.231.57.98", 34603);
+
+        auto follower = make_unique<replica_follower>(_replica.get());
+        follower->_master_meta_list.emplace_back(meta1);
+        follower->_master_meta_list.emplace_back(meta2);
+        follower->_master_meta_list.emplace_back(meta3);
+        follower->_master_app_name = "dup_test";
+        follower->_master_cluster_name = "onbox1";
+        return follower;
     }
 
     std::map<int, log_file_ptr> open_log_file_map(const std::string &log_dir)
