@@ -160,7 +160,6 @@ void replica::init_checkpoint(bool is_emergency)
 // todo 这里的durable_decree不是last_commit_decree，可能需要异步打一下checkpoint
 void replica::on_query_last_checkpoint_info(learn_response &response)
 {
-    derror_replica("HHHHHHHHHHHHHHHHH");
     _checker.only_one_thread_access();
 
     if (_app->last_durable_decree() == 0) {
