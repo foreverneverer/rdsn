@@ -130,6 +130,82 @@ void replica::on_checkpoint_timer()
     }
 }
 
+// todo 这里的durable_decree不是last_commit_decree，可能需要异步打一下checkpoint
+void replica::on_query_last_checkpoint(learn_response &response)
+{
+    _checker.only_one_thread_access();
+
+    if (_app->last_durable_decree() == 0) {
+        response.err = ERR_INCOMPLETE_DATA;
+        return;
+    }
+
+    blob placeholder;
+    int err = _app->get_checkpoint(0, placeholder, response.state);
+    if (err != 0) {
+        response.err = ERR_GET_LEARN_STATE_FAILED;
+    } else {
+        response.err = ERR_OK;
+        response.last_committed_decree = last_committed_decree();
+        response.base_local_dir = utils::filesystem::path_combine(
+            _app->data_dir(), checkpoint_folder(response.state.to_decree_included));
+        response.address = _stub->_primary_address;
+        for (auto &file : response.state.files) {
+            file = file.substr(response.base_local_dir.length() + 1);
+        }
+    }
+}
+
+void replica::on_emergency_checkpoint(const emergency_checkpoint_request &request,
+                                      emergency_checkpoint_response &response)
+{
+    _checker.only_one_thread_access();
+
+    response.err = ERR_OK;
+    if (request.expect_min_decree == invalid_decree) {
+        std::string message =
+            fmt::format("expect min durable decree shouldn't be invalid: request = {}, last = ",
+                        request.expect_min_decree,
+                        _app->last_durable_decree());
+        response.err = ERR_INVALID_PARAMETERS;
+        response.err_hint = message;
+        derror_replica(message);
+        return;
+    }
+
+    if (_is_emergency_checkpointing) {
+        std::string message = fmt::format("replica is checkpointing, last_durable_decree = {}",
+                                          _app->last_durable_decree());
+        response.err = ERR_BUSY;
+        response.err_hint = message;
+        derror_replica(message);
+        return;
+    }
+
+    if (request.expect_min_decree <= _app->last_durable_decree()) {
+        derror_replica("checkpoint succeeded: expect = {} vs local = {}",
+                       request.expect_min_decree,
+                       _app->last_durable_decree());
+        return;
+    }
+
+    init_checkpoint(true);
+}
+
+// todo 该函数不在replica线程运行，所以必须线程安全
+void replica::update_checkpoint_state_if_emergency(bool running, bool is_emergency)
+{
+    if (!is_emergency) {
+        return;
+    }
+    _is_emergency_checkpointing = running;
+    if (_is_emergency_checkpointing) {
+        _stub->_checkpointing_count++;
+    } else if (_stub->_checkpointing_count) {
+        _stub->_checkpointing_count--;
+    }
+}
+
 // ThreadPool: THREAD_POOL_REPLICATION
 void replica::init_checkpoint(bool is_emergency)
 {
@@ -157,35 +233,11 @@ void replica::init_checkpoint(bool is_emergency)
         _stub->_counter_recent_trigger_emergency_checkpoint_count->increment();
 }
 
-// todo 这里的durable_decree不是last_commit_decree，可能需要异步打一下checkpoint
-void replica::on_query_last_checkpoint_info(learn_response &response)
-{
-    _checker.only_one_thread_access();
-
-    if (_app->last_durable_decree() == 0) {
-        response.err = ERR_INCOMPLETE_DATA;
-        return;
-    }
-
-    blob placeholder;
-    int err = _app->get_checkpoint(0, placeholder, response.state);
-    if (err != 0) {
-        response.err = ERR_GET_LEARN_STATE_FAILED;
-    } else {
-        response.err = ERR_OK;
-        response.last_committed_decree = last_committed_decree();
-        response.base_local_dir = utils::filesystem::path_combine(
-            _app->data_dir(), checkpoint_folder(response.state.to_decree_included));
-        response.address = _stub->_primary_address;
-        for (auto &file : response.state.files) {
-            file = file.substr(response.base_local_dir.length() + 1);
-        }
-    }
-}
-
 // run in background thread
 error_code replica::background_async_checkpoint(bool is_emergency)
 {
+    update_checkpoint_state_if_emergency(true, is_emergency);
+
     uint64_t start_time = dsn_now_ns();
     decree old_durable = _app->last_durable_decree();
     auto err = _app->async_checkpoint(is_emergency);
@@ -193,6 +245,8 @@ error_code replica::background_async_checkpoint(bool is_emergency)
     dassert(err != ERR_NOT_IMPLEMENTED, "err == ERR_NOT_IMPLEMENTED");
     if (err == ERR_OK) {
         if (old_durable != _app->last_durable_decree()) {
+            update_checkpoint_state_if_emergency(false, is_emergency);
+
             // if no need to generate new checkpoint, async_checkpoint() also returns ERR_OK,
             // so we should check if a new checkpoint has been generated.
             ddebug("%s: call app.async_checkpoint() succeed, time_used_ns = %" PRIu64 ", "
@@ -217,12 +271,13 @@ error_code replica::background_async_checkpoint(bool is_emergency)
                          get_gpid().thread_hash(),
                          std::chrono::seconds(10));
     } else if (err == ERR_WRONG_TIMING) {
-        // do nothing
+        update_checkpoint_state_if_emergency(false, is_emergency);
         ddebug("%s: call app.async_checkpoint() returns ERR_WRONG_TIMING, time_used_ns = %" PRIu64
                ", just ignore",
                name(),
                used_time);
     } else {
+        update_checkpoint_state_if_emergency(false, is_emergency);
         derror("%s: call app.async_checkpoint() failed, time_used_ns = %" PRIu64 ", err = %s",
                name(),
                used_time,

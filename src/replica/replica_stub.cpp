@@ -69,6 +69,8 @@ DSN_DEFINE_bool("replication",
                 true,
                 "true means ignore broken data disk when initialize");
 
+DSN_DEFINE_uint32("replication", max_concurrent_checkpoint_count, 1, "todo"); // todo
+
 bool replica_stub::s_not_exit_on_log_failure = false;
 
 replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
@@ -91,6 +93,7 @@ replica_stub::replica_stub(replica_state_subscriber subscriber /*= nullptr*/,
       _learn_app_concurrent_count(0),
       _fs_manager(false),
       _bulk_load_downloading_count(0),
+      _checkpointing_count(0),
       _is_running(false)
 {
 #ifdef DSN_ENABLE_GPERF
@@ -1046,7 +1049,24 @@ void replica_stub::on_query_replica_info(query_replica_info_rpc rpc)
     resp.err = ERR_OK;
 }
 
-void replica_stub::on_query_last_checkpoint_info(query_last_checkpoint_info_rpc rpc)
+void replica_stub::on_emergency_checkpoint(emergency_checkpoint_rpc rpc)
+{
+    const emergency_checkpoint_request &request = rpc.request();
+    emergency_checkpoint_response &response = rpc.response();
+
+    replica_ptr rep = get_replica(request.pid);
+    if (rep != nullptr) {
+        if (_checkpointing_count.load() >= FLAGS_max_concurrent_checkpoint_count) {
+            response.err = ERR_BUSY;
+            response.err_hint = "exceed the concurrent running count";
+        }
+        rep->on_emergency_checkpoint(request, response);
+    } else {
+        response.err = ERR_OBJECT_NOT_FOUND;
+    }
+}
+
+void replica_stub::on_query_last_checkpoint(query_last_checkpoint_info_rpc rpc)
 {
     const learn_request &request = rpc.request();
     learn_response &response = rpc.response();
@@ -2240,7 +2260,7 @@ void replica_stub::open_service()
         RPC_QUERY_REPLICA_INFO, "query_replica_info", &replica_stub::on_query_replica_info);
     register_rpc_handler_with_rpc_holder(RPC_QUERY_LAST_CHECKPOINT_INFO,
                                          "query_last_checkpoint_info",
-                                         &replica_stub::on_query_last_checkpoint_info);
+                                         &replica_stub::on_query_last_checkpoint);
     register_rpc_handler_with_rpc_holder(
         RPC_QUERY_DISK_INFO, "query_disk_info", &replica_stub::on_query_disk_info);
     register_rpc_handler_with_rpc_holder(

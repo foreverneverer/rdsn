@@ -159,7 +159,9 @@ public:
     error_code sync_copy_checkpoint(const learn_request &request,
                                     const std::string &relative_dest,
                                     const copy_checkpoint_callback &callback);
-    void on_query_last_checkpoint_info(learn_response &response);
+    void on_query_last_checkpoint(learn_response &response);
+    void on_emergency_checkpoint(const emergency_checkpoint_request &request,
+                                 emergency_checkpoint_response &response);
 
     //
     //    messsages from liveness monitor
@@ -597,6 +599,9 @@ private:
     std::unique_ptr<security::access_controller> _access_controller;
 
     disk_status::type _disk_status{disk_status::NORMAL};
+
+    bool _is_emergency_checkpointing = false;
+    void update_checkpoint_state_if_emergency(bool running, bool is_emergency);
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication

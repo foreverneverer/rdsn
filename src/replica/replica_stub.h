@@ -64,6 +64,8 @@ typedef rpc_holder<update_child_group_partition_count_request,
 typedef rpc_holder<group_bulk_load_request, group_bulk_load_response> group_bulk_load_rpc;
 typedef rpc_holder<detect_hotkey_request, detect_hotkey_response> detect_hotkey_rpc;
 typedef rpc_holder<add_new_disk_request, add_new_disk_response> add_new_disk_rpc;
+typedef rpc_holder<emergency_checkpoint_request, emergency_checkpoint_response>
+    emergency_checkpoint_rpc;
 
 class mutation_log;
 namespace test {
@@ -133,7 +135,8 @@ public:
     void on_add_learner(const group_check_request &request);
     void on_remove(const replica_configuration &request);
     void on_group_check(group_check_rpc rpc);
-    void on_query_last_checkpoint_info(query_last_checkpoint_info_rpc rpc);
+    void on_query_last_checkpoint(query_last_checkpoint_info_rpc rpc);
+    void on_emergency_checkpoint(emergency_checkpoint_rpc rpc);
     void on_group_bulk_load(group_bulk_load_rpc rpc);
 
     //
@@ -406,6 +409,9 @@ private:
 
     // replica count exectuting bulk load downloading concurrently
     std::atomic_int _bulk_load_downloading_count;
+
+    // todo
+    std::atomic_int _checkpointing_count;
 
     bool _is_running;
 

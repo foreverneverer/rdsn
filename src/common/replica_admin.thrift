@@ -173,3 +173,13 @@ struct add_new_disk_response {
     1: dsn.error_code err;
     2: optional string err_hint;
 }
+
+struct emergency_checkpoint_request {
+    1:dsn.gpid pid;
+    2:i64         expect_min_decree;
+}
+
+struct emergency_checkpoint_response {
+    1: dsn.error_code err;
+    2: optional string err_hint;
+}
