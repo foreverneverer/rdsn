@@ -309,10 +309,10 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
     }
 }
 
-//todo
+// todo
 bool meta_duplication_service::trigger_follower_duplicate_checkpoint() { return false; }
 
-//todo
+// todo
 bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed() { return false; }
 
 void meta_duplication_service::do_update_partition_confirmed(

@@ -116,7 +116,7 @@ public:
         entry.create_ts = create_timestamp_ms;
         entry.remote = remote;
         entry.status = _status;
-        entry.type = entry.__set_fail_mode(_fail_mode);
+        entry.__set_fail_mode(_fail_mode);
         entry.__isset.progress = true;
         for (const auto &kv : _progress) {
             if (!kv.second.is_inited) {
@@ -192,8 +192,10 @@ private:
 
 public:
     const dupid_t id{0};
-    const int32_t app_id{0};
-    const std::string remote;
+    const int32_t app_id{0};  // todo need update to `master_app_id`
+    const std::string remote; // todo need update to `follwer_cluster_name`
+    const std::string follower_app_name;
+    const std::vector<rpc_address> follower_meta_list;
     const std::string store_path; // store path on meta service = get_duplication_path(app, dupid)
     const uint64_t create_timestamp_ms{0}; // the time when this dup is created.
 };
