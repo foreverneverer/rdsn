@@ -181,5 +181,6 @@ struct emergency_checkpoint_request {
 
 struct emergency_checkpoint_response {
     1: dsn.error_code err;
-    2: optional string err_hint;
+    2: i64         last_durable_decree;
+    3: optional string err_hint;
 }

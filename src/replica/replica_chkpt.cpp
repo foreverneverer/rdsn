@@ -161,49 +161,51 @@ void replica::on_emergency_checkpoint(const emergency_checkpoint_request &reques
 {
     _checker.only_one_thread_access();
 
+    decree current_last_decree = _app->last_durable_decree();
+
     response.err = ERR_OK;
-    if (request.expect_min_decree == invalid_decree) {
-        std::string message =
-            fmt::format("expect min durable decree shouldn't be invalid: request = {}, last = ",
-                        request.expect_min_decree,
-                        _app->last_durable_decree());
-        response.err = ERR_INVALID_PARAMETERS;
-        response.err_hint = message;
-        derror_replica(message);
-        return;
-    }
+    response.last_durable_decree = current_last_decree;
 
-    if (_is_emergency_checkpointing) {
-        std::string message = fmt::format("replica is checkpointing, last_durable_decree = {}",
-                                          _app->last_durable_decree());
-        response.err = ERR_BUSY;
-        response.err_hint = message;
-        derror_replica(message);
-        return;
-    }
-
-    if (request.expect_min_decree <= _app->last_durable_decree()) {
-        derror_replica("checkpoint succeeded: expect = {} vs local = {}",
+    if (request.expect_min_decree <= current_last_decree) {
+        derror_replica("checkpoint has been successful: expect = {} vs local = {}",
                        request.expect_min_decree,
                        _app->last_durable_decree());
         return;
     }
 
-    init_checkpoint(true);
+    response.err = trigger_emergency_checkpoint(current_last_decree);
 }
 
-// todo 该函数不在replica线程运行，所以必须线程安全
-void replica::update_checkpoint_state_if_emergency(bool running, bool is_emergency)
+error_code replica::trigger_emergency_checkpoint(decree old_decree)
 {
-    if (!is_emergency) {
-        return;
+    _checker.only_one_thread_access();
+
+    if (old_decree < _app->last_durable_decree()) {
+        derror_replica("checkpoint has been successful: old = {} vs latest = {}",
+                       old_decree,
+                       _app->last_durable_decree());
+        _is_emergency_checkpointing = false;
+        _stub->_checkpointing_count == 0 ? 0 : _stub->_checkpointing_count--;
+        return ERR_OK;
     }
-    _is_emergency_checkpointing = running;
+
     if (_is_emergency_checkpointing) {
-        _stub->_checkpointing_count++;
-    } else if (_stub->_checkpointing_count) {
-        _stub->_checkpointing_count--;
+        derror_replica("replica is checkpointing, last_durable_decree = {}",
+                       _app->last_durable_decree());
+        return ERR_BUSY;
     }
+
+    _is_emergency_checkpointing = true;
+    _stub->_checkpointing_count++;
+    init_checkpoint(true);
+
+    // submit async task to check checkpoint process and update emergency state
+    tasking::enqueue(LPC_REPLICATION_COMMON,
+                     &_tracker,
+                     [=]() { trigger_emergency_checkpoint(old_decree); },
+                     get_gpid().thread_hash(),
+                     std::chrono::seconds(10));
+    return ERR_OK;
 }
 
 // ThreadPool: THREAD_POOL_REPLICATION
@@ -236,8 +238,6 @@ void replica::init_checkpoint(bool is_emergency)
 // run in background thread
 error_code replica::background_async_checkpoint(bool is_emergency)
 {
-    update_checkpoint_state_if_emergency(true, is_emergency);
-
     uint64_t start_time = dsn_now_ns();
     decree old_durable = _app->last_durable_decree();
     auto err = _app->async_checkpoint(is_emergency);
@@ -245,8 +245,6 @@ error_code replica::background_async_checkpoint(bool is_emergency)
     dassert(err != ERR_NOT_IMPLEMENTED, "err == ERR_NOT_IMPLEMENTED");
     if (err == ERR_OK) {
         if (old_durable != _app->last_durable_decree()) {
-            update_checkpoint_state_if_emergency(false, is_emergency);
-
             // if no need to generate new checkpoint, async_checkpoint() also returns ERR_OK,
             // so we should check if a new checkpoint has been generated.
             ddebug("%s: call app.async_checkpoint() succeed, time_used_ns = %" PRIu64 ", "
@@ -271,13 +269,11 @@ error_code replica::background_async_checkpoint(bool is_emergency)
                          get_gpid().thread_hash(),
                          std::chrono::seconds(10));
     } else if (err == ERR_WRONG_TIMING) {
-        update_checkpoint_state_if_emergency(false, is_emergency);
         ddebug("%s: call app.async_checkpoint() returns ERR_WRONG_TIMING, time_used_ns = %" PRIu64
                ", just ignore",
                name(),
                used_time);
     } else {
-        update_checkpoint_state_if_emergency(false, is_emergency);
         derror("%s: call app.async_checkpoint() failed, time_used_ns = %" PRIu64 ", err = %s",
                name(),
                used_time,

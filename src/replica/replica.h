@@ -601,7 +601,8 @@ private:
     disk_status::type _disk_status{disk_status::NORMAL};
 
     bool _is_emergency_checkpointing = false;
-    void update_checkpoint_state_if_emergency(bool running, bool is_emergency);
+    error_code trigger_emergency_checkpoint(decree old_decree);
+    void check_emergency_checkpoint_if_succeeded(decree expect_decree);
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication
