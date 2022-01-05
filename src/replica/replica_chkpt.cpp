@@ -156,6 +156,7 @@ void replica::on_query_last_checkpoint(learn_response &response)
     }
 }
 
+// todo(jiashuo1) 也许并不需要，当接收到Meta的dup信息，则直接触发checkpoint即可
 void replica::on_emergency_checkpoint(const emergency_checkpoint_request &request,
                                       emergency_checkpoint_response &response)
 {
