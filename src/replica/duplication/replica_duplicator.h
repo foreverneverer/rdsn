@@ -29,6 +29,8 @@ namespace replication {
 class duplication_progress
 {
 public:
+    //
+    bool checkpoint_has_prepared = false;
     // the maximum decree that's been persisted in meta server
     decree confirmed_decree{invalid_decree};
 
@@ -101,7 +103,10 @@ public:
     // Thread-safe
     error_s update_progress(const duplication_progress &p);
 
-    void start_dup();
+    //
+    void prepare_dup();
+
+    void start_dup_log();
 
     // Pausing duplication will clear all the internal volatile states, thus
     // when next time it restarts, the states will be reinitialized like the
@@ -147,6 +152,7 @@ private:
 
     // protect the access of _progress.
     mutable zrwlock_nr _lock;
+    decree _start_point_decree = invalid_decree;
     duplication_progress _progress;
 
     /// === pipeline === ///

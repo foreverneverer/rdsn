@@ -59,11 +59,11 @@ public:
 
     duplication_info() = default;
 
-    void start()
+    void prepare()
     {
         zauto_write_lock l(_lock);
         _is_altering = true;
-        _next_status = duplication_status::DS_START;
+        _next_status = duplication_status::DS_PREPARE;
     }
 
     // error will be returned if this state transition is not allowed.
@@ -85,11 +85,11 @@ public:
     /// alter_progress -> persist_progress
     ///
 
-    // Returns: false if `d` is not supposed to be persisted,
+    // Returns: false if `confirm_entry` is not supposed to be persisted,
     //          maybe because meta storage is busy or `d` is stale.
-    bool alter_progress(int partition_index, decree d);
+    bool alter_progress(int partition_index, const duplication_confirm_entry &confirm_entry);
 
-    void persist_progress(int partition_index);
+    void persist_progress(int partition_index, const duplication_confirm_entry &confirm_entry);
 
     void init_progress(int partition_index, decree confirmed);
 
@@ -116,7 +116,7 @@ public:
         entry.create_ts = create_timestamp_ms;
         entry.remote = remote;
         entry.status = _status;
-        entry.__set_fail_mode(_fail_mode);
+        entry.type = entry.__set_fail_mode(_fail_mode);
         entry.__isset.progress = true;
         for (const auto &kv : _progress) {
             if (!kv.second.is_inited) {
@@ -139,6 +139,15 @@ public:
     // To json encoded string.
     std::string to_string() const;
 
+    bool all_checkpoint_has_prepared()
+    {
+        return std::all_of(_progress.begin(),
+                           _progress.end(),
+                           [](std::pair<int, partition_progress> item) -> bool {
+                               return item.second.checkpoint_prepared;
+                           });
+    }
+
 private:
     friend class duplication_info_test;
     friend class meta_duplication_service_test;
@@ -158,6 +167,7 @@ private:
         bool is_altering{false};
         uint64_t last_progress_update_ms{0};
         bool is_inited{false};
+        bool checkpoint_prepared{false};
     };
 
     // partition_idx => progress

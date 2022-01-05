@@ -39,7 +39,7 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
     auto it = ent.progress.find(get_gpid().get_partition_index());
     if (it->second == invalid_decree) {
         // keep current max committed_decree as start point.
-        _progress.last_decree = _replica->private_log()->max_commit_on_disk();
+        _progress.last_decree = _start_point_decree = _replica->private_log()->max_commit_on_disk();
     } else {
         _progress.last_decree = _progress.confirmed_decree = it->second;
     }
@@ -47,12 +47,33 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
         "initialize replica_duplicator [dupid:{}, meta_confirmed_decree:{}]", id(), it->second);
     thread_pool(LPC_REPLICATION_LOW).task_tracker(tracker()).thread_hash(get_gpid().thread_hash());
 
-    if (_status == duplication_status::DS_START) {
-        start_dup();
+    if (_status == duplication_status::DS_PREPARE) {
+        prepare_dup();
     }
 }
 
-void replica_duplicator::start_dup()
+void replica_duplicator::prepare_dup()
+{
+    if (_start_point_decree <= _replica->last_durable_decree()) {
+        derror_replica(
+            "checkpoint has been prepared: start_point_decree = {} vs last_durable_decree = {}",
+            _start_point_decree,
+            _replica->last_durable_decree());
+        return;
+    }
+
+    derror_replica(
+        "start prepare checkpoint because start_point_decree({}) > last_durable_decree({})",
+        _start_point_decree,
+        _replica->last_durable_decree());
+
+    tasking::enqueue(LPC_REPLICATION_COMMON,
+                     &_tracker,
+                     [this]() { _replica->trigger_emergency_checkpoint(_progress.last_decree); },
+                     get_gpid().thread_hash());
+}
+
+void replica_duplicator::start_dup_log()
 {
     ddebug_replica("starting duplication {} [last_decree: {}, confirmed_decree: {}]",
                    to_string(),
@@ -113,17 +134,29 @@ void replica_duplicator::update_status_if_needed(duplication_status::type next_s
         return;
     }
 
-    if (next_status == duplication_status::DS_START) {
-        start_dup();
-        _status = next_status;
-    } else if (next_status == duplication_status::DS_PAUSE) {
-        pause_dup();
-        _status = next_status;
-    } else {
-        derror_replica("unexpected duplication status ({})",
-                       duplication_status_to_string(next_status));
-        // _status keeps unchanged
+    _status = next_status;
+
+    if (_status == duplication_status::DS_PREPARE) {
+        prepare_dup();
+        return;
     }
+
+    if (_status == duplication_status::DS_APP) {
+        derror_replica("follower is duplicating checkpoint");
+        return;
+    }
+
+    if (_status == duplication_status::DS_LOG) {
+        start_dup_log();
+        return;
+    }
+
+    if (_status == duplication_status::DS_PAUSE) {
+        pause_dup();
+        return;
+    }
+    derror_replica("unexpected duplication status ({})", duplication_status_to_string(next_status));
+    // _status keeps unchanged
 }
 
 replica_duplicator::~replica_duplicator()
@@ -147,6 +180,7 @@ error_s replica_duplicator::update_progress(const duplication_progress &p)
     decree last_confirmed_decree = _progress.confirmed_decree;
     _progress.confirmed_decree = std::max(_progress.confirmed_decree, p.confirmed_decree);
     _progress.last_decree = std::max(_progress.last_decree, p.last_decree);
+    _progress.checkpoint_has_prepared = _start_point_decree < _replica->last_durable_decree();
 
     if (_progress.confirmed_decree > _progress.last_decree) {
         return FMT_ERR(ERR_INVALID_STATE,

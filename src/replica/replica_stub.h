@@ -47,6 +47,8 @@
 namespace dsn {
 namespace replication {
 
+DSN_DECLARE_uint32(max_concurrent_checkpointing_count);
+
 typedef rpc_holder<group_check_response, learn_notify_response> learn_completion_notification_rpc;
 typedef rpc_holder<group_check_request, group_check_response> group_check_rpc;
 typedef rpc_holder<query_replica_decree_request, query_replica_decree_response>

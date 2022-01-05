@@ -37,6 +37,7 @@ replica_duplicator_manager::get_duplication_confirms_to_update() const
             duplication_confirm_entry entry;
             entry.dupid = duplicator->id();
             entry.confirmed_decree = p.last_decree;
+            entry.__set_checkpoint_prepared(p.checkpoint_has_prepared);
             updates.emplace_back(entry);
         }
     }

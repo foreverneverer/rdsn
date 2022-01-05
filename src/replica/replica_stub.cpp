@@ -69,7 +69,8 @@ DSN_DEFINE_bool("replication",
                 true,
                 "true means ignore broken data disk when initialize");
 
-DSN_DEFINE_uint32("replication", max_concurrent_checkpoint_count, 1, "todo"); // todo
+DSN_DEFINE_uint32("replication", max_concurrent_checkpointing_count, 1, "todo"); // todo
+DSN_TAG_VARIABLE(max_concurrent_checkpointing_count, FT_MUTABLE);
 
 bool replica_stub::s_not_exit_on_log_failure = false;
 
@@ -1049,6 +1050,7 @@ void replica_stub::on_query_replica_info(query_replica_info_rpc rpc)
     resp.err = ERR_OK;
 }
 
+// todo 可能并不需要
 void replica_stub::on_emergency_checkpoint(emergency_checkpoint_rpc rpc)
 {
     const emergency_checkpoint_request &request = rpc.request();

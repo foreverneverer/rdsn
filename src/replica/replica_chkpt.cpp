@@ -177,6 +177,7 @@ void replica::on_emergency_checkpoint(const emergency_checkpoint_request &reques
     response.err = trigger_emergency_checkpoint(current_last_decree);
 }
 
+// todo 可以支持callback，以决定在完成时执行一些自定义逻辑，如用于 backup
 error_code replica::trigger_emergency_checkpoint(decree old_decree)
 {
     _checker.only_one_thread_access();
@@ -196,10 +197,15 @@ error_code replica::trigger_emergency_checkpoint(decree old_decree)
         return ERR_BUSY;
     }
 
-    _is_emergency_checkpointing = true;
-    _stub->_checkpointing_count++;
-    init_checkpoint(true);
+    if (++_stub->_checkpointing_count > FLAGS_max_concurrent_checkpointing_count) {
+        derror_replica("please try again later because checkpointing exceed max running count[{}]",
+                       FLAGS_max_concurrent_checkpointing_count);
+        _stub->_checkpointing_count--;
+        return ERR_TRY_AGAIN;
+    }
 
+    _is_emergency_checkpointing = true;
+    init_checkpoint(true);
     // submit async task to check checkpoint process and update emergency state
     tasking::enqueue(LPC_REPLICATION_COMMON,
                      &_tracker,

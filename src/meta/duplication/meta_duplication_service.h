@@ -78,7 +78,7 @@ private:
     void do_update_partition_confirmed(duplication_info_s_ptr &dup,
                                        duplication_sync_rpc &rpc,
                                        int32_t partition_idx,
-                                       int64_t confirmed_decree);
+                                       const duplication_confirm_entry &confirm_entry);
 
     // Get zk path for duplication.
     std::string get_duplication_path(const app_state &app) const
@@ -123,6 +123,8 @@ private:
     server_state *_state;
 
     meta_service *_meta_svc;
+    bool trigger_follower_duplicate_checkpoint();
+    bool check_follower_duplicate_checkpoint_if_completed();
 };
 
 } // namespace replication

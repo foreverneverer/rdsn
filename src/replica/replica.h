@@ -156,10 +156,9 @@ public:
     void on_add_learner(const group_check_request &request);
     void on_remove(const replica_configuration &request);
     void on_group_check(const group_check_request &request, /*out*/ group_check_response &response);
-    error_code sync_copy_checkpoint(const learn_request &request,
-                                    const std::string &relative_dest,
-                                    const copy_checkpoint_callback &callback);
+    // todo 放在合适的位置
     void on_query_last_checkpoint(learn_response &response);
+    error_code trigger_emergency_checkpoint(decree old_decree);
     void on_emergency_checkpoint(const emergency_checkpoint_request &request,
                                  emergency_checkpoint_response &response);
 
@@ -601,8 +600,6 @@ private:
     disk_status::type _disk_status{disk_status::NORMAL};
 
     bool _is_emergency_checkpointing = false;
-    error_code trigger_emergency_checkpoint(decree old_decree);
-    void check_emergency_checkpoint_if_succeeded(decree expect_decree);
 };
 typedef dsn::ref_ptr<replica> replica_ptr;
 } // namespace replication

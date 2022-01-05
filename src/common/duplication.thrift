@@ -28,7 +28,9 @@ namespace cpp dsn.replication
 enum duplication_status
 {
     DS_INIT = 0,
-    DS_START,
+    DS_PREPARE,
+    DS_APP,
+    DS_LOG,
     DS_PAUSE,
     DS_REMOVED,
 }
@@ -122,6 +124,7 @@ struct duplication_confirm_entry
 {
     1:i32       dupid;
     2:i64       confirmed_decree;
+    3:optional bool checkpoint_prepared = false;
 }
 
 // This is an internal RPC sent from replica server to meta.

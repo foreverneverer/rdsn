@@ -156,6 +156,7 @@ void load_from_private_log::find_log_file_to_start(std::map<int, log_file_ptr> l
     start_from_log_file(_current);
 }
 
+// todo slog去除后，plog将作为wal，replay需要保证小于last_commit_decree
 void load_from_private_log::replay_log_block()
 {
     error_s err =
