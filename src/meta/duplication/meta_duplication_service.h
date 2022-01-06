@@ -97,8 +97,10 @@ private:
 
     // Create a new duplication from INIT state.
     // Thread-Safe
-    std::shared_ptr<duplication_info> new_dup_from_init(const std::string &remote_cluster_name,
-                                                        std::shared_ptr<app_state> &app) const;
+    std::shared_ptr<duplication_info>
+    new_dup_from_init(const std::string &follower_cluster_name,
+                      const std::vector<rpc_address> &follower_cluster_metas,
+                      std::shared_ptr<app_state> &app) const;
 
     // get lock to protect access of app table
     zrwlock_nr &app_lock() const { return _state->_lock; }
@@ -123,8 +125,10 @@ private:
     server_state *_state;
 
     meta_service *_meta_svc;
-    bool trigger_follower_duplicate_checkpoint();
-    bool check_follower_duplicate_checkpoint_if_completed();
+    bool trigger_follower_duplicate_checkpoint(const std::shared_ptr<duplication_info> &dup,
+                                               const std::shared_ptr<app_state> &app);
+    bool
+    check_follower_duplicate_checkpoint_if_completed(const std::shared_ptr<duplication_info> &dup);
 };
 
 } // namespace replication

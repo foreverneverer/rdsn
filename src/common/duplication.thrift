@@ -59,6 +59,7 @@ struct duplication_add_request
 
     // True means to initialize the duplication in DS_PAUSE.
     3:bool    freezed;
+    4:optional list<dsn.rpc_address> remote_cluster_metas
 }
 
 struct duplication_add_response
