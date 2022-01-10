@@ -276,6 +276,9 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
                            check_follower_duplicate_checkpoint_if_completed(dup) == ERR_OK) {
                     dup->alter_status(duplication_status::DS_LOG);
                 }
+            } else if (dup->status() != duplication_status::DS_PAUSE ||
+                       dup->status() != duplication_status::DS_REMOVED) {
+                dup->alter_status(duplication_status::DS_PREPARE);
             }
 
             response.dup_map[app_id][dup_id] = dup->to_duplication_entry();
