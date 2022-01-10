@@ -79,6 +79,14 @@ void meta_duplication_service::modify_duplication(duplication_modify_rpc rpc)
     }
 
     duplication_info_s_ptr dup = it->second;
+
+    // todo(jiashuo1) 限制随意的状态修改
+    bool allow = false;
+    if (dup->status() == duplication_status::DS_INIT) {
+        allow = (request.status == duplication_status::DS_PREPARE || request.status == duplication_status::DS_PAUSE || request.status == duplication_status::DS_REMOVED);
+    } else if (dup->status() == duplication_status::DS_PAUSE) {
+        allow = (request.status == duplication_status::DS_PREPARE || request.status == duplication_status::DS_PAUSE || request.status == duplication_status::DS_REMOVED)
+    }
     auto to_status = request.__isset.status ? request.status : dup->status();
     auto to_fail_mode = request.__isset.fail_mode ? request.fail_mode : dup->fail_mode();
     response.err = dup->alter_status(to_status, to_fail_mode);
@@ -276,7 +284,7 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
                            check_follower_duplicate_checkpoint_if_completed(dup) == ERR_OK) {
                     dup->alter_status(duplication_status::DS_LOG);
                 }
-            } else if (dup->status() != duplication_status::DS_PAUSE ||
+            } else if (dup->status() != duplication_status::DS_PAUSE &&
                        dup->status() != duplication_status::DS_REMOVED) {
                 dup->alter_status(duplication_status::DS_PREPARE);
             }
