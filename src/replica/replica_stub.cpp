@@ -1058,7 +1058,7 @@ void replica_stub::on_emergency_checkpoint(emergency_checkpoint_rpc rpc)
 
     replica_ptr rep = get_replica(request.pid);
     if (rep != nullptr) {
-        if (_checkpointing_count.load() >= FLAGS_max_concurrent_checkpoint_count) {
+        if (_checkpointing_count.load() >= FLAGS_max_concurrent_checkpointing_count) {
             response.err = ERR_BUSY;
             response.err_hint = "exceed the concurrent running count";
         }
@@ -1075,7 +1075,7 @@ void replica_stub::on_query_last_checkpoint(query_last_checkpoint_info_rpc rpc)
 
     replica_ptr rep = get_replica(request.pid);
     if (rep != nullptr) {
-        rep->on_query_last_checkpoint_info(response);
+        rep->on_query_last_checkpoint(response);
     } else {
         response.err = ERR_OBJECT_NOT_FOUND;
     }

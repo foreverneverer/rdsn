@@ -150,14 +150,18 @@ void meta_duplication_service::add_duplication(duplication_add_rpc rpc)
                                         remote_cluster_id.get_error()));
         return;
     }
-    std::vector<std::string> clusters;
-    dsn_config_get_all_keys("pegasus.clusters", clusters);
-    if (std::find(clusters.begin(), clusters.end(), request.remote_cluster_name) ==
-        clusters.end()) {
+
+    std::string metas = dsn_config_get_value_string(
+        "pegasus.clusters", request.remote_cluster_name.c_str(), "", "follower cluster meta list");
+    if (metas.empty()) {
         response.err = ERR_INVALID_PARAMETERS;
         response.__set_hint("failed to find cluster address in config [pegasus.clusters]");
         return;
     }
+
+    std::vector<rpc_address> meta_list;
+    dsn::replication::replica_helper::load_meta_servers(
+        meta_list, "pegasus.clusters", request.remote_cluster_name.c_str());
 
     auto app = _state->get_app(request.app_name);
     if (!app || app->status != app_status::AS_AVAILABLE) {
@@ -173,7 +177,7 @@ void meta_duplication_service::add_duplication(duplication_add_rpc rpc)
         }
     }
     if (!dup) {
-        dup = new_dup_from_init(request.remote_cluster_name, request.remote_cluster_metas, app);
+        dup = new_dup_from_init(request.remote_cluster_name, meta_list, app);
     }
     do_add_duplication(app, dup, rpc);
 }
@@ -329,14 +333,14 @@ bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
     request.options.duplication.metas = _meta_svc->_opts.meta_servers;
 
     request.options.envs.emplace(duplication_constants::DUPLICATION_MASTER_APP_FLAG,
-                                 fmt::format("{}()|{}",
+                                 fmt::format("{}({})|{}",
                                              get_current_cluster_name(),
                                              _meta_svc->get_meta_list_string(),
                                              app->app_name));
 
     rpc_address meta_servers;
     meta_servers.assign_group(dup->follower_cluster_name.c_str());
-    meta_servers.group_address()->add_list(_meta_svc->_opts.meta_servers);
+    meta_servers.group_address()->add_list(dup->follower_cluster_metas);
 
     derror_f("create follower app[{}.{}] to trigger duplicate checkpoint",
              get_current_cluster_name(),
@@ -360,7 +364,7 @@ bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
 
     rpc_address meta_servers;
     meta_servers.assign_group(dup->follower_cluster_name.c_str());
-    meta_servers.group_address()->add_list(_meta_svc->_opts.meta_servers);
+    meta_servers.group_address()->add_list(dup->follower_cluster_metas);
 
     configuration_query_by_index_request meta_config_request;
     meta_config_request.app_name = dup->app_name;
@@ -553,7 +557,7 @@ void meta_duplication_service::do_restore_duplication(dupid_t dup_id,
             zauto_write_lock l(app_lock());
 
             auto dup = duplication_info::decode_from_blob(
-                dup_id, app->app_id, app->partition_count, store_path, json);
+                dup_id, app->app_id, app->app_name, app->partition_count, store_path, json);
             if (nullptr == dup) {
                 derror_f("failed to decode json \"{}\" on path {}", json.to_string(), store_path);
                 return; // fail fast

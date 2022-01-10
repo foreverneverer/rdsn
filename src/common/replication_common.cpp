@@ -479,6 +479,7 @@ void replication_options::sanity_check()
     }
 }
 
+// todo(jiashuo1)  返回error，而不是coredump
 void replica_helper::load_meta_servers(/*out*/ std::vector<dsn::rpc_address> &servers,
                                        const char *section,
                                        const char *key)

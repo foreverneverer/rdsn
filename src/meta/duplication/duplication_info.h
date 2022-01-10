@@ -45,13 +45,13 @@ public:
                      std::string app_name,
                      int32_t partition_count,
                      uint64_t create_now_ms,
-                     std::string remote_cluster_name,
+                     std::string follower_cluster_name,
                      std::vector<rpc_address> follower_cluster_metas,
                      std::string meta_store_path)
         : id(dupid),
           app_id(appid),
           app_name(std::move(app_name)),
-          follower_cluster_name(std::move(remote_cluster_name)),
+          follower_cluster_name(std::move(follower_cluster_name)),
           follower_cluster_metas(std::move(follower_cluster_metas)),
           store_path(std::move(meta_store_path)),
           create_timestamp_ms(create_now_ms)
@@ -104,6 +104,7 @@ public:
     /// \see meta_duplication_service::recover_from_meta_state
     static duplication_info_s_ptr decode_from_blob(dupid_t dup_id,
                                                    int32_t app_id,
+                                                   const std::string &app_name,
                                                    int32_t partition_count,
                                                    std::string store_path,
                                                    const blob &json);

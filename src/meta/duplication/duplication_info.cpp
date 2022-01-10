@@ -34,8 +34,10 @@ namespace replication {
     static const std::map<std::string, duplication_status::type>
         _duplication_status_NAMES_TO_VALUES = {
             {"DS_INIT", duplication_status::DS_INIT},
+            {"DS_PREPARE", duplication_status::DS_PREPARE},
+            {"DS_APP", duplication_status::DS_APP},
+            {"DS_LOG", duplication_status::DS_LOG},
             {"DS_PAUSE", duplication_status::DS_PAUSE},
-            {"DS_START", duplication_status::DS_START},
             {"DS_REMOVED", duplication_status::DS_REMOVED},
         };
 
@@ -185,7 +187,7 @@ blob duplication_info::to_json_blob() const
 {
     json_helper copy;
     copy.create_timestamp_ms = create_timestamp_ms;
-    copy.remote = remote;
+    copy.remote = follower_cluster_name;
     copy.status = _next_status;
     copy.fail_mode = _next_fail_mode;
     return json::json_forwarder<json_helper>::encode(copy);
@@ -202,6 +204,7 @@ void duplication_info::report_progress_if_time_up()
 
 duplication_info_s_ptr duplication_info::decode_from_blob(dupid_t dup_id,
                                                           int32_t app_id,
+                                                          const std::string &app_name,
                                                           int32_t partition_count,
                                                           std::string store_path,
                                                           const blob &json)
@@ -210,11 +213,18 @@ duplication_info_s_ptr duplication_info::decode_from_blob(dupid_t dup_id,
     if (!json::json_forwarder<json_helper>::decode(json, info)) {
         return nullptr;
     }
+
+    std::vector<rpc_address> meta_list;
+    dsn::replication::replica_helper::load_meta_servers(
+        meta_list, "pegasus.clusters", info.remote.c_str());
+
     auto dup = std::make_shared<duplication_info>(dup_id,
                                                   app_id,
+                                                  app_name,
                                                   partition_count,
                                                   info.create_timestamp_ms,
                                                   std::move(info.remote),
+                                                  std::move(meta_list),
                                                   std::move(store_path));
     dup->_status = info.status;
     dup->_fail_mode = info.fail_mode;
