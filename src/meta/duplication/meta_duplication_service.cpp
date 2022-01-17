@@ -247,6 +247,7 @@ void meta_duplication_service::get_all_available_app(
 // ThreadPool(WRITE): THREAD_POOL_META_STATE
 void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
 {
+    derror_f("duplication_sync");
     auto &request = rpc.request();
     auto &response = rpc.response();
     response.err = ERR_OK;
@@ -272,6 +273,7 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
             }
 
             if (dup->all_checkpoint_has_prepared()) {
+                derror_f("prepared: {}", duplication_status_to_string(dup->status()));
                 if (dup->status() == duplication_status::DS_PREPARE &&
                     trigger_follower_duplicate_checkpoint(dup, app) == ERR_OK) {
                     dup->alter_status(duplication_status::DS_APP);
@@ -281,10 +283,12 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
                 }
             } else if (dup->status() != duplication_status::DS_PAUSE &&
                        dup->status() != duplication_status::DS_REMOVED) {
+                derror_f("no prepared: {}", duplication_status_to_string(dup->status()));
                 dup->alter_status(duplication_status::DS_PREPARE);
             }
 
             response.dup_map[app_id][dup_id] = dup->to_duplication_entry();
+            derror_f("final: {}.{}.{}, size={}", app_id, dup_id, duplication_status_to_string(dup->status()), response.dup_map.size());
 
             // report progress periodically for each duplications
             dup->report_progress_if_time_up();
@@ -318,6 +322,7 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
             do_update_partition_confirmed(dup, rpc, gpid.get_partition_index(), confirm);
         }
     }
+    derror_f("final size={}, err: {}", response.dup_map.size(), response.err.to_string());
 }
 
 // todo
@@ -334,9 +339,12 @@ bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
     request.options.success_if_exist = true;
     request.options.envs = app->envs;
     request.options.is_stateful = app->is_stateful;
-    request.options.duplication.app_name = app->app_name;
-    request.options.duplication.cluster_name = get_current_cluster_name();
-    request.options.duplication.metas = _meta_svc->_opts.meta_servers;
+
+    duplication_options opts;
+    opts.app_name = app->app_name;
+    opts.cluster_name = get_current_cluster_name();
+    opts.metas = _meta_svc->_opts.meta_servers;
+    request.options.__set_duplication(opts);
 
     request.options.envs.emplace(duplication_constants::DUPLICATION_MASTER_APP_FLAG,
                                  fmt::format("{}({})|{}",
@@ -348,9 +356,6 @@ bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
     meta_servers.assign_group(dup->follower_cluster_name.c_str());
     meta_servers.group_address()->add_list(dup->follower_cluster_metas);
 
-    derror_f("create follower app[{}.{}] to trigger duplicate checkpoint",
-             get_current_cluster_name(),
-             app->app_name);
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_CM_CREATE_APP);
     dsn::marshall(msg, request);
     rpc::call(meta_servers,
@@ -358,8 +363,13 @@ bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
               _meta_svc->tracker(),
               [&](error_code err, configuration_create_app_response &&resp) mutable {
                   err_code = err == ERR_OK ? resp.err : err;
+                  derror_f("create, err={}", resp.err.to_string());// todo: 又是一个锁死！
               })
         ->wait();
+    derror_f("create follower app[{}.{}] to trigger duplicate checkpoint, err={}",
+             get_current_cluster_name(),
+             app->app_name,
+             err_code.to_string());
     return err_code;
 }
 
@@ -375,9 +385,6 @@ bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
     configuration_query_by_index_request meta_config_request;
     meta_config_request.app_name = dup->app_name;
 
-    derror_f("query follower app[{}.{}] replica configuration",
-             get_current_cluster_name(),
-             dup->app_name);
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX);
     dsn::marshall(msg, meta_config_request);
     rpc::call(meta_servers,
@@ -385,6 +392,7 @@ bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
               _meta_svc->tracker(),
               [&](error_code err, configuration_query_by_index_response &&resp) mutable {
                   err_code = err == ERR_OK ? resp.err : err;
+                  derror_f("config, err={}", resp.err.to_string());
                   if (err_code != ERR_OK) {
                       return;
                   }
@@ -403,6 +411,10 @@ bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
                   }
               })
         ->wait();
+    derror_f("query follower app[{}.{}] replica configuration, err={}",
+             get_current_cluster_name(),
+             dup->app_name,
+             err_code.to_string());// todo:必须判断当前状态为restore数据的ok，而不是空表
     return err_code;
 }
 
@@ -437,6 +449,7 @@ void meta_duplication_service::do_update_partition_confirmed(
             // of all partitions are stored.
         });
     }
+    derror_f("resp size {}",  rpc.response().dup_map.size());
 }
 
 std::shared_ptr<duplication_info>

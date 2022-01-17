@@ -57,6 +57,7 @@ replica::replica(replica_stub *stub,
                  bool need_duplicate)
     : serverlet<replica>("replica"),
       replica_base(gpid, fmt::format("{}@{}", gpid, stub->_primary_address_str), app.app_name),
+      _duplication_mgr(new replica_duplicator_manager(this)),
       _app_info(app),
       _primary_states(
           gpid, stub->options().staleness_for_commit, stub->options().batch_write_disabled),
@@ -68,7 +69,6 @@ replica::replica(replica_stub *stub,
       _cur_download_size(0),
       _restore_progress(0),
       _restore_status(ERR_OK),
-      _duplication_mgr(new replica_duplicator_manager(this)),
       _duplicating(app.duplicating),
       _backup_mgr(new replica_backup_manager(this))
 {

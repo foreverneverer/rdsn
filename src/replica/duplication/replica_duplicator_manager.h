@@ -41,7 +41,9 @@ public:
     // - the app is not assigned with duplication (dup_map.empty())
     void update_duplication_map(const std::map<int32_t, duplication_entry> &new_dup_map)
     {
+        derror_replica("update_duplication_map");
         if (_replica->status() != partition_status::PS_PRIMARY || new_dup_map.empty()) {
+            derror_replica("update_duplication_map:_replica->status() != partition_status::PS_PRIMARY || new_dup_map.empty()");
             remove_all_duplications();
             return;
         }
@@ -51,6 +53,7 @@ public:
         for (const auto &kv2 : new_dup_map) {
             sync_duplication(kv2.second);
         }
+        derror_replica("update_duplication_map:new_dup_map={}", new_dup_map.size());
     }
 
     /// collect updated duplication confirm points from this replica.

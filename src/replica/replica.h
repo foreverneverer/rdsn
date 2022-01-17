@@ -55,6 +55,7 @@
 #include "prepare_list.h"
 #include "replica_context.h"
 #include "utils/throttling_controller.h"
+//#include "duplication/replica_duplicator_manager.h"
 
 namespace dsn {
 namespace security {
@@ -241,6 +242,10 @@ public:
     bool disk_space_insufficient() { return _disk_status == disk_status::SPACE_INSUFFICIENT; }
     disk_status::type get_disk_status() { return _disk_status; }
     std::string get_replica_disk_tag() const { return _disk_tag; }
+
+    // duplication
+    std::unique_ptr<replica_duplicator_manager> _duplication_mgr;
+    decree min_confirmed_decree() const;
 
 protected:
     // this method is marked protected to enable us to mock it in unit tests.
@@ -553,8 +558,6 @@ private:
     throttling_controller _read_qps_throttling_controller;
     throttling_controller _backup_request_qps_throttling_controller;
 
-    // duplication
-    std::unique_ptr<replica_duplicator_manager> _duplication_mgr;
     bool _duplicating{false};
 
     // backup

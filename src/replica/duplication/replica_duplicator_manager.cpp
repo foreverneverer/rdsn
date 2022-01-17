@@ -32,12 +32,12 @@ replica_duplicator_manager::get_duplication_confirms_to_update() const
     for (const auto &kv : _duplications) {
         replica_duplicator *duplicator = kv.second.get();
         duplication_progress p = duplicator->progress();
-        if (p.last_decree != p.confirmed_decree) {
-            dcheck_gt_replica(p.last_decree, p.confirmed_decree);
+        if (p.last_decree != p.confirmed_decree && p.checkpoint_has_prepared) {// todo 这个条件有待优化,删掉的需要恢复
             duplication_confirm_entry entry;
             entry.dupid = duplicator->id();
             entry.confirmed_decree = p.last_decree;
             entry.__set_checkpoint_prepared(p.checkpoint_has_prepared);
+            derror_replica("rpc checkpoint:{}", p.checkpoint_has_prepared);
             updates.emplace_back(entry);
         }
     }
@@ -49,6 +49,7 @@ void replica_duplicator_manager::sync_duplication(const duplication_entry &ent)
     // state is inconsistent with meta-server
     auto it = ent.progress.find(get_gpid().get_partition_index());
     if (it == ent.progress.end()) {
+        derror_replica("sync_duplication：can't find {}", ent.dupid);
         _duplications.erase(ent.dupid);
         return;
     }
@@ -60,6 +61,7 @@ void replica_duplicator_manager::sync_duplication(const duplication_entry &ent)
 
     replica_duplicator_u_ptr &dup = _duplications[dupid];
     if (dup == nullptr) {
+        derror_replica("update_status_if_needed dup=null");
         if (is_duplication_status_valid(next_status)) {
             dup = make_unique<replica_duplicator>(ent, _replica);
         } else {
@@ -68,12 +70,18 @@ void replica_duplicator_manager::sync_duplication(const duplication_entry &ent)
         }
     } else {
         // update progress
+        derror_replica("update_status_if_needed dup!=null");
         duplication_progress newp = dup->progress().set_confirmed_decree(it->second);
+         derror_replica("set_confirmed_decree ok");
         dcheck_eq_replica(dup->update_progress(newp), error_s::ok());
+        derror_replica("update_progress ok");
         dup->update_status_if_needed(next_status);
+          derror_replica("update_status_if_needed ok");
         if (ent.__isset.fail_mode) {
             dup->update_fail_mode(ent.fail_mode);
+              derror_replica("update_fail_mode ok");
         }
+          derror_replica("update_status_if_needed dup!=null ok");
     }
 }
 

@@ -174,7 +174,7 @@ void replica::on_emergency_checkpoint(const emergency_checkpoint_request &reques
         return;
     }
 
-    response.err = trigger_emergency_checkpoint(current_last_decree);
+    response.err = trigger_emergency_checkpoint(_app->last_committed_decree());
 }
 
 // todo 可以支持callback，以决定在完成时执行一些自定义逻辑，如用于 backup
@@ -182,12 +182,16 @@ error_code replica::trigger_emergency_checkpoint(decree old_decree)
 {
     _checker.only_one_thread_access();
 
-    if (old_decree < _app->last_durable_decree()) {
+    derror_replica("checkpoint start: old = {} vs latest = {}",
+                       old_decree,
+                       _app->last_durable_decree());
+
+    if (old_decree <= _app->last_durable_decree()) {
         derror_replica("checkpoint has been successful: old = {} vs latest = {}",
                        old_decree,
                        _app->last_durable_decree());
         _is_emergency_checkpointing = false;
-        _stub->_checkpointing_count == 0 ? 0 : _stub->_checkpointing_count--;
+        _stub->_checkpointing_count == 0 ? 0 : (--_stub->_checkpointing_count);
         return ERR_OK;
     }
 
@@ -200,18 +204,12 @@ error_code replica::trigger_emergency_checkpoint(decree old_decree)
     if (++_stub->_checkpointing_count > FLAGS_max_concurrent_checkpointing_count) {
         derror_replica("please try again later because checkpointing exceed max running count[{}]",
                        FLAGS_max_concurrent_checkpointing_count);
-        _stub->_checkpointing_count--;
+        --_stub->_checkpointing_count;
         return ERR_TRY_AGAIN;
     }
 
     _is_emergency_checkpointing = true;
     init_checkpoint(true);
-    // submit async task to check checkpoint process and update emergency state
-    tasking::enqueue(LPC_REPLICATION_COMMON,
-                     &_tracker,
-                     [=]() { trigger_emergency_checkpoint(old_decree); },
-                     get_gpid().thread_hash(),
-                     std::chrono::seconds(10));
     return ERR_OK;
 }
 
@@ -245,6 +243,8 @@ void replica::init_checkpoint(bool is_emergency)
 // run in background thread
 error_code replica::background_async_checkpoint(bool is_emergency)
 {
+    derror_replica("background_async_checkpoint, last_durable_decree = {}",
+                   _app->last_durable_decree());
     uint64_t start_time = dsn_now_ns();
     decree old_durable = _app->last_durable_decree();
     auto err = _app->async_checkpoint(is_emergency);
@@ -254,7 +254,7 @@ error_code replica::background_async_checkpoint(bool is_emergency)
         if (old_durable != _app->last_durable_decree()) {
             // if no need to generate new checkpoint, async_checkpoint() also returns ERR_OK,
             // so we should check if a new checkpoint has been generated.
-            ddebug("%s: call app.async_checkpoint() succeed, time_used_ns = %" PRIu64 ", "
+            ddebug("%s: HHHHHHHHcall app.async_checkpoint() succeed, time_used_ns = %" PRIu64 ", "
                    "app_last_committed_decree = %" PRId64 ", app_last_durable_decree = (%" PRId64
                    " => %" PRId64 ")",
                    name(),
@@ -415,5 +415,7 @@ void replica::on_checkpoint_completed(error_code err)
         update_last_checkpoint_generate_time();
     }
 }
+
+decree replica::min_confirmed_decree() const {return _duplication_mgr->min_confirmed_decree();}
 } // namespace replication
 } // namespace dsn

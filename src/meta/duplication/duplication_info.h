@@ -22,6 +22,7 @@
 #include <dsn/dist/replication/duplication_common.h>
 #include <dsn/cpp/json_helper.h>
 #include <dsn/tool-api/zlocks.h>
+#include <dsn/dist/fmt_logging.h>
 
 #include <utility>
 #include <fmt/format.h>
@@ -149,6 +150,7 @@ public:
         return std::all_of(_progress.begin(),
                            _progress.end(),
                            [](std::pair<int, partition_progress> item) -> bool {
+                               derror_f("LLLLLL{}={}", item.first, item.second.checkpoint_prepared);
                                return item.second.checkpoint_prepared;
                            });
     }

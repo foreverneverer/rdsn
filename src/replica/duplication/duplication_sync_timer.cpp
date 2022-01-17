@@ -34,6 +34,7 @@ DEFINE_TASK_CODE(LPC_DUPLICATION_SYNC_TIMER, TASK_PRIORITY_COMMON, THREAD_POOL_D
 void duplication_sync_timer::run()
 {
     // ensure duplication sync never be concurrent
+    derror_f("SYNC");
     if (_rpc_task) {
         ddebug_f("a duplication sync is already ongoing");
         return;
@@ -42,8 +43,7 @@ void duplication_sync_timer::run()
     {
         zauto_lock l(_stub->_state_lock);
         if (_stub->_state == replica_stub::NS_Disconnected) {
-            ddebug_f("stop this round of duplication sync because this server is disconnected from "
-                     "meta server");
+            ddebug_f("stop this round of duplication sync because this server is disconnected from meta server");
             return;
         }
     }
@@ -71,12 +71,14 @@ void duplication_sync_timer::run()
         rpc.call(meta_server_address, &_stub->_tracker, [this, rpc](error_code err) mutable {
             on_duplication_sync_reply(err, rpc.response());
         });
+    ddebug_f("duplication_sync to meta ok({})", meta_server_address.to_string());
 }
 
 void duplication_sync_timer::on_duplication_sync_reply(error_code err,
                                                        const duplication_sync_response &resp)
 {
     if (err == ERR_OK && resp.err != ERR_OK) {
+        derror_f("on_duplication_sync_reply: err({})", resp.err.to_string());
         err = resp.err;
     }
     if (err != ERR_OK) {
@@ -85,19 +87,28 @@ void duplication_sync_timer::on_duplication_sync_reply(error_code err,
         update_duplication_map(resp.dup_map);
     }
 
+derror_f("try lock");
     zauto_lock l(_lock);
     _rpc_task = nullptr;
+    derror_f("rpc_task is null");
 }
 
 void duplication_sync_timer::update_duplication_map(
     const std::map<int32_t, std::map<int32_t, duplication_entry>> &dup_map)
 {
+    derror_f("resp size {}", dup_map.size());
+    for(const auto &it : dup_map) {
+        derror_f("app = {}", it.first);
+    }
     for (replica_ptr &r : get_all_replicas()) {
+        derror_f("check {}",  r->get_gpid().get_app_id());
         auto it = dup_map.find(r->get_gpid().get_app_id());
         if (it == dup_map.end()) {
             // no duplication is assigned to this app
+             derror_f("check {} failed",  r->get_gpid().get_app_id());
             r->get_duplication_manager()->update_duplication_map({});
         } else {
+             derror_f("check {} ok",  r->get_gpid().get_app_id());
             r->get_duplication_manager()->update_duplication_map(it->second);
         }
     }
