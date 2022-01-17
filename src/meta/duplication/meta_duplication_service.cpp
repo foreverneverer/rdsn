@@ -363,7 +363,7 @@ bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
               _meta_svc->tracker(),
               [&](error_code err, configuration_create_app_response &&resp) mutable {
                   err_code = err == ERR_OK ? resp.err : err;
-                  derror_f("create, err={}", resp.err.to_string());// todo: 又是一个锁死！
+                  derror_f("create, err={}", resp.err.to_string());// todo: 又是一个锁死！不能使用partition的线程：partition线程只能异步，不能wait
               })
         ->wait();
     derror_f("create follower app[{}.{}] to trigger duplicate checkpoint, err={}",
