@@ -104,6 +104,9 @@ error_code duplication_info::alter_status(duplication_status::type to_status,
     }
 
     zauto_write_lock l(_lock);
+    derror_f("update: {}=>{}",
+             duplication_status_to_string(_status),
+             duplication_status_to_string(to_status));
     _is_altering = true;
     _next_status = to_status;
     _next_fail_mode = to_fail_mode;

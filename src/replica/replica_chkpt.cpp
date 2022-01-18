@@ -182,9 +182,8 @@ error_code replica::trigger_emergency_checkpoint(decree old_decree)
 {
     _checker.only_one_thread_access();
 
-    derror_replica("checkpoint start: old = {} vs latest = {}",
-                       old_decree,
-                       _app->last_durable_decree());
+    derror_replica(
+        "checkpoint start: old = {} vs latest = {}", old_decree, _app->last_durable_decree());
 
     if (old_decree <= _app->last_durable_decree()) {
         derror_replica("checkpoint has been successful: old = {} vs latest = {}",
@@ -416,6 +415,6 @@ void replica::on_checkpoint_completed(error_code err)
     }
 }
 
-decree replica::min_confirmed_decree() const {return _duplication_mgr->min_confirmed_decree();}
+decree replica::min_confirmed_decree() const { return _duplication_mgr->min_confirmed_decree(); }
 } // namespace replication
 } // namespace dsn

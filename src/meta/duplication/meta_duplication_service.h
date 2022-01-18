@@ -125,10 +125,10 @@ private:
     server_state *_state;
 
     meta_service *_meta_svc;
-    bool trigger_follower_duplicate_checkpoint(const std::shared_ptr<duplication_info> &dup,
-                                               const std::shared_ptr<app_state> &app);
-    bool
-    check_follower_duplicate_checkpoint_if_completed(const std::shared_ptr<duplication_info> &dup);
+    void trigger_follower_duplicate_checkpoint(const std::shared_ptr<duplication_info> dup,
+                                               const std::shared_ptr<app_state> app);
+    void
+    check_follower_duplicate_checkpoint_if_completed(const std::shared_ptr<duplication_info> dup);
 };
 
 } // namespace replication

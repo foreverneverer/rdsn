@@ -274,12 +274,10 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
 
             if (dup->all_checkpoint_has_prepared()) {
                 derror_f("prepared: {}", duplication_status_to_string(dup->status()));
-                if (dup->status() == duplication_status::DS_PREPARE &&
-                    trigger_follower_duplicate_checkpoint(dup, app) == ERR_OK) {
-                    dup->alter_status(duplication_status::DS_APP);
-                } else if (dup->status() == duplication_status::DS_APP &&
-                           check_follower_duplicate_checkpoint_if_completed(dup) == ERR_OK) {
-                    dup->alter_status(duplication_status::DS_LOG);
+                if (dup->status() == duplication_status::DS_PREPARE) {
+                    trigger_follower_duplicate_checkpoint(dup, app);
+                } else if (dup->status() == duplication_status::DS_APP) {
+                    check_follower_duplicate_checkpoint_if_completed(dup);
                 }
             } else if (dup->status() != duplication_status::DS_PAUSE &&
                        dup->status() != duplication_status::DS_REMOVED) {
@@ -288,7 +286,11 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
             }
 
             response.dup_map[app_id][dup_id] = dup->to_duplication_entry();
-            derror_f("final: {}.{}.{}, size={}", app_id, dup_id, duplication_status_to_string(dup->status()), response.dup_map.size());
+            derror_f("final: {}.{}.{}, size={}",
+                     app_id,
+                     dup_id,
+                     duplication_status_to_string(dup->status()),
+                     response.dup_map.size());
 
             // report progress periodically for each duplications
             dup->report_progress_if_time_up();
@@ -326,11 +328,9 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
 }
 
 // todo
-bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
-    const std::shared_ptr<duplication_info> &dup, const std::shared_ptr<app_state> &app)
+void meta_duplication_service::trigger_follower_duplicate_checkpoint(
+    const std::shared_ptr<duplication_info> dup, const std::shared_ptr<app_state> app)
 {
-    error_code err_code = ERR_OK;
-
     configuration_create_app_request request;
     request.app_name = app->app_name;
     request.options.app_type = app->app_type;
@@ -362,22 +362,33 @@ bool meta_duplication_service::trigger_follower_duplicate_checkpoint(
               msg,
               _meta_svc->tracker(),
               [&](error_code err, configuration_create_app_response &&resp) mutable {
-                  err_code = err == ERR_OK ? resp.err : err;
-                  derror_f("create, err={}", resp.err.to_string());// todo: 又是一个锁死！不能使用partition的线程：partition线程只能异步，不能wait
-              })
-        ->wait();
-    derror_f("create follower app[{}.{}] to trigger duplicate checkpoint, err={}",
-             get_current_cluster_name(),
-             app->app_name,
-             err_code.to_string());
-    return err_code;
+                  error_code create_err = err == ERR_OK ? resp.err : err;
+                  error_code update_err = ERR_NO_NEED_OPERATE;
+                  if (create_err == ERR_OK) {
+                      update_err = dup->alter_status(duplication_status::DS_APP);
+                  }
+
+                  if (update_err == ERR_OK) {
+                      derror_f("start persist 1");
+                      blob value = dup->to_json_blob();
+                      _meta_svc->get_meta_storage()->set_data(std::string(dup->store_path),
+                                                              std::move(value),
+                                                              [dup]() { dup->persist_status(); });
+                  }
+
+                  derror_f("created follower app[{}.{}] to trigger duplicate checkpoint, "
+                           "duplication_status = {}, create_err = {}, update_err = {}",
+                           get_current_cluster_name(),
+                           dup->app_name,
+                           duplication_status_to_string(dup->status()),
+                           create_err.to_string(),
+                           update_err.to_string());
+              });
 }
 
-bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
-    const std::shared_ptr<duplication_info> &dup)
+void meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
+    const std::shared_ptr<duplication_info> dup)
 {
-    error_code err_code = ERR_OK;
-
     rpc_address meta_servers;
     meta_servers.assign_group(dup->follower_cluster_name.c_str());
     meta_servers.group_address()->add_list(dup->follower_cluster_metas);
@@ -391,31 +402,44 @@ bool meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
               msg,
               _meta_svc->tracker(),
               [&](error_code err, configuration_query_by_index_response &&resp) mutable {
-                  err_code = err == ERR_OK ? resp.err : err;
-                  derror_f("config, err={}", resp.err.to_string());
-                  if (err_code != ERR_OK) {
-                      return;
-                  }
-                  for (const auto &part : resp.partitions) {
-                      if (part.primary.is_invalid()) {
-                          err_code = ERR_INACTIVE_STATE;
-                          return;
-                      }
+                  error_code query_err = err == ERR_OK ? resp.err : err;
+                  if (query_err == ERR_OK) {
+                      for (const auto &part : resp.partitions) {
+                          if (part.primary.is_invalid()) {
+                              query_err = ERR_INACTIVE_STATE;
+                              break;
+                          }
 
-                      for (const auto &sec : part.secondaries) {
-                          if (sec.is_invalid()) {
-                              err_code = ERR_INACTIVE_STATE;
-                              return;
+                          for (const auto &sec : part.secondaries) {
+                              if (sec.is_invalid()) {
+                                  query_err = ERR_INACTIVE_STATE;
+                                  break;
+                              }
                           }
                       }
                   }
-              })
-        ->wait();
-    derror_f("query follower app[{}.{}] replica configuration, err={}",
-             get_current_cluster_name(),
-             dup->app_name,
-             err_code.to_string());// todo:必须判断当前状态为restore数据的ok，而不是空表
-    return err_code;
+
+                  error_code update_err = ERR_NO_NEED_OPERATE;
+                  if (query_err == ERR_OK) {
+                      update_err = dup->alter_status(duplication_status::DS_LOG);
+                  }
+
+                  if (update_err == ERR_OK) {
+                      derror_f("start persist 2");
+                      blob value = dup->to_json_blob();
+                      _meta_svc->get_meta_storage()->set_data(std::string(dup->store_path),
+                                                              std::move(value),
+                                                              [dup]() { dup->persist_status(); });
+                  }
+
+                  derror_f("query follower app[{}.{}] replica configuration completed, "
+                           "duplication_status = {}, query_err = {}, update_err = {}",
+                           get_current_cluster_name(),
+                           dup->app_name,
+                           duplication_status_to_string(dup->status()),
+                           query_err.to_string(),
+                           update_err); // todo:必须判断当前状态为restore数据的ok，而不是空表
+              });
 }
 
 void meta_duplication_service::do_update_partition_confirmed(
@@ -449,7 +473,7 @@ void meta_duplication_service::do_update_partition_confirmed(
             // of all partitions are stored.
         });
     }
-    derror_f("resp size {}",  rpc.response().dup_map.size());
+    derror_f("resp size {}", rpc.response().dup_map.size());
 }
 
 std::shared_ptr<duplication_info>

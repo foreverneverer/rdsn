@@ -32,7 +32,8 @@ replica_duplicator_manager::get_duplication_confirms_to_update() const
     for (const auto &kv : _duplications) {
         replica_duplicator *duplicator = kv.second.get();
         duplication_progress p = duplicator->progress();
-        if (p.last_decree != p.confirmed_decree && p.checkpoint_has_prepared) {// todo 这个条件有待优化,删掉的需要恢复
+        if (p.last_decree != p.confirmed_decree &&
+            p.checkpoint_has_prepared) { // todo 这个条件有待优化,删掉的需要恢复
             duplication_confirm_entry entry;
             entry.dupid = duplicator->id();
             entry.confirmed_decree = p.last_decree;
@@ -72,16 +73,16 @@ void replica_duplicator_manager::sync_duplication(const duplication_entry &ent)
         // update progress
         derror_replica("update_status_if_needed dup!=null");
         duplication_progress newp = dup->progress().set_confirmed_decree(it->second);
-         derror_replica("set_confirmed_decree ok");
+        derror_replica("set_confirmed_decree ok");
         dcheck_eq_replica(dup->update_progress(newp), error_s::ok());
         derror_replica("update_progress ok");
         dup->update_status_if_needed(next_status);
-          derror_replica("update_status_if_needed ok");
+        derror_replica("update_status_if_needed ok");
         if (ent.__isset.fail_mode) {
             dup->update_fail_mode(ent.fail_mode);
-              derror_replica("update_fail_mode ok");
+            derror_replica("update_fail_mode ok");
         }
-          derror_replica("update_status_if_needed dup!=null ok");
+        derror_replica("update_status_if_needed dup!=null ok");
     }
 }
 

@@ -54,10 +54,9 @@ replica_duplicator::replica_duplicator(const duplication_entry &ent, replica *r)
 
 void replica_duplicator::prepare_dup()
 {
-    derror_replica(
-        "start prepare checkpoint: start_point_decree({})  vs last_durable_decree({})",
-        _start_point_decree,
-        _replica->last_durable_decree());
+    derror_replica("start prepare checkpoint: start_point_decree({})  vs last_durable_decree({})",
+                   _start_point_decree,
+                   _replica->last_durable_decree());
 
     tasking::enqueue(LPC_REPLICATION_COMMON,
                      &_tracker,
@@ -128,7 +127,7 @@ void replica_duplicator::update_status_if_needed(duplication_status::type next_s
                    _start_point_decree,
                    _replica->last_committed_decree(),
                    _replica->last_durable_decree());
-  
+
     if (_status == duplication_status::DS_PREPARE) {
         derror_replica("prepare duplicating checkpoint");
         prepare_dup();
@@ -182,7 +181,10 @@ error_s replica_duplicator::update_progress(const duplication_progress &p)
     _progress.confirmed_decree = std::max(_progress.confirmed_decree, p.confirmed_decree);
     _progress.last_decree = std::max(_progress.last_decree, p.last_decree);
     _progress.checkpoint_has_prepared = _start_point_decree <= _replica->last_durable_decree();
-    derror_replica("checkpoint:{} {} vs {}",_progress.checkpoint_has_prepared, _start_point_decree,  _replica->last_durable_decree());
+    derror_replica("checkpoint:{} {} vs {}",
+                   _progress.checkpoint_has_prepared,
+                   _start_point_decree,
+                   _replica->last_durable_decree());
 
     if (_progress.confirmed_decree > _progress.last_decree) {
         return FMT_ERR(ERR_INVALID_STATE,

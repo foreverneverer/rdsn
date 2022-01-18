@@ -1101,6 +1101,14 @@ void server_state::create_app(dsn::message_ex *msg)
                                request.options.duplication.cluster_name,
                                request.options.duplication.app_name));
 
+    if (_exist_apps.find(request.app_name) != _exist_apps.end()) {
+        derror_f("request app name({}) has existed and not allow to create it!", request.app_name);
+        response.err = ERR_APP_EXIST;
+        _meta_svc->reply_data(msg, response);
+        msg->release_ref();
+        return;
+    }
+
     auto option_match_check = [](const create_app_options &opt, const app_state &exist_app) {
         return opt.partition_count == exist_app.partition_count &&
                opt.app_type == exist_app.app_type && opt.envs == exist_app.envs &&

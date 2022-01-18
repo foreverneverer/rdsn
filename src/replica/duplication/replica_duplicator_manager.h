@@ -43,7 +43,8 @@ public:
     {
         derror_replica("update_duplication_map");
         if (_replica->status() != partition_status::PS_PRIMARY || new_dup_map.empty()) {
-            derror_replica("update_duplication_map:_replica->status() != partition_status::PS_PRIMARY || new_dup_map.empty()");
+            derror_replica("update_duplication_map:_replica->status() != "
+                           "partition_status::PS_PRIMARY || new_dup_map.empty()");
             remove_all_duplications();
             return;
         }
