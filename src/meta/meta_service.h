@@ -167,7 +167,7 @@ public:
     {
         std::string metas;
         for (const auto &node : _opts.meta_servers) {
-            metas = fmt::format("{},", node.to_string());
+            metas = fmt::format("{}{},", metas, node.to_string());
         }
         return metas.substr(0, metas.length() - 1);
     }

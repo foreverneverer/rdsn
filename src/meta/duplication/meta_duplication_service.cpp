@@ -347,7 +347,7 @@ void meta_duplication_service::trigger_follower_duplicate_checkpoint(
     request.options.__set_duplication(opts);
 
     request.options.envs.emplace(duplication_constants::DUPLICATION_MASTER_APP_FLAG,
-                                 fmt::format("{}({})|{}",
+                                 fmt::format("{}[{}]({})",
                                              get_current_cluster_name(),
                                              _meta_svc->get_meta_list_string(),
                                              app->app_name));
@@ -378,7 +378,6 @@ void meta_duplication_service::trigger_follower_duplicate_checkpoint(
                                                               [dup]() { dup->persist_status(); });
                   }
 
-                  app->app_name;
                   derror_f("created follower app[{}.{}] to trigger duplicate checkpoint, "
                            "duplication_status = {}, create_err = {}, update_err = {}",
                            get_current_cluster_name(),
