@@ -66,7 +66,7 @@ public:
 
     void update_master_replica_config(std::unique_ptr<replica_follower> follower)
     {
-        follower->update_master_replica_config();
+        follower->async_duplicate_checkpoint_from_master_replica();
     }
 
     void test_pause_start_duplication()

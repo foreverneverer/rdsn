@@ -329,7 +329,7 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
 
 // todo
 void meta_duplication_service::trigger_follower_duplicate_checkpoint(
-    const std::shared_ptr<duplication_info> dup, const std::shared_ptr<app_state> app)
+    const std::shared_ptr<duplication_info> &dup, const std::shared_ptr<app_state> &app)
 {
     configuration_create_app_request request;
     request.app_name = app->app_name;
@@ -356,17 +356,19 @@ void meta_duplication_service::trigger_follower_duplicate_checkpoint(
     meta_servers.assign_group(dup->follower_cluster_name.c_str());
     meta_servers.group_address()->add_list(dup->follower_cluster_metas);
 
+    derror_f("JJJJJJJJ:{}", dup->status());
     dsn::message_ex *msg = dsn::message_ex::create_request(RPC_CM_CREATE_APP);
     dsn::marshall(msg, request);
     rpc::call(meta_servers,
               msg,
               _meta_svc->tracker(),
-              [&](error_code err, configuration_create_app_response &&resp) mutable {
+              [=](error_code err, configuration_create_app_response &&resp) mutable {
                   error_code create_err = err == ERR_OK ? resp.err : err;
                   error_code update_err = ERR_NO_NEED_OPERATE;
                   if (create_err == ERR_OK) {
                       update_err = dup->alter_status(duplication_status::DS_APP);
                   }
+                  derror_f("LALALA:{}, {}", create_err.to_string(), dup->status());
 
                   if (update_err == ERR_OK) {
                       derror_f("start persist 1");
@@ -376,6 +378,7 @@ void meta_duplication_service::trigger_follower_duplicate_checkpoint(
                                                               [dup]() { dup->persist_status(); });
                   }
 
+                  app->app_name;
                   derror_f("created follower app[{}.{}] to trigger duplicate checkpoint, "
                            "duplication_status = {}, create_err = {}, update_err = {}",
                            get_current_cluster_name(),
@@ -387,7 +390,7 @@ void meta_duplication_service::trigger_follower_duplicate_checkpoint(
 }
 
 void meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
-    const std::shared_ptr<duplication_info> dup)
+    const std::shared_ptr<duplication_info> &dup)
 {
     rpc_address meta_servers;
     meta_servers.assign_group(dup->follower_cluster_name.c_str());
@@ -401,7 +404,7 @@ void meta_duplication_service::check_follower_duplicate_checkpoint_if_completed(
     rpc::call(meta_servers,
               msg,
               _meta_svc->tracker(),
-              [&](error_code err, configuration_query_by_index_response &&resp) mutable {
+              [=](error_code err, configuration_query_by_index_response &&resp) mutable {
                   error_code query_err = err == ERR_OK ? resp.err : err;
                   if (query_err == ERR_OK) {
                       for (const auto &part : resp.partitions) {

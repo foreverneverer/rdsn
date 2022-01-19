@@ -128,7 +128,7 @@ void replica_duplicator::update_status_if_needed(duplication_status::type next_s
                    _replica->last_committed_decree(),
                    _replica->last_durable_decree());
 
-    if (_status == duplication_status::DS_PREPARE) {
+    if (next_status == duplication_status::DS_PREPARE) {
         derror_replica("prepare duplicating checkpoint");
         prepare_dup();
         return;
@@ -139,7 +139,6 @@ void replica_duplicator::update_status_if_needed(duplication_status::type next_s
     }
 
     _status = next_status;
-
     if (_status == duplication_status::DS_APP) {
         derror_replica("follower is duplicating checkpoint");
         return;

@@ -2043,6 +2043,7 @@ void replica_stub::open_replica(const app_info &app,
 {
     std::string dir = get_replica_dir(app.app_type.c_str(), id, false);
     replica_ptr rep = nullptr;
+    derror_f("start open: {}", id.to_string());
     if (!dir.empty()) {
         // NOTICE: if partition is DDD, and meta select one replica as primary, it will execute the
         // load-process because of a.b.pegasus is exist, so it will never execute the restore
