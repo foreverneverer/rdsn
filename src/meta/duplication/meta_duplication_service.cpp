@@ -81,8 +81,19 @@ void meta_duplication_service::modify_duplication(duplication_modify_rpc rpc)
     duplication_info_s_ptr dup = it->second;
 
     // todo(jiashuo1) 限制随意的状态修改
-
     auto to_status = request.__isset.status ? request.status : dup->status();
+    if (to_status == duplication_status::DS_PAUSE && dup->status() != duplication_status::DS_LOG) {
+        derror_f("only pause when current status is DS_LOG");
+        response.err = ERR_INVALID_PARAMETERS;
+        return;
+    }
+
+    if (to_status == duplication_status::DS_LOG && dup->status() != duplication_status::DS_PAUSE) {
+        derror_f("only recover to start DS_LOG from DS_PAUSE");
+        response.err = ERR_INVALID_PARAMETERS;
+        return;
+    }
+
     auto to_fail_mode = request.__isset.fail_mode ? request.fail_mode : dup->fail_mode();
     response.err = dup->alter_status(to_status, to_fail_mode);
     if (response.err != ERR_OK) {
@@ -279,8 +290,12 @@ void meta_duplication_service::duplication_sync(duplication_sync_rpc rpc)
                 } else if (dup->status() == duplication_status::DS_APP) {
                     check_follower_duplicate_checkpoint_if_completed(dup);
                 }
-            } else if (dup->status() != duplication_status::DS_PAUSE &&
-                       dup->status() != duplication_status::DS_REMOVED) { // todo(jiahsuo1) 这个条件不需要处理，如果没有准备好，就保持当前状态就行。这个和start_point有关。start_point置零后，这个条件判断会有问题
+            } else if (
+                dup->status() != duplication_status::DS_PAUSE &&
+                dup->status() !=
+                    duplication_status::
+                        DS_REMOVED) { // todo(jiahsuo1)
+                                      // 这个条件不需要处理，如果没有准备好，就保持当前状态就行。这个和start_point有关。start_point置零后，这个条件判断会有问题
                 derror_f("no prepared: {}", duplication_status_to_string(dup->status()));
                 dup->alter_status(duplication_status::DS_PREPARE);
             }
