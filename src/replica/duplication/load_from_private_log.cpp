@@ -169,12 +169,14 @@ void load_from_private_log::replay_log_block()
                                    },
                                    _start_offset,
                                    _current_global_end_offset);
-    if (!err.is_ok()) {
-        if (err.code() == ERR_HANDLE_EOF && switch_to_next_log_file()) {
-            repeat();
-            return;
-        }
 
+    if (err.is_ok()) {
+        _start_offset = static_cast<size_t>(_current_global_end_offset - _current->start_offset());
+        repeat();
+        return;
+    }
+
+    if (err.code() != ERR_HANDLE_EOF) {
         // Error handling on loading failure:
         // - If block loading failed for `MAX_ALLOWED_REPEATS` times, it restarts reading the file.
         // - If file loading failed for `MAX_ALLOWED_FILE_REPEATS` times, which means it
@@ -220,7 +222,13 @@ void load_from_private_log::replay_log_block()
         return;
     }
 
-    _start_offset = static_cast<size_t>(_current_global_end_offset - _current->start_offset());
+    derror_replica("has reply[{}] log[{}] sync to: {}",
+                   _mutation_batch.size(),
+                   _current->path(),
+                   _mutation_batch.last_decree());
+    if (switch_to_next_log_file()) {
+        derror_replica("switch next[{}] plog({})", _current->index(), _current->path());
+    }
 
     // update last_decree even for empty batch.
     step_down_next_stage(_mutation_batch.last_decree(), _mutation_batch.move_all_mutations());

@@ -149,6 +149,8 @@ add_mutation_if_valid(mutation_ptr &mu, mutation_tuple_set &mutations, decree st
         // ignore
         return;
     }
+    // derror_f("{}: add_mutation_if_valid: {}", mu->name(), mu->get_decree());
+
     for (mutation_update &update : mu->data.updates) {
         // ignore WRITE_EMPTY
         if (update.code == RPC_REPLICATION_WRITE_EMPTY) {

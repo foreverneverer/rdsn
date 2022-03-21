@@ -48,6 +48,7 @@ void load_mutation::run()
         return;
     }
 
+    derror_replica("load_mutation sync to: {}", _start_decree);
     _log_on_disk->set_start_decree(_start_decree);
     _log_on_disk->async();
 }
@@ -79,11 +80,13 @@ void ship_mutation::run(decree &&last_decree, mutation_tuple_set &&in)
     _last_decree = last_decree;
 
     if (in.empty()) {
+        derror_replica("ship_mutation empty to: {}", _last_decree);
         update_progress();
         step_down_next_stage();
         return;
     }
 
+    derror_replica("ship_mutation sync to: {}", _last_decree);
     ship(std::move(in));
 }
 
